@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import Header from '@/components/Header'
@@ -32,13 +32,26 @@ interface Category {
   status: string
 }
 
-export default function ProduitsPage() {
+// Separate component for search params handling
+function SearchParamsHandler({ onSearchTermChange }: { onSearchTermChange: (term: string) => void }) {
   const searchParams = useSearchParams()
+  
+  useEffect(() => {
+    const searchQuery = searchParams.get('search')
+    if (searchQuery) {
+      onSearchTermChange(searchQuery)
+    }
+  }, [searchParams, onSearchTermChange])
+  
+  return null
+}
+
+function ProduitsPageContent() {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
-  const [totalProductsInDb, setTotalProductsInDb] = useState(0) // Nouveau state
+  const [totalProductsInDb, setTotalProductsInDb] = useState(0)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [sortBy, setSortBy] = useState('name')
@@ -47,29 +60,20 @@ export default function ProduitsPage() {
   const productsPerPage = 20
   const { addItem, openCart, state, updateQuantity, removeItem } = useCart()
 
-  // Initialize search term from URL parameters
-  useEffect(() => {
-    const searchQuery = searchParams.get('search')
-    if (searchQuery) {
-      setSearchTerm(searchQuery)
-    }
-  }, [searchParams])
-
   useEffect(() => {
     const loadInitialData = async () => {
       setLoading(true)
       try {
         const appwrite = AppwriteService.getInstance()
-        const result = await appwrite.getAllProducts() // Utiliser la nouvelle méthode
+        const result = await appwrite.getAllProducts()
         
         console.log('🔍 Produits récupérés:', result?.total || 0, 'sur', result?.documents?.length || 0)
         
         if (result && result.documents && result.documents.length > 0) {
           const realProducts = (result.documents as unknown as Product[]) || []
           setProducts(realProducts)
-          setTotalProductsInDb(result.total) // Stocker le total de la DB
+          setTotalProductsInDb(result.total)
           
-          // Set price range based on actual products
           const maxPrice = Math.max(...realProducts.map(p => p.price))
           setPriceRange(prev => ({ ...prev, max: Math.ceil(maxPrice / 100) * 100 }))
           
@@ -80,7 +84,6 @@ export default function ProduitsPage() {
           setTotalProductsInDb(0)
         }
 
-        // Load categories
         try {
           const categoriesResult = await appwrite.getCategories()
           if (categoriesResult?.documents) {
@@ -112,7 +115,6 @@ export default function ProduitsPage() {
   const filterAndSortProducts = () => {
     let filtered = [...products]
 
-    // Enhanced search - works letter by letter with partial matches (minimum 1 character)
     if (searchTerm && searchTerm.trim().length >= 1) {
       const searchTerms = searchTerm.toLowerCase().trim().split(' ').filter(term => term.length > 0)
       
@@ -122,13 +124,11 @@ export default function ProduitsPage() {
         const productBrand = product.brand?.toLowerCase() || ''
         const productCategory = product.category_name?.toLowerCase() || ''
         
-        // Check if any search term matches any product field
         return searchTerms.some(term => 
           productName.includes(term) ||
           productDescription.includes(term) ||
           productBrand.includes(term) ||
           productCategory.includes(term) ||
-          // Also check for exact word starts (better relevance)
           productName.startsWith(term) ||
           productDescription.startsWith(term) ||
           productBrand.startsWith(term)
@@ -196,6 +196,10 @@ export default function ProduitsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
       <Header />
+      
+      <Suspense fallback={<div>Loading search...</div>}>
+        <SearchParamsHandler onSearchTermChange={setSearchTerm} />
+      </Suspense>
       
       {/* Modern Hero Section */}
       <section className="relative bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-white overflow-hidden">
@@ -517,5 +521,13 @@ export default function ProduitsPage() {
         </div>
       </section>
     </div>
+  )
+}
+
+export default function ProduitsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <ProduitsPageContent />
+    </Suspense>
   )
 }
