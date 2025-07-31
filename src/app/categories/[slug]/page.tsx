@@ -56,9 +56,36 @@ export default function CategoryPage() {
     filterAndSortProducts()
   }, [products, searchTerm, sortBy, priceRange])
 
+  // Test Appwrite connection
+  const testAppwriteConnection = async () => {
+    try {
+      console.log('🧪 Testing Appwrite connection...')
+      const appwrite = AppwriteService.getInstance()
+      const testResult = await appwrite.getProducts([appwrite.Query.limit(1)])
+      console.log('✅ Appwrite connection successful:', testResult)
+      return true
+    } catch (error) {
+      console.error('❌ Appwrite connection failed:', error)
+      return false
+    }
+  }
+
+  // Run connection test on mount
+  useEffect(() => {
+    testAppwriteConnection()
+  }, [])
+
   const fetchCategoryAndProducts = async () => {
     setLoading(true)
     try {
+      // Debug: Check if environment variables are available
+      console.log('🌍 Environment check:', {
+        endpoint: process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT,
+        projectId: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID,
+        databaseId: process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID,
+        hasApiKey: !!process.env.APPWRITE_API_KEY
+      })
+      
       const appwrite = AppwriteService.getInstance()
       
       // Debug: Log the slug we're searching for
@@ -163,6 +190,22 @@ export default function CategoryPage() {
       }
     } catch (error) {
       console.error('❌ Error fetching category and products:', error)
+      console.error('❌ Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        type: typeof error,
+        error: error
+      })
+      
+      // Check if it's a network connectivity issue
+      if (error instanceof Error && (
+        error.message.includes('fetch') || 
+        error.message.includes('network') ||
+        error.message.includes('Failed to fetch') ||
+        error.message.includes('NetworkError')
+      )) {
+        console.error('🌐 Network connectivity issue detected')
+      }
       
       // Final fallback
       setCategory({ 
