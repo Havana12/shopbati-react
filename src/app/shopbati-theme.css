@@ -1,0 +1,654 @@
+/* SHOPBATI Theme - Building Materials E-commerce */
+
+@layer components {
+  /* SHOPBATI Variables */
+  :root {
+      /* Yellow Color Palette - Primary Theme */
+      --primary-yellow: #FFD700;
+      --secondary-yellow: #FFC107;
+      --accent-yellow: #FFEB3B;
+      --dark-yellow: #FF8F00;
+      --light-yellow: #FFF9C4;
+      
+      /* Supporting Colors */
+      --primary-orange: #FF9800;
+      --primary-black: #212121;
+      --secondary-black: #424242;
+      --light-gray: #F5F5F5;
+      --medium-gray: #9E9E9E;
+      --dark-gray: #616161;
+      --white: #FFFFFF;
+      
+      /* Construction Theme Colors */
+      --construction-orange: #FF5722;
+      --construction-red: #D32F2F;
+      --construction-blue: #1976D2;
+      --construction-green: #388E3C;
+      
+      /* Shadows */
+      --shadow-light: 0 2px 8px rgba(255, 193, 7, 0.1);
+      --shadow-medium: 0 4px 16px rgba(255, 193, 7, 0.2);
+      --shadow-heavy: 0 8px 32px rgba(255, 193, 7, 0.3);
+  }
+
+  /* SHOPBATI Header Styles */
+  .shopbati-header {
+      @apply bg-gradient-to-r from-yellow-400 to-yellow-500 shadow-lg border-b-4 border-yellow-600;
+  }
+
+  .shopbati-top-bar {
+      @apply bg-gray-900 text-white py-2 text-sm;
+  }
+
+  .shopbati-logo {
+      @apply flex items-center no-underline text-gray-900 font-black text-2xl;
+  }
+
+  .shopbati-logo-icon {
+      @apply w-16 h-16 bg-gray-900 rounded-xl flex items-center justify-center mr-4 relative overflow-hidden;
+  }
+
+  .shopbati-brand-text {
+      @apply flex flex-col;
+  }
+
+  .shopbati-brand-name {
+      @apply text-gray-900 text-2xl font-black leading-none;
+  }
+
+  .shopbati-brand-tagline {
+      @apply text-yellow-700 text-xs font-semibold uppercase tracking-widest mt-1;
+  }
+
+  /* Navigation Styles */
+  .shopbati-nav {
+      @apply bg-white border-t-2 border-yellow-500 p-0;
+  }
+
+  .shopbati-nav-link {
+      @apply text-gray-900 no-underline py-4 px-6 font-semibold text-base uppercase tracking-wide transition-all duration-300 relative;
+  }
+
+  .shopbati-nav-link:hover {
+      @apply bg-yellow-100 text-gray-900 transform -translate-y-1;
+  }
+
+  .shopbati-nav-link.active {
+      @apply bg-yellow-400 text-gray-900 font-bold;
+  }
+
+  /* Container */
+  .shopbati-container {
+      @apply max-w-7xl mx-auto px-4;
+  }
+
+  /* Utility Classes */
+  .shopbati-flex {
+      @apply flex items-center justify-between;
+  }
+
+  .shopbati-text-center {
+      @apply text-center;
+  }
+
+  /* Custom CSS Variables for Tailwind Compatibility */
+  .bg-shopbati-primary { 
+      background-color: #FFD700; 
+  }
+  .bg-shopbati-secondary { 
+      background-color: #FFC107; 
+  }
+  .bg-shopbati-dark { 
+      background-color: #212121; 
+  }
+  .text-shopbati-primary { 
+      color: #FFD700; 
+  }
+  .text-shopbati-dark { 
+      color: #212121; 
+  }
+  .border-shopbati-primary { 
+      border-color: #FFD700; 
+  }
+  .hover\:bg-shopbati-light-yellow:hover { 
+      background-color: #FFF9C4; 
+  }
+  .text-shopbati-primary-black { 
+      color: #212121; 
+  }
+  .bg-shopbati-primary-yellow { 
+      background-color: #FFD700; 
+  }
+  .hover\:bg-shopbati-dark-yellow:hover { 
+      background-color: #FF8F00; 
+  }
+  .bg-shopbati-construction-red { 
+      background-color: #D32F2F; 
+  }
+  .text-shopbati-construction-red { 
+      color: #D32F2F; 
+  }
+  .hover\:text-shopbati-secondary-yellow:hover { 
+      color: #FFC107; 
+  }
+  .bg-shopbati-light-yellow { 
+      background-color: #FFF9C4; 
+  }
+}
+
+/* Global Styles */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Roboto', 'Arial', sans-serif;
+    background-color: var(--light-gray);
+    color: var(--primary-black);
+    line-height: 1.6;
+}
+
+/* SHOPBATI Header Styles */
+.shopbati-header {
+    background: linear-gradient(135deg, var(--primary-yellow), var(--secondary-yellow));
+    box-shadow: var(--shadow-medium);
+    border-bottom: 3px solid var(--dark-yellow);
+}
+
+.shopbati-top-bar {
+    background: var(--primary-black);
+    color: var(--white);
+    padding: 8px 0;
+    font-size: 0.9rem;
+}
+
+.shopbati-logo {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: var(--primary-black);
+    font-weight: 900;
+    font-size: 2rem;
+    letter-spacing: -1px;
+}
+
+.shopbati-logo-icon {
+    width: 60px;
+    height: 60px;
+    background: var(--primary-black);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    position: relative;
+    overflow: hidden;
+}
+
+.shopbati-logo-icon::before {
+    content: '🏗️';
+    font-size: 2rem;
+    color: var(--primary-yellow);
+}
+
+.shopbati-brand-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.shopbati-brand-name {
+    color: var(--primary-black);
+    font-size: 2.2rem;
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+}
+
+.shopbati-brand-tagline {
+    color: var(--dark-yellow);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-top: 2px;
+}
+
+/* Navigation Styles */
+.shopbati-nav {
+    background: var(--white);
+    border-top: 2px solid var(--secondary-yellow);
+    padding: 0;
+}
+
+.shopbati-nav-link {
+    color: var(--primary-black);
+    text-decoration: none;
+    padding: 16px 24px;
+    font-weight: 600;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+    border-radius: 0;
+    position: relative;
+}
+
+.shopbati-nav-link:hover {
+    background: var(--light-yellow);
+    color: var(--primary-black);
+    transform: translateY(-2px);
+}
+
+.shopbati-nav-link.active {
+    background: var(--primary-yellow);
+    color: var(--primary-black);
+    font-weight: 700;
+}
+
+.shopbati-nav-link.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--dark-yellow);
+}
+
+/* Hero Section */
+.shopbati-hero {
+    background: linear-gradient(135deg, var(--primary-yellow) 0%, var(--secondary-yellow) 50%, var(--primary-orange) 100%);
+    padding: 80px 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.shopbati-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(33,33,33,0.02) 10px,
+        rgba(33,33,33,0.02) 20px
+    );
+    opacity: 0.5;
+}
+
+.shopbati-hero-content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+}
+
+.shopbati-hero-title {
+    font-size: 4rem;
+    font-weight: 900;
+    color: var(--primary-black);
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: -2px;
+}
+
+.shopbati-hero-subtitle {
+    font-size: 1.5rem;
+    color: var(--secondary-black);
+    margin-bottom: 30px;
+    font-weight: 600;
+}
+
+.shopbati-hero-cta {
+    background: var(--primary-black);
+    color: var(--primary-yellow);
+    padding: 18px 40px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+    box-shadow: var(--shadow-medium);
+}
+
+.shopbati-hero-cta:hover {
+    background: var(--secondary-black);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-heavy);
+}
+
+/* Product Cards */
+.shopbati-product-card {
+    background: var(--white);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-light);
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.shopbati-product-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-heavy);
+    border-color: var(--secondary-yellow);
+}
+
+.shopbati-product-image {
+    height: 200px;
+    background: linear-gradient(45deg, var(--light-yellow), var(--accent-yellow));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    color: var(--primary-black);
+    position: relative;
+}
+
+.shopbati-product-image::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%);
+    transform: translateX(-100%);
+    transition: transform 0.6s ease;
+}
+
+.shopbati-product-card:hover .shopbati-product-image::after {
+    transform: translateX(100%);
+}
+
+.shopbati-product-content {
+    padding: 20px;
+}
+
+.shopbati-product-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--primary-black);
+    margin-bottom: 10px;
+}
+
+.shopbati-product-price {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: var(--construction-red);
+    margin-bottom: 15px;
+}
+
+.shopbati-product-btn {
+    background: var(--primary-yellow);
+    color: var(--primary-black);
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.shopbati-product-btn:hover {
+    background: var(--dark-yellow);
+    transform: translateY(-2px);
+}
+
+/* Category Sections */
+.shopbati-category {
+    padding: 60px 0;
+    background: var(--white);
+}
+
+.shopbati-category:nth-child(even) {
+    background: var(--light-gray);
+}
+
+.shopbati-category-title {
+    font-size: 2.5rem;
+    font-weight: 900;
+    text-align: center;
+    color: var(--primary-black);
+    margin-bottom: 50px;
+    text-transform: uppercase;
+    letter-spacing: -1px;
+    position: relative;
+}
+
+.shopbati-category-title::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 4px;
+    background: var(--primary-yellow);
+}
+
+/* Feature Cards */
+.shopbati-feature-card {
+    background: var(--white);
+    padding: 30px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: var(--shadow-light);
+    transition: all 0.3s ease;
+    border-top: 4px solid var(--primary-yellow);
+}
+
+.shopbati-feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-medium);
+    border-top-color: var(--dark-yellow);
+}
+
+.shopbati-feature-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    background: var(--light-yellow);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--primary-black);
+}
+
+.shopbati-feature-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--primary-black);
+    margin-bottom: 15px;
+}
+
+.shopbati-feature-text {
+    color: var(--dark-gray);
+    line-height: 1.6;
+}
+
+/* Footer */
+.shopbati-footer {
+    background: var(--primary-black);
+    color: var(--white);
+    padding: 60px 0 30px;
+}
+
+.shopbati-footer-section {
+    margin-bottom: 30px;
+}
+
+.shopbati-footer-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--primary-yellow);
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.shopbati-footer-link {
+    color: var(--medium-gray);
+    text-decoration: none;
+    display: block;
+    padding: 5px 0;
+    transition: color 0.3s ease;
+}
+
+.shopbati-footer-link:hover {
+    color: var(--primary-yellow);
+}
+
+.shopbati-footer-bottom {
+    border-top: 1px solid var(--secondary-black);
+    padding-top: 30px;
+    text-align: center;
+    color: var(--medium-gray);
+}
+
+/* Professional Badge */
+.shopbati-pro-badge {
+    background: var(--construction-red);
+    color: var(--white);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: inline-block;
+    margin-bottom: 20px;
+}
+
+/* Utility Classes */
+.shopbati-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.shopbati-grid {
+    display: grid;
+    gap: 30px;
+}
+
+.shopbati-grid-2 {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.shopbati-grid-3 {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.shopbati-grid-4 {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.shopbati-flex {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.shopbati-text-center {
+    text-align: center;
+}
+
+/* Animations */
+@keyframes shopbati-fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.shopbati-animate-fade {
+    animation: shopbati-fadeIn 0.6s ease forwards;
+}
+
+@keyframes shopbati-pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.shopbati-animate-pulse {
+    animation: shopbati-pulse 2s infinite;
+}
+
+/* Construction-themed elements */
+.shopbati-construction-stripe {
+    background: repeating-linear-gradient(
+        45deg,
+        var(--primary-yellow),
+        var(--primary-yellow) 10px,
+        var(--primary-black) 10px,
+        var(--primary-black) 20px
+    );
+    height: 10px;
+}
+
+.shopbati-safety-banner {
+    background: var(--construction-orange);
+    color: var(--white);
+    padding: 15px;
+    text-align: center;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .shopbati-hero-title {
+        font-size: 2.5rem;
+    }
+    
+    .shopbati-hero-subtitle {
+        font-size: 1.2rem;
+    }
+    
+    .shopbati-logo {
+        font-size: 1.5rem;
+    }
+    
+    .shopbati-brand-name {
+        font-size: 1.8rem;
+    }
+    
+    .shopbati-nav-link {
+        padding: 12px 16px;
+        font-size: 0.9rem;
+    }
+    
+    .shopbati-category-title {
+        font-size: 2rem;
+    }
+}
+
+/* Custom CSS Variables for Tailwind Compatibility */
+.bg-shopbati-primary { background-color: var(--primary-yellow); }
+.bg-shopbati-secondary { background-color: var(--secondary-yellow); }
+.bg-shopbati-dark { background-color: var(--primary-black); }
+.text-shopbati-primary { color: var(--primary-yellow); }
+.text-shopbati-dark { color: var(--primary-black); }
+.border-shopbati-primary { border-color: var(--primary-yellow); }
