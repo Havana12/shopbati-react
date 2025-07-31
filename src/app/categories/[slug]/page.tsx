@@ -61,14 +61,23 @@ export default function CategoryPage() {
     try {
       const appwrite = AppwriteService.getInstance()
       
+      // Debug: Log the slug we're searching for
+      console.log('🔍 Searching for category slug:', categorySlug)
+      
       // Find category by slug
       const categoriesResult = await appwrite.getCategories([
         appwrite.Query.equal('slug', categorySlug)
       ])
       
+      console.log('📁 Categories found:', categoriesResult.documents.length)
+      console.log('📁 Categories data:', categoriesResult.documents)
+      
       if (categoriesResult.documents.length > 0) {
         const foundCategory = categoriesResult.documents[0] as any
         setCategory(foundCategory)
+        
+        console.log('✅ Found category:', foundCategory)
+        console.log('🆔 Category ID:', foundCategory.$id)
         
         // Get products for this category
         const productsResult = await appwrite.getProducts([
@@ -76,6 +85,9 @@ export default function CategoryPage() {
           appwrite.Query.equal('status', 'active'),
           appwrite.Query.limit(100)
         ])
+        
+        console.log('🛍️ Products found for category:', productsResult.documents.length)
+        console.log('🛍️ Products data:', productsResult.documents)
         
         const categoryProducts = productsResult.documents as unknown as Product[]
         setProducts(categoryProducts)
@@ -85,18 +97,74 @@ export default function CategoryPage() {
           setPriceRange(prev => ({ ...prev, max: Math.ceil(maxPrice / 100) * 100 }))
         }
       } else {
-        // Fallback
-        setCategory({ 
-          name: categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1), 
-          description: `Produits de ${categorySlug}`,
-          $id: '',
-          slug: categorySlug,
-          status: 'active'
-        })
-        setProducts([])
+        console.log('❌ No category found by slug, trying by name...')
+        
+        // Fallback: try to find category by name (case-insensitive)
+        const categoryName = categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1)
+        const categoriesResultByName = await appwrite.getCategories([
+          appwrite.Query.equal('name', categoryName)
+        ])
+        
+        console.log('📁 Categories found by name:', categoriesResultByName.documents.length)
+        
+        if (categoriesResultByName.documents.length > 0) {
+          const foundCategory = categoriesResultByName.documents[0] as any
+          setCategory(foundCategory)
+          
+          console.log('✅ Found category by name:', foundCategory)
+          
+          // Get products for this category
+          const productsResult = await appwrite.getProducts([
+            appwrite.Query.equal('category_id', foundCategory.$id),
+            appwrite.Query.equal('status', 'active'),
+            appwrite.Query.limit(100)
+          ])
+          
+          console.log('🛍️ Products found for category (by name):', productsResult.documents.length)
+          
+          const categoryProducts = productsResult.documents as unknown as Product[]
+          setProducts(categoryProducts)
+          
+          if (categoryProducts.length > 0) {
+            const maxPrice = Math.max(...categoryProducts.map(p => p.price))
+            setPriceRange(prev => ({ ...prev, max: Math.ceil(maxPrice / 100) * 100 }))
+          }
+        } else {
+          console.log('❌ No category found by name either. Let\'s try to find products by category_name field...')
+          
+          // Last fallback: search products directly by category_name field
+          const productsResult = await appwrite.getProducts([
+            appwrite.Query.contains('category_name', categorySlug),
+            appwrite.Query.equal('status', 'active'),
+            appwrite.Query.limit(100)
+          ])
+          
+          console.log('🛍️ Products found by category_name:', productsResult.documents.length)
+          
+          if (productsResult.documents.length > 0) {
+            const categoryProducts = productsResult.documents as unknown as Product[]
+            setProducts(categoryProducts)
+            
+            if (categoryProducts.length > 0) {
+              const maxPrice = Math.max(...categoryProducts.map(p => p.price))
+              setPriceRange(prev => ({ ...prev, max: Math.ceil(maxPrice / 100) * 100 }))
+            }
+          }
+          
+          // Set fallback category info
+          setCategory({ 
+            name: categoryName, 
+            description: `Produits de ${categoryName}`,
+            $id: '',
+            slug: categorySlug,
+            status: 'active'
+          })
+        }
       }
     } catch (error) {
-      console.error('Error fetching category and products:', error)
+      console.error('❌ Error fetching category and products:', error)
+      
+      // Final fallback
       setCategory({ 
         name: categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1), 
         description: `Produits de ${categorySlug}`,
