@@ -218,15 +218,27 @@ export default function HomePage() {
   const fetchCategories = async () => {
     try {
       setLoading(true)
+      console.log('🔍 Home page: Attempting to fetch categories from Appwrite...')
+      console.log('🔧 Environment variables check:')
+      console.log('- ENDPOINT:', process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT)
+      console.log('- PROJECT_ID:', process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID)
+      console.log('- DATABASE_ID:', process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID)
+      
       const appwrite = AppwriteService.getInstance()
       const result = await appwrite.getCategories()
+      
+      console.log('📁 Categories result:', result)
+      
       if (result && result.documents && result.documents.length > 0) {
         // Sort categories by sort_order if available
         const sortedCategories = (result.documents as unknown as Category[]).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
         setCategories(sortedCategories)
+        console.log('✅ Categories loaded from database:', sortedCategories.length)
+      } else {
+        console.log('⚠️ No categories found in database, using fallback')
       }
     } catch (error) {
-      console.error('Error fetching categories:', error)
+      console.error('❌ Error fetching categories:', error)
       // Keep fallback categories if fetch fails
     } finally {
       setLoading(false)
@@ -235,6 +247,7 @@ export default function HomePage() {
 
   const fetchProducts = async () => {
     try {
+      console.log('🛍️ Home page: Attempting to fetch products from Appwrite...')
       const appwrite = AppwriteService.getInstance()
       // Limiter à 8 produits maximum pour la page d'accueil
       const result = await appwrite.getProducts([
@@ -242,13 +255,20 @@ export default function HomePage() {
         appwrite.Query.equal('status', 'active'),
         appwrite.Query.orderDesc('created_at')
       ])
+      
+      console.log('🛍️ Products result:', result)
+      
       if (result && result.documents && result.documents.length > 0) {
         // S'assurer qu'on a maximum 8 produits
         const limitedProducts = result.documents.slice(0, 8)
         setFeaturedProducts(limitedProducts as unknown as Product[])
+        console.log('✅ Products loaded from database:', limitedProducts.length)
+      } else {
+        console.log('⚠️ No products found in database, keeping fallback products')
       }
     } catch (error) {
-      console.error('Error fetching products:', error)
+      console.error('❌ Error fetching products:', error)
+      console.log('⚠️ Using fallback products due to error')
       // Garder seulement 8 produits de fallback
       setFeaturedProducts(prev => prev.slice(0, 8))
     }
