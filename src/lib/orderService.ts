@@ -19,6 +19,19 @@ export interface OrderData {
   }
   timestamp: string
   orderId: string
+  customerInfo?: {
+    accountType: string
+    firstName: string
+    lastName: string
+    raisonSociale: string
+    siret: string
+    tvaNumber: string
+    phone: string
+    address: string
+    city: string
+    postalCode: string
+    country: string
+  }
 }
 
 export interface CustomerInfo {

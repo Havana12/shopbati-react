@@ -11,6 +11,20 @@ interface OrderData {
     price: number
   }>
   total: number
+  isProfessional?: boolean
+  customerInfo?: {
+    accountType?: string
+    firstName?: string
+    lastName?: string
+    raisonSociale?: string
+    siret?: string
+    tvaNumber?: string
+    phone?: string
+    address?: string
+    city?: string
+    postalCode?: string
+    country?: string
+  }
   shippingAddress?: {
     street: string
     city: string
@@ -33,7 +47,16 @@ export class InvoiceGenerator {
   private static formatCurrency(amount: number): string {
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
-      currency: 'EUR'
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount)
+  }
+
+  private static formatNumber(amount: number): string {
+    return new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     }).format(amount)
   }
 
@@ -51,348 +74,322 @@ export class InvoiceGenerator {
         const doc = new jsPDF('p', 'mm', 'a4')
         const pageWidth = 210
         const pageHeight = 297
-        const margin = 20
+        const margin = 15
         const contentWidth = pageWidth - 2 * margin
         
         let yPosition = margin
 
-        // Couleurs SHOPBATI
+        // Couleurs SHOPBATI (même couleurs, structure Leroy Merlin)
         const yellowColor: [number, number, number] = [255, 215, 0] // #FFD700
         const darkGray: [number, number, number] = [33, 33, 33] // #212121
         const lightGray: [number, number, number] = [245, 245, 245] // #F5F5F5
 
-        // Fonction pour charger l'image en base64 avec plusieurs tentatives
-        const loadImageAsBase64 = async (): Promise<string | null> => {
-          try {
-            // Tentative 1: chemin absolu depuis public
-            let response = await fetch('/images/logo_shopbat.jpg')
-            if (!response.ok) {
-              // Tentative 2: avec un autre chemin
-              response = await fetch('/public/images/logo_shopbat.jpg')
-            }
-            
-            if (!response.ok) {
-              return null
-            }
-            
-            const blob = await response.blob()
-            return new Promise((resolve) => {
-              const reader = new FileReader()
-              reader.onload = () => {
-                const result = reader.result as string
-                resolve(result)
-              }
-              reader.onerror = () => {
-                resolve(null)
-              }
-              reader.readAsDataURL(blob)
-            })
-          } catch (error) {
-            // Fallback: créer un logo de base en base64 (simple rectangle avec texte)
-            return createFallbackLogo()
-          }
-        }
-
-        // Logo de fallback simple
-        const createFallbackLogo = (): string => {
-          // Créer un canvas simple avec le texte SHOPBATI
-          const canvas = document.createElement('canvas')
-          canvas.width = 240
-          canvas.height = 60
-          const ctx = canvas.getContext('2d')
-          
-          if (ctx) {
-            // Fond jaune
-            ctx.fillStyle = '#FFD700'
-            ctx.fillRect(0, 0, 240, 60)
-            
-            // Texte noir
-            ctx.fillStyle = '#212121'
-            ctx.font = 'bold 24px Arial'
-            ctx.textAlign = 'center'
-            ctx.fillText('SHOPBATI.FR', 120, 35)
-            
-            return canvas.toDataURL('image/png')
-          }
-          
-          return ''
-        }
-
-        // Charger le logo - utiliser une approche serveur-side compatible
-        let logoBase64: string | null = null
+        // ===== STRUCTURE LEROY MERLIN EXACTE =====
         
-        try {
-          // En environnement Next.js, utiliser le chemin absolu complet
-          const logoPath = process.cwd() + '/public/images/logo_shopbat.jpg'
-          
-          // Vérifier si on est côté serveur ou client
-          if (typeof window === 'undefined') {
-            // Côté serveur: utiliser fs
-            const fs = require('fs')
-            const path = require('path')
-            
-            if (fs.existsSync(logoPath)) {
-              const imageBuffer = fs.readFileSync(logoPath)
-              logoBase64 = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`
-            } else {
-              logoBase64 = null
-            }
-          } else {
-            // Côté client: utiliser fetch
-            logoBase64 = await loadImageAsBase64()
-          }
-        } catch (error) {
-          logoBase64 = null
-        }
-
-        // En-tête avec logo uniquement (le texte est déjà dans l'image)
-        if (logoBase64) {
-          try {
-            // Dimensions du logo avec ratio correct (logo horizontal)
-            const logoWidth = 60  // Plus large pour respecter le ratio
-            const logoHeight = 15 // Hauteur réduite pour éviter la déformation
-            
-            // Ajouter le logo centré à gauche
-            doc.addImage(logoBase64, 'JPEG', margin, yPosition, logoWidth, logoHeight)
-            
-            yPosition += logoHeight + 15
-            
-            // Logo added successfully
-          } catch (imageError) {
-            // Fallback sans logo - utiliser le texte de l'image
-            doc.setFontSize(24)
-            doc.setFont('helvetica', 'bold')
-            doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
-            doc.text('SHOPBATI.FR', margin, yPosition + 15)
-            yPosition += 10
-            
-            doc.setFontSize(10)
-            doc.setFont('helvetica', 'normal')
-            doc.setTextColor(185, 140, 0)
-            doc.text('BÂTISSANT L\'AVENIR', margin, yPosition + 15)
-            yPosition += 25
-          }
-        } else {
-          // Fallback sans logo - utiliser le texte de l'image
-          doc.setFontSize(24)
-          doc.setFont('helvetica', 'bold')
-          doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
-          doc.text('SHOPBATI.FR', margin, yPosition + 15)
-          yPosition += 10
-          
-          doc.setFontSize(10)
-          doc.setFont('helvetica', 'normal')
-          doc.setTextColor(185, 140, 0)
-          doc.text('BÂTISSANT L\'AVENIR', margin, yPosition + 15)
-          yPosition += 25
-        }
-
-        // Informations entreprise
-        doc.setFontSize(9)
-        doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
-        doc.text('123 Rue du Bâtiment', margin, yPosition)
-        yPosition += 4
-        doc.text('75001 Paris, France', margin, yPosition)
-        yPosition += 4
-        doc.text('Tel: +33 1 23 45 67 89', margin, yPosition)
-        yPosition += 4
-        doc.text('Email: shopbati@gmail.com', margin, yPosition)
-        yPosition += 15
-
-        // Titre FACTURE avec fond jaune
-        const invoiceNumber = this.generateInvoiceNumber()
+        // 1. BANNIÈRE SUPÉRIEURE JAUNE (comme Leroy Merlin mais jaune)
         doc.setFillColor(yellowColor[0], yellowColor[1], yellowColor[2])
-        doc.rect(pageWidth - margin - 60, margin, 60, 15, 'F')
-        doc.setFontSize(16)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
-        doc.text('FACTURE', pageWidth - margin - 30, margin + 10, { align: 'center' })
-
-        // Informations facture
-        yPosition = margin + 20
-        doc.setFontSize(9)
-        doc.setFont('helvetica', 'normal')
-        doc.text(`Numéro : ${invoiceNumber}`, pageWidth - margin - 55, yPosition)
-        yPosition += 5
-        doc.text(`Date : ${this.formatDate(orderData.timestamp)}`, pageWidth - margin - 55, yPosition)
-        yPosition += 5
-        const dueDate = new Date(new Date(orderData.timestamp).getTime() + 30 * 24 * 60 * 60 * 1000)
-        doc.text(`Échéance : ${this.formatDate(dueDate.toISOString())}`, pageWidth - margin - 55, yPosition)
-
-        // Reset yPosition for customer info
-        yPosition = margin + 50
-
-        // Section client avec deux colonnes : Facturé à + Expédié à
-        const sectionHeight = 35
-        doc.setFillColor(lightGray[0], lightGray[1], lightGray[2])
-        doc.rect(margin, yPosition, contentWidth, sectionHeight, 'F')
-        
-        // Bordure gauche jaune
-        doc.setFillColor(yellowColor[0], yellowColor[1], yellowColor[2])
-        doc.rect(margin, yPosition, 3, sectionHeight, 'F')
-
-        // Colonne 1: Facturé à (gauche)
-        let leftColX = margin + 8
-        let rightColX = margin + (contentWidth / 2) + 5
-        
-        yPosition += 8
-        doc.setFontSize(12)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
-        doc.text('Facturé à :', leftColX, yPosition)
-        
-        // Colonne 2: Expédié à (droite)
-        doc.text('Expédié à :', rightColX, yPosition)
-        yPosition += 6
-
-        doc.setFontSize(9)
-        doc.setFont('helvetica', 'normal')
-        
-        // Informations de facturation (gauche)
-        const customerName = orderData.customerName || 'Client'
-        doc.text(customerName, leftColX, yPosition)
-        doc.text(orderData.customerEmail, leftColX, yPosition + 3)
-        
-        // Adresse de facturation - utiliser l'adresse de livraison
-        if (orderData.shippingAddress && orderData.shippingAddress.street && orderData.shippingAddress.street.trim() !== '') {
-          doc.text(orderData.shippingAddress.street, leftColX, yPosition + 6)
-          doc.text(`${orderData.shippingAddress.postalCode} ${orderData.shippingAddress.city}`, leftColX, yPosition + 9)
-          doc.text(orderData.shippingAddress.country, leftColX, yPosition + 12)
-        } else {
-          doc.text('Adresse non spécifiée', leftColX, yPosition + 6)
-          doc.text('Veuillez nous contacter', leftColX, yPosition + 9)
-          doc.text('pour la livraison', leftColX, yPosition + 12)
-        }
-        
-        // Informations d'expédition (droite) - identique à la facturation
-        doc.text(customerName, rightColX, yPosition)
-        if (orderData.shippingAddress && orderData.shippingAddress.street && orderData.shippingAddress.street.trim() !== '') {
-          doc.text(orderData.shippingAddress.street, rightColX, yPosition + 3)
-          doc.text(`${orderData.shippingAddress.postalCode} ${orderData.shippingAddress.city}`, rightColX, yPosition + 6)
-          doc.text(orderData.shippingAddress.country, rightColX, yPosition + 9)
-        } else {
-          doc.text('Adresse non spécifiée', rightColX, yPosition + 3)
-          doc.text('Veuillez nous contacter', rightColX, yPosition + 6)
-          doc.text('pour la livraison', rightColX, yPosition + 9)
-        }
-
-        yPosition += 25 // Espacement après la section client (augmenté pour l'adresse)
-
-        // Tableau des articles
-        const tableStartY = yPosition
-        const rowHeight = 8
-        
-        // En-tête du tableau avec fond jaune
-        doc.setFillColor(yellowColor[0], yellowColor[1], yellowColor[2])
-        doc.rect(margin, yPosition, contentWidth, rowHeight, 'F')
+        doc.rect(0, 0, pageWidth, 12, 'F')
         
         doc.setFontSize(10)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
-        doc.text('Article', margin + 5, yPosition + 5)
-        doc.text('Qté', margin + contentWidth * 0.625, yPosition + 5, { align: 'center' })
-        doc.text('Prix unitaire', margin + contentWidth * 0.775, yPosition + 5, { align: 'center' })
-        doc.text('Total', margin + contentWidth * 0.925, yPosition + 5, { align: 'center' })
-        
-        yPosition += rowHeight
+        doc.text('BRICOLAGE • CONSTRUCTION • DÉCORATION • JARDINAGE', pageWidth/2, 7, { align: 'center' })
 
-        // Lignes des articles
-        doc.setFont('helvetica', 'normal')
-        orderData.items.forEach((item, index) => {
-          const bgColor: [number, number, number] = index % 2 === 0 ? [255, 255, 255] : lightGray
-          doc.setFillColor(bgColor[0], bgColor[1], bgColor[2])
-          doc.rect(margin, yPosition, contentWidth, rowHeight, 'F')
+        yPosition = 18
+
+        // 2. SECTION LOGO ET TITRE FACTURE
+        // Logo à gauche - position plus basse et taille proportionnelle
+        try {
+          let logoBase64: string | null = null
           
+          // Essayer de charger le logo
+          if (typeof window === 'undefined') {
+            // Server side - Node.js
+            try {
+              const fs = require('fs')
+              const path = require('path')
+              const logoPath = path.join(process.cwd(), 'public', 'images', 'logo_shopbat.jpg')
+              
+              if (fs.existsSync(logoPath)) {
+                const imageBuffer = fs.readFileSync(logoPath)
+                logoBase64 = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`
+              }
+            } catch (fsError) {
+              console.log('Erreur lecture fichier logo:', fsError)
+            }
+          } else {
+            // Client side - essayer de charger via fetch
+            try {
+              const response = await fetch('/images/logo_shopbat.jpg')
+              if (response.ok) {
+                const blob = await response.blob()
+                logoBase64 = await new Promise((resolve) => {
+                  const reader = new FileReader()
+                  reader.onload = () => resolve(reader.result as string)
+                  reader.readAsDataURL(blob)
+                })
+              }
+            } catch (fetchError) {
+              console.log('Erreur fetch logo:', fetchError)
+            }
+          }
+          
+          if (logoBase64) {
+            // Logo réel avec les bonnes proportions comme dans l'image
+            // Format horizontal avec icône + texte SHOPBATI.FR + tagline
+            // Positionné tout en haut à gauche, encore plus haut
+            doc.addImage(logoBase64, 'JPEG', 5, yPosition - 15, 45, 14)
+          } else {
+            // Fallback - texte simple 
+            doc.setFontSize(12)
+            doc.setFont('helvetica', 'bold')
+            doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
+            doc.text('SHOPBATI', margin, yPosition + 15)
+          }
+        } catch (error) {
+          console.log('Erreur logo générale:', error)
+          // Fallback simple
+          doc.setFontSize(12)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
+          doc.text('SHOPBATI', margin, yPosition + 15)
+        }
+
+        // Titre facture au centre
+        const invoiceNumber = this.generateInvoiceNumber()
+        
+        doc.setFontSize(18)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
+        doc.text(`FACTURE N° ${invoiceNumber.replace('SB-', '')} DUPLICATA`, pageWidth/2, yPosition + 8, { align: 'center' })
+        
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        doc.text(`Ticket 063-000967-067-1729 / Date de vente : ${this.formatDate(orderData.timestamp)}`, pageWidth/2, yPosition + 15, { align: 'center' })
+        doc.text(`Exemplaire client / Date d'émission : ${this.formatDate(orderData.timestamp)}`, pageWidth/2, yPosition + 19, { align: 'center' })
+
+        yPosition += 28
+
+        // 3. CODE BARRES CENTRAL
+        doc.setFontSize(28)
+        doc.setFont('helvetica', 'normal')
+        doc.text('||||| |||| ||||| |||| ||||| ||||', pageWidth/2, yPosition + 8, { align: 'center' })
+        doc.setFontSize(8)
+        doc.text(invoiceNumber.replace(/-/g, ''), pageWidth/2, yPosition + 14, { align: 'center' })
+
+        yPosition += 25
+
+        // 4. SECTION INFORMATIONS (2 colonnes comme Leroy Merlin)
+        const infoHeight = 50
+        const leftColWidth = contentWidth * 0.48
+        const rightColWidth = contentWidth * 0.48
+        const spacing = contentWidth * 0.04
+
+        // Colonne gauche - SHOPBATI (fond gris comme Leroy Merlin)
+        doc.setFillColor(lightGray[0], lightGray[1], lightGray[2])
+        doc.rect(margin, yPosition, leftColWidth, infoHeight, 'F')
+        doc.setDrawColor(100, 100, 100)
+        doc.rect(margin, yPosition, leftColWidth, infoHeight)
+
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
+        doc.text('SHOPBATI', margin + 3, yPosition + 8)
+
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        doc.text('123 Rue du Bâtiment', margin + 3, yPosition + 15)
+        doc.text('75001 PARIS FRANCE', margin + 3, yPosition + 20)
+        doc.text('Tél : 01 23 45 67 89', margin + 3, yPosition + 25)
+        doc.text('Email: contact@shopbati.fr', margin + 3, yPosition + 30)
+
+        // Colonne droite - Client
+        const rightColX = margin + leftColWidth + spacing
+        doc.setDrawColor(100, 100, 100)
+        doc.rect(rightColX, yPosition, rightColWidth, infoHeight)
+
+        const customerName = orderData.customerName || 'Client'
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.text(customerName, rightColX + 3, yPosition + 8)
+        
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        
+        if (orderData.shippingAddress && orderData.shippingAddress.street) {
+          doc.text(orderData.shippingAddress.street, rightColX + 3, yPosition + 15)
+          doc.text(`${orderData.shippingAddress.postalCode} ${orderData.shippingAddress.city}`, rightColX + 3, yPosition + 20)
+          doc.text(orderData.shippingAddress.country || 'France', rightColX + 3, yPosition + 25)
+        } else {
+          doc.text('9 Rue Parrot', rightColX + 3, yPosition + 15)
+          doc.text('75012 Paris', rightColX + 3, yPosition + 20)
+        }
+        
+        // SIRET uniquement pour les factures professionnelles
+        // Vérifier via isProfessional ou customerInfo.accountType
+        const isProfessional = orderData.isProfessional || orderData.customerInfo?.accountType === 'professional'
+        if (isProfessional) {
+          doc.text('SIRET : 123 456 789 00012', rightColX + 3, yPosition + 30)
+        }
+
+        yPosition += infoHeight + 10
+
+        // 5. INFORMATIONS LÉGALES (comme Leroy Merlin)
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'normal')
+        doc.text('Tél : 0155546990', margin, yPosition)
+        doc.text('Conditions de règlement : prix comptant sans escompte', margin, yPosition + 4)
+        doc.text('Pénalité retard : trois fois le taux de l\'intérêt légal en vigueur majoré de 40 points de base', margin, yPosition + 8)
+        doc.text('Conditions de vente : prix départ magasin (ou franco domicile après règlt des frais de transport)', margin, yPosition + 12)
+        
+        doc.text('Page 1 / 1', pageWidth - margin, yPosition + 4, { align: 'right' })
+
+        yPosition += 20
+
+        // 6. TABLEAU EXACT STYLE LEROY MERLIN
+        const tableStartY = yPosition
+        const headerHeight = 15
+        const rowHeight = 12
+
+        // En-tête tableau avec fond jaune (comme Leroy Merlin mais jaune)
+        doc.setFillColor(yellowColor[0], yellowColor[1], yellowColor[2])
+        doc.rect(margin, yPosition, contentWidth, headerHeight, 'F')
+        doc.setDrawColor(darkGray[0], darkGray[1], darkGray[2])
+        doc.rect(margin, yPosition, contentWidth, headerHeight)
+
+        // Colonnes compactes pour tenir entièrement dans la page
+        const colN = margin + 2                    // N° (10mm)
+        const colRef = margin + 15                 // Réf article (25mm)  
+        const colDesignation = margin + 42         // Désignation (70mm)
+        const colQuantite = margin + 115           // Quantité (18mm)
+        const colPrixUnit = margin + 135           // Prix unit. TTC (22mm)
+        const colTotal = margin + 160              // Total TTC (22mm)
+
+        // Textes d'en-tête compacts pour tenir dans la page
+        doc.setFontSize(7)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
+        
+        doc.text('N°', colN + 5, yPosition + 8, { align: 'center' })
+        doc.text('Réf', colRef + 12, yPosition + 4, { align: 'center' })
+        doc.text('article', colRef + 12, yPosition + 9, { align: 'center' })
+        doc.text('Désignation article', colDesignation + 35, yPosition + 8, { align: 'center' })
+        doc.text('Quantité', colQuantite + 9, yPosition + 8, { align: 'center' })
+        doc.text('Prix unit.', colPrixUnit + 11, yPosition + 4, { align: 'center' })
+        doc.text('TTC', colPrixUnit + 11, yPosition + 9, { align: 'center' })
+        doc.text('Total TTC', colTotal + 11, yPosition + 8, { align: 'center' })
+
+        yPosition += headerHeight
+
+        // Lignes des articles EXACTEMENT comme Leroy Merlin
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(7)
+        
+        orderData.items.forEach((item, index) => {
+          // Pas de fond alterné, comme Leroy Merlin
+          doc.setDrawColor(150, 150, 150)
+          doc.rect(margin, yPosition, contentWidth, rowHeight)
+
           doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
           
-          // Nom du produit (tronqué si trop long)
-          let productName = item.name
-          if (productName.length > 32) {
-            productName = productName.substring(0, 29) + '...'
+          // Données compactes pour tenir entièrement dans la page
+          doc.setFontSize(7)
+          doc.text((index + 1).toString(), colN + 5, yPosition + 8, { align: 'center' })
+          doc.text(`SB${(index + 1).toString().padStart(6, '0')}`, colRef + 12, yPosition + 8, { align: 'center' })
+          
+          // Nom produit (ajusté pour la largeur compacte)
+          let productName = item.name.toUpperCase()
+          if (productName.length > 35) {
+            productName = productName.substring(0, 32) + '...'
           }
-          doc.text(productName, margin + 5, yPosition + 5)
+          doc.text(productName, colDesignation + 2, yPosition + 8)
           
-          // Quantité
-          doc.text(item.quantity.toString(), margin + contentWidth * 0.625, yPosition + 5, { align: 'center' })
-          
-          // Prix unitaire
-          doc.text(this.formatCurrency(item.price), margin + contentWidth * 0.775, yPosition + 5, { align: 'center' })
-          
-          // Total
-          doc.text(this.formatCurrency(item.price * item.quantity), margin + contentWidth * 0.925, yPosition + 5, { align: 'center' })
+          // Quantité, Prix unitaire, Total - compacts
+          doc.text(item.quantity.toString(), colQuantite + 9, yPosition + 8, { align: 'center' })
+          doc.text(this.formatCurrency(item.price), colPrixUnit + 11, yPosition + 8, { align: 'center' })
+          doc.text(this.formatCurrency(item.price * item.quantity), colTotal + 11, yPosition + 8, { align: 'center' })
           
           yPosition += rowHeight
         })
 
-        // Bordure du tableau avec lignes de séparation
+        // Lignes verticales pour layout compact
+        const verticalLines = [
+          colRef - 1,           // Après N°
+          colDesignation - 1,   // Après Réf
+          colQuantite - 1,      // Après Désignation, avant Quantité  
+          colPrixUnit - 1,      // Après Quantité, avant Prix unit
+          colTotal - 1          // Après Prix unit, avant Total
+        ]
+        
+        verticalLines.forEach(x => {
+          doc.line(x, tableStartY, x, yPosition)
+        })
+
+        // Bordure finale du tableau
         doc.setDrawColor(darkGray[0], darkGray[1], darkGray[2])
         doc.rect(margin, tableStartY, contentWidth, yPosition - tableStartY)
-        
-        // Lignes verticales de séparation
-        const quantityX = margin + contentWidth * 0.55
-        const priceX = margin + contentWidth * 0.7
-        const totalX = margin + contentWidth * 0.85
-        
-        doc.line(quantityX, tableStartY, quantityX, yPosition)
-        doc.line(priceX, tableStartY, priceX, yPosition)
-        doc.line(totalX, tableStartY, totalX, yPosition)
 
         yPosition += 10
 
-        // Totaux
-        const totalBoxWidth = 60
-        const subtotal = orderData.total / 1.20
-        const taxAmount = orderData.total - subtotal
-
-        // Sous-total
-        doc.setFontSize(10)
-        doc.text('Sous-total :', pageWidth - margin - totalBoxWidth, yPosition)
-        doc.text(this.formatCurrency(subtotal), pageWidth - margin - 5, yPosition, { align: 'right' })
-        yPosition += 6
-
-        // TVA
-        doc.text('TVA (20.0%) :', pageWidth - margin - totalBoxWidth, yPosition)
-        doc.text(this.formatCurrency(taxAmount), pageWidth - margin - 5, yPosition, { align: 'right' })
-        yPosition += 8
-
-        // Total avec fond jaune
+        // Section droite - Totaux simplifiés
+        const rightSectionX = pageWidth - margin - 70
+        
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        
+        // Calcul des montants
+        const sousTotal = orderData.total / 1.20  // HT
+        const tauxTVA = 20.00
+        const montantTVA = orderData.total - sousTotal
+        
+        doc.text('Sous total :', rightSectionX, yPosition + 8)
+        doc.text(this.formatNumber(sousTotal) + ' €', rightSectionX + 50, yPosition + 8, { align: 'right' })
+        
+        doc.text(`Taux de TVA : ${tauxTVA.toLocaleString('fr-FR')}%`, rightSectionX, yPosition + 15)
+        doc.text(this.formatNumber(montantTVA) + ' €', rightSectionX + 50, yPosition + 15, { align: 'right' })
+        
+        doc.text('Total TTC :', rightSectionX, yPosition + 22)
+        doc.text(this.formatNumber(orderData.total) + ' €', rightSectionX + 50, yPosition + 22, { align: 'right' })
+        
+        // SOMME FINALE avec fond jaune
         doc.setFillColor(yellowColor[0], yellowColor[1], yellowColor[2])
-        doc.rect(pageWidth - margin - totalBoxWidth, yPosition - 2, totalBoxWidth, 10, 'F')
-        doc.setFontSize(14)
+        doc.rect(rightSectionX - 5, yPosition + 30, 75, 12, 'F')
+        doc.setDrawColor(darkGray[0], darkGray[1], darkGray[2])
+        doc.rect(rightSectionX - 5, yPosition + 30, 75, 12)
+        
+        doc.setFontSize(10)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
-        doc.text('TOTAL :', pageWidth - margin - totalBoxWidth + 5, yPosition + 5)
-        doc.text(this.formatCurrency(orderData.total), pageWidth - margin - 5, yPosition + 5, { align: 'right' })
+        doc.text('Somme finale à payer :', rightSectionX, yPosition + 38)
+        doc.text(this.formatNumber(orderData.total) + ' €', rightSectionX + 50, yPosition + 38, { align: 'right' })
 
-        yPosition += 20
+        yPosition += 60
 
-        // Notes (seulement si on a assez de place)
-        if (yPosition < pageHeight - 80) {
-          doc.setFontSize(10)
-          doc.setFont('helvetica', 'bold')
-          doc.text('Notes :', margin, yPosition)
-          yPosition += 6
-          
-          doc.setFont('helvetica', 'normal')
-          doc.setFontSize(9)
-          const noteText = `Facture générée automatiquement pour la commande #${orderData.orderId}. Merci pour votre confiance !`
-          const splitNote = doc.splitTextToSize(noteText, contentWidth)
-          doc.text(splitNote, margin, yPosition)
-          yPosition += splitNote.length * 4 + 10
-        }
-
-        // Pied de page TOUJOURS en bas de la page
-        const footerY = pageHeight - 15 // Position plus basse (15mm du bas au lieu de 30mm)
+        // FOOTER - Informations de pied de page - Position absolue tout en bas
+        const footerY = pageHeight - 5 // Encore plus bas - 5mm du bord inférieur
         
         // Ligne de séparation
-        doc.setDrawColor(darkGray[0], darkGray[1], darkGray[2])
-        doc.line(margin, footerY - 8, pageWidth - margin, footerY - 8)
-
-        // Informations légales en bas
+        doc.setDrawColor(yellowColor[0], yellowColor[1], yellowColor[2])
+        doc.setLineWidth(1)
+        doc.line(margin, footerY - 20, pageWidth - margin, footerY - 20)
+        
+        // Informations entreprise en footer
         doc.setFontSize(8)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
+        
+        // Première ligne - Informations légales
+        const footerLine1 = 'SHOPBATI.FR - SAS au capital de 50 000€ - RCS Paris B 123 456 789'
+        doc.text(footerLine1, pageWidth/2, footerY - 14, { align: 'center' })
+        
+        // Deuxième ligne - Contact et website
+        const footerLine2 = 'contact@shopbati.fr • www.shopbati.fr • Tél: 01 23 45 67 89'
+        doc.text(footerLine2, pageWidth/2, footerY - 8, { align: 'center' })
+        
+        // Troisième ligne - Spécialités
         doc.setTextColor(100, 100, 100)
-        doc.text('SHOPBATI - Plateforme du bâtiment | shopbati@gmail.com | +33 1 23 45 67 89', pageWidth / 2, footerY, { align: 'center' })
-        doc.text('SIRET : 123 456 789 00012 | TVA : FR12 345678901 | Capital social : 10 000€', pageWidth / 2, footerY + 4, { align: 'center' })
+        const footerLine3 = 'Spécialiste en matériaux de construction, bricolage, décoration et jardinage'
+        doc.text(footerLine3, pageWidth/2, footerY - 2, { align: 'center' })
 
         // Convertir en Buffer
         const pdfBuffer = Buffer.from(doc.output('arraybuffer'))

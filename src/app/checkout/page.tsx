@@ -52,6 +52,14 @@ interface DatabaseUser {
   first_name: string
   last_name: string
   phone?: string
+  account_type: string
+  raison_sociale?: string
+  siret?: string
+  tva_number?: string
+  address?: string
+  city?: string
+  postalCode?: string
+  country?: string
 }
 
 export default function CheckoutPage() {
@@ -223,7 +231,9 @@ export default function CheckoutPage() {
           // Préparer les données pour la nouvelle API
           const invoiceOrderData = {
             orderId: orderNumber,
-            customerName: `${orderData.customerInfo.firstName} ${orderData.customerInfo.lastName}`,
+            customerName: dbUser?.account_type === 'professional' 
+              ? dbUser.raison_sociale || `${orderData.customerInfo.firstName} ${orderData.customerInfo.lastName}`
+              : `${orderData.customerInfo.firstName} ${orderData.customerInfo.lastName}`,
             customerEmail: orderData.customerInfo.email,
             timestamp: new Date().toISOString(),
             items: cartItems.map(item => ({
@@ -232,7 +242,21 @@ export default function CheckoutPage() {
               price: item.price
             })),
             total: getFinalTotal(),
-            shippingAddress: orderData.shippingAddress
+            shippingAddress: orderData.shippingAddress,
+            // Add customer account information for invoice generation
+            customerInfo: {
+              accountType: dbUser?.account_type || 'individual',
+              firstName: dbUser?.account_type === 'individual' ? (dbUser?.first_name || orderData.customerInfo.firstName) : '',
+              lastName: dbUser?.account_type === 'individual' ? (dbUser?.last_name || orderData.customerInfo.lastName) : '',
+              raisonSociale: dbUser?.account_type === 'professional' ? (dbUser?.raison_sociale || '') : '',
+              siret: dbUser?.account_type === 'professional' ? (dbUser?.siret || '') : '',
+              tvaNumber: dbUser?.account_type === 'professional' ? (dbUser?.tva_number || '') : '',
+              phone: dbUser?.phone || orderData.customerInfo.phone,
+              address: dbUser?.address || orderData.shippingAddress.street,
+              city: dbUser?.city || orderData.shippingAddress.city,
+              postalCode: dbUser?.postalCode || orderData.shippingAddress.postalCode,
+              country: dbUser?.country || orderData.shippingAddress.country
+            }
           }
           
           // Debug: Log des données envoyées à l'API de génération de facture
