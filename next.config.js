@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['localhost', 'cloud.appwrite.io', 'images.ctfassets.net'],
+    domains: ['localhost', 'cloud.appwrite.io', 'images.ctfassets.net', 'www.atoutbat.bzh'],
   },
   env: {
     NEXT_PUBLIC_APPWRITE_ENDPOINT: process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT,
