@@ -742,7 +742,10 @@ export class AppwriteService {
     address: string = '',
     postalCode: string = '',
     city: string = '',
-    country: string = 'France'
+    country: string = 'France',
+    raisonSociale: string = '',
+    siret: string = '',
+    tvaNumber: string = ''
   ) {
     try {
       console.log('Attempting detailed registration with:', { 
@@ -787,11 +790,15 @@ export class AppwriteService {
         newsletter_subscribed: false,
         account_type: accountType,
         status: 'active',
-        // Champs d'adresse (maintenant disponibles dans Appwrite)
+        // Champs d'adresse
         address: address,
         postalCode: postalCode,
         city: city,
         country: country,
+        // Champs professionnels
+        raison_sociale: raisonSociale,
+        siret: siret,
+        tva_number: tvaNumber,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }

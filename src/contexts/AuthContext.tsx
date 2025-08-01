@@ -24,6 +24,9 @@ interface AuthContextType {
     postalCode?: string
     city?: string
     country?: string
+    raisonSociale?: string
+    siret?: string
+    tvaNumber?: string
   }) => Promise<void>
   logout: () => Promise<void>
   isAuthenticated: boolean
@@ -74,6 +77,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     postalCode?: string
     city?: string
     country?: string
+    raisonSociale?: string
+    siret?: string
+    tvaNumber?: string
   }) => {
     try {
       const appwrite = AppwriteService.getInstance()
@@ -98,7 +104,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           additionalData.address || '',
           additionalData.postalCode || '',
           additionalData.city || '',
-          additionalData.country || 'France'
+          additionalData.country || 'France',
+          additionalData.raisonSociale || '',
+          additionalData.siret || '',
+          additionalData.tvaNumber || ''
         )
         
         // Check if this is a successful account creation but requires manual login
