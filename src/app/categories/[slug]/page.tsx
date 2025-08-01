@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import Header from '../../../components/Header'
+import Footer from '../../../components/Footer'
 import { AppwriteService } from '../../../lib/appwrite'
 import { useCart } from '../../../contexts/CartContext'
 
@@ -562,6 +563,8 @@ export default function CategoryPage() {
           )}
         </div>
       </section>
+      
+      <Footer />
     </div>
   )
 }

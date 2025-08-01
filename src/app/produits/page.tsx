@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import Header from '@/components/Header'
+import Footer from '@/components/Footer'
 import AppwriteService from '@/lib/appwrite'
 import { useCart } from '@/contexts/CartContext'
 
@@ -513,6 +514,8 @@ function ProduitsPageContent() {
           )}
         </div>
       </section>
+      
+      <Footer />
     </div>
   )
 }
