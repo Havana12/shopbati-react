@@ -97,17 +97,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const result = await appwrite.registerWithDetails(
           email, 
           password, 
-          additionalData.firstName || name.split(' ')[0] || 'Utilisateur',
-          additionalData.lastName || name.split(' ').slice(1).join(' ') || 'Inconnu',
+          additionalData.accountType === 'individual' ? (additionalData.firstName || '') : '',
+          additionalData.accountType === 'individual' ? (additionalData.lastName || '') : '',
           additionalData.phone || '',
           additionalData.accountType || 'individual',
           additionalData.address || '',
           additionalData.postalCode || '',
           additionalData.city || '',
           additionalData.country || 'France',
-          additionalData.raisonSociale || '',
-          additionalData.siret || '',
-          additionalData.tvaNumber || ''
+          additionalData.accountType === 'professional' ? (additionalData.raisonSociale || '') : '',
+          additionalData.accountType === 'professional' ? (additionalData.siret || '') : '',
+          additionalData.accountType === 'professional' ? (additionalData.tvaNumber || '') : ''
         )
         
         // Check if this is a successful account creation but requires manual login

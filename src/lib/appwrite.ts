@@ -775,8 +775,8 @@ export class AppwriteService {
 
       // First, create user profile in database (same as admin setup)
       const userProfileData = {
-        first_name: firstName,
-        last_name: lastName,
+        first_name: accountType === 'individual' ? firstName : null,
+        last_name: accountType === 'individual' ? lastName : null,
         email: email,
         phone: phone,
         password_hash: passwordHash,
@@ -796,9 +796,9 @@ export class AppwriteService {
         city: city,
         country: country,
         // Champs professionnels
-        raison_sociale: raisonSociale,
-        siret: siret,
-        tva_number: tvaNumber,
+        raison_sociale: accountType === 'professional' ? raisonSociale : null,
+        siret: accountType === 'professional' ? siret : null,
+        tva_number: accountType === 'professional' ? tvaNumber : null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
