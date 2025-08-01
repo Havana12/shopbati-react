@@ -56,25 +56,6 @@ export default function CategoryPage() {
     filterAndSortProducts()
   }, [products, searchTerm, sortBy, priceRange])
 
-  // Test Appwrite connection
-  const testAppwriteConnection = async () => {
-    try {
-      console.log('🧪 Testing Appwrite connection...')
-      const appwrite = AppwriteService.getInstance()
-      const testResult = await appwrite.getProducts([appwrite.Query.limit(1)])
-      console.log('✅ Appwrite connection successful:', testResult)
-      return true
-    } catch (error) {
-      console.error('❌ Appwrite connection failed:', error)
-      return false
-    }
-  }
-
-  // Run connection test on mount
-  useEffect(() => {
-    testAppwriteConnection()
-  }, [])
-
   const fetchCategoryAndProducts = async () => {
     setLoading(true)
     try {
@@ -190,22 +171,6 @@ export default function CategoryPage() {
       }
     } catch (error) {
       console.error('❌ Error fetching category and products:', error)
-      console.error('❌ Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : 'No stack trace',
-        type: typeof error,
-        error: error
-      })
-      
-      // Check if it's a network connectivity issue
-      if (error instanceof Error && (
-        error.message.includes('fetch') || 
-        error.message.includes('network') ||
-        error.message.includes('Failed to fetch') ||
-        error.message.includes('NetworkError')
-      )) {
-        console.error('🌐 Network connectivity issue detected')
-      }
       
       // Final fallback
       setCategory({ 
@@ -334,13 +299,6 @@ export default function CategoryPage() {
               <span className="text-white">{category.name}</span>
             </div>
           </div>
-        </div>
-        
-        {/* Decorative bottom wave */}
-        <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1200 120" fill="none" className="w-full h-12 text-gray-50">
-            <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" fill="currentColor"></path>
-          </svg>
         </div>
       </section>
 
