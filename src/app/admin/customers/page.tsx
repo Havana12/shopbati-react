@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { AppwriteService } from '@/lib/appwrite'
 
 interface Customer {
@@ -26,9 +26,13 @@ export default function AdminCustomersPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [locationFilter, setLocationFilter] = useState('all')
+  const [spendingFilter, setSpendingFilter] = useState('all')
+  const [sortBy, setSortBy] = useState('created_at')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [customerStats, setCustomerStats] = useState({
     total: 0,
     active: 0,
@@ -36,42 +40,101 @@ export default function AdminCustomersPage() {
     averageOrder: 0
   })
 
+  // Debounce search term to avoid too many API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
   const customersPerPage = 10
+
+  // Calculate additional customer metrics
+  const customerMetrics = useMemo(() => {
+    if (!customers.length) return { highValue: 0, recent: 0, locations: [] }
+    
+    const highValue = customers.filter(c => (c.total_spent || 0) > 500).length
+    const recent = customers.filter(c => {
+      if (!c.created_at) return false
+      const createdDate = new Date(c.created_at)
+      const thirtyDaysAgo = new Date()
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+      return createdDate > thirtyDaysAgo
+    }).length
+    
+    const locations = Array.from(new Set(customers.map(c => c.city).filter(Boolean)))
+    
+    return { highValue, recent, locations }
+  }, [customers])
 
   useEffect(() => {
     fetchCustomers()
-  }, [currentPage, statusFilter, searchTerm])
+  }, [currentPage, statusFilter, locationFilter, spendingFilter, debouncedSearchTerm, sortBy])
 
   const fetchCustomers = async () => {
     setLoading(true)
     try {
       const appwrite = AppwriteService.getInstance()
-      const queries = [
-        appwrite.Query.orderDesc('$createdAt'),
+      let queries = [
         appwrite.Query.limit(customersPerPage),
         appwrite.Query.offset((currentPage - 1) * customersPerPage)
       ]
 
+      // Apply sorting
+      if (sortBy === 'created_at') {
+        queries.push(appwrite.Query.orderDesc('$createdAt'))
+      } else if (sortBy === 'total_spent') {
+        queries.push(appwrite.Query.orderDesc('total_spent'))
+      } else if (sortBy === 'total_orders') {
+        queries.push(appwrite.Query.orderDesc('total_orders'))
+      } else if (sortBy === 'last_name') {
+        queries.push(appwrite.Query.orderAsc('last_name'))
+      }
+
+      // Apply status filter
       if (statusFilter !== 'all') {
         queries.push(appwrite.Query.equal('status', statusFilter))
       }
 
-      if (searchTerm) {
+      // Apply search filter
+      if (debouncedSearchTerm && debouncedSearchTerm.length >= 2) {
         queries.push(appwrite.Query.or([
-          appwrite.Query.search('first_name', searchTerm),
-          appwrite.Query.search('last_name', searchTerm),
-          appwrite.Query.search('email', searchTerm)
+          appwrite.Query.contains('first_name', debouncedSearchTerm),
+          appwrite.Query.contains('last_name', debouncedSearchTerm),
+          appwrite.Query.contains('email', debouncedSearchTerm)
         ]))
       }
 
-      const result = await appwrite.databases.listDocuments(
+      // Apply spending filter (handled client-side due to Appwrite limitations)
+      let filteredResults = await appwrite.databases.listDocuments(
         process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
         'users',
         queries
       )
+
+      let customers = filteredResults.documents as unknown as Customer[]
+
+      // Client-side filtering for spending and location
+      if (spendingFilter !== 'all') {
+        customers = customers.filter(customer => {
+          const spent = customer.total_spent || 0
+          switch (spendingFilter) {
+            case 'high': return spent > 500
+            case 'medium': return spent >= 100 && spent <= 500
+            case 'low': return spent < 100 && spent > 0
+            case 'none': return spent === 0
+            default: return true
+          }
+        })
+      }
+
+      if (locationFilter !== 'all') {
+        customers = customers.filter(customer => customer.city === locationFilter)
+      }
       
-      setCustomers(result.documents as unknown as Customer[])
-      setTotalPages(Math.ceil(result.total / customersPerPage))
+      setCustomers(customers)
+      setTotalPages(Math.ceil(filteredResults.total / customersPerPage))
 
       // Fetch stats for all customers
       const allCustomersResult = await appwrite.databases.listDocuments(
@@ -243,41 +306,221 @@ export default function AdminCustomersPage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
+      {/* Modern Enhanced Filters */}
+      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+            <i className="fas fa-filter mr-2 text-blue-500"></i>
+            Filtres avancés
+          </h3>
+          <button
+            onClick={() => {
+              setSearchTerm('')
+              setStatusFilter('all')
+              setLocationFilter('all')
+              setSpendingFilter('all')
+              setCurrentPage(1)
+            }}
+            className="text-sm text-gray-500 hover:text-gray-700 flex items-center transition-colors"
+          >
+            <i className="fas fa-times mr-1"></i>
+            Effacer tout
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Search Input - Enhanced */}
+          <div className="lg:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Rechercher
+              <i className="fas fa-search mr-1 text-gray-400"></i>
+              Recherche
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <i className="fas fa-search text-gray-400"></i>
               </div>
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Nom, email..."
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Nom, email, téléphone... (min 2 caractères)"
+                className="block w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 placeholder-gray-500"
               />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                >
+                  <i className="fas fa-times text-gray-400 hover:text-gray-600"></i>
+                </button>
+              )}
             </div>
           </div>
 
+          {/* Status Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
+              <i className="fas fa-user-check mr-1 text-gray-400"></i>
               Statut
             </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="active">Actif</option>
-              <option value="inactive">Inactif</option>
-              <option value="blocked">Bloqué</option>
-            </select>
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 w-full"
+              >
+                <option value="all">Tous</option>
+                <option value="active">✅ Actif</option>
+                <option value="inactive">⏸️ Inactif</option>
+                <option value="blocked">🚫 Bloqué</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <i className="fas fa-chevron-down text-gray-400"></i>
+              </div>
+            </div>
+          </div>
+
+          {/* Spending Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <i className="fas fa-euro-sign mr-1 text-gray-400"></i>
+              Dépenses
+            </label>
+            <div className="relative">
+              <select
+                value={spendingFilter}
+                onChange={(e) => setSpendingFilter(e.target.value)}
+                className="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 w-full"
+              >
+                <option value="all">Tous</option>
+                <option value="high">💎 {'>'}500€</option>
+                <option value="medium">💰 100-500€</option>
+                <option value="low">💸 {'<'}100€</option>
+                <option value="none">🆕 Aucune</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <i className="fas fa-chevron-down text-gray-400"></i>
+              </div>
+            </div>
+          </div>
+
+          {/* Location Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <i className="fas fa-map-marker-alt mr-1 text-gray-400"></i>
+              Ville
+            </label>
+            <div className="relative">
+              <select
+                value={locationFilter}
+                onChange={(e) => setLocationFilter(e.target.value)}
+                className="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 w-full"
+              >
+                <option value="all">Toutes</option>
+                {customerMetrics.locations.slice(0, 10).map(city => (
+                  <option key={city} value={city}>📍 {city}</option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <i className="fas fa-chevron-down text-gray-400"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            onClick={() => setStatusFilter('active')}
+            className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-green-200"
+          >
+            <i className="fas fa-user-check mr-1"></i>
+            Actifs ({customerStats.active})
+          </button>
+          <button
+            onClick={() => setSpendingFilter('high')}
+            className="bg-purple-50 hover:bg-purple-100 text-purple-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-purple-200"
+          >
+            <i className="fas fa-gem mr-1"></i>
+            VIP ({customerMetrics.highValue})
+          </button>
+          <button
+            onClick={() => {
+              const thirtyDaysAgo = new Date()
+              thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+              setSearchTerm('')
+              setStatusFilter('all')
+            }}
+            className="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-blue-200"
+          >
+            <i className="fas fa-user-plus mr-1"></i>
+            Nouveaux ({customerMetrics.recent})
+          </button>
+          <button
+            onClick={() => setSpendingFilter('none')}
+            className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-yellow-200"
+          >
+            <i className="fas fa-exclamation-triangle mr-1"></i>
+            Sans commande
+          </button>
+        </div>
+
+        {/* Filter Tags */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {searchTerm && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
+              Recherche: "{searchTerm}"
+              <button onClick={() => setSearchTerm('')} className="ml-2 text-blue-600 hover:text-blue-800">
+                <i className="fas fa-times"></i>
+              </button>
+            </span>
+          )}
+          {statusFilter !== 'all' && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
+              Statut: {getStatusLabel(statusFilter)}
+              <button onClick={() => setStatusFilter('all')} className="ml-2 text-green-600 hover:text-green-800">
+                <i className="fas fa-times"></i>
+              </button>
+            </span>
+          )}
+          {spendingFilter !== 'all' && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-800">
+              Dépenses: {spendingFilter === 'high' ? '>500€' : spendingFilter === 'medium' ? '100-500€' : spendingFilter === 'low' ? '<100€' : 'Aucune'}
+              <button onClick={() => setSpendingFilter('all')} className="ml-2 text-purple-600 hover:text-purple-800">
+                <i className="fas fa-times"></i>
+              </button>
+            </span>
+          )}
+          {locationFilter !== 'all' && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-yellow-100 text-yellow-800">
+              Ville: {locationFilter}
+              <button onClick={() => setLocationFilter('all')} className="ml-2 text-yellow-600 hover:text-yellow-800">
+                <i className="fas fa-times"></i>
+              </button>
+            </span>
+          )}
+        </div>
+
+        {/* Results Summary */}
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <span>
+              <i className="fas fa-info-circle mr-1"></i>
+              {loading ? 'Chargement...' : `${customers.length} client(s) affiché(s)`}
+            </span>
+            <div className="flex items-center space-x-4">
+              <span className="text-xs">Trier par:</span>
+              <select 
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="text-xs border border-gray-200 rounded px-2 py-1"
+              >
+                <option value="created_at">Date récente</option>
+                <option value="total_spent">Plus dépensé</option>
+                <option value="total_orders">Plus commandes</option>
+                <option value="last_name">Nom A-Z</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>

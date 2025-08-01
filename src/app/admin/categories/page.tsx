@@ -20,7 +20,50 @@ interface Category {
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [sortBy, setSortBy] = useState('sort_order')
+  const [filteredCategories, setFilteredCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    filterCategories()
+  }, [categories, searchTerm, statusFilter, sortBy])
+
+  const filterCategories = () => {
+    let filtered = [...categories]
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(category =>
+        category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        category.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        category.slug.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(category => category.status === statusFilter)
+    }
+
+    // Sort
+    switch (sortBy) {
+      case 'name':
+        filtered.sort((a, b) => a.name.localeCompare(b.name))
+        break
+      case 'products_count':
+        filtered.sort((a, b) => (b.products_count || 0) - (a.products_count || 0))
+        break
+      case 'created_at':
+        filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        break
+      default:
+        filtered.sort((a, b) => a.sort_order - b.sort_order)
+    }
+
+    setFilteredCategories(filtered)
+  }
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [formData, setFormData] = useState({
@@ -220,7 +263,153 @@ export default function AdminCategoriesPage() {
         </div>
       </div>
 
-      {/* Categories Table */}
+      {/* Modern Enhanced Filters */}
+      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+            <i className="fas fa-filter mr-2 text-purple-500"></i>
+            Filtres avancés
+          </h3>
+          <button
+            onClick={() => {
+              setSearchTerm('')
+              setStatusFilter('all')
+              setSortBy('sort_order')
+            }}
+            className="text-sm text-gray-500 hover:text-gray-700 flex items-center transition-colors"
+          >
+            <i className="fas fa-times mr-1"></i>
+            Effacer tout
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {/* Search Input - Enhanced */}
+          <div className="lg:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <i className="fas fa-search mr-1 text-gray-400"></i>
+              Recherche
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <i className="fas fa-search text-gray-400"></i>
+              </div>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Nom, description, slug..."
+                className="block w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-gray-700 placeholder-gray-500"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                >
+                  <i className="fas fa-times text-gray-400 hover:text-gray-600"></i>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Status Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <i className="fas fa-toggle-on mr-1 text-gray-400"></i>
+              Statut
+            </label>
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-gray-700 w-full"
+              >
+                <option value="all">Tous</option>
+                <option value="active">✅ Actif</option>
+                <option value="inactive">❌ Inactif</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <i className="fas fa-chevron-down text-gray-400"></i>
+              </div>
+            </div>
+          </div>
+
+          {/* Sort Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <i className="fas fa-sort mr-1 text-gray-400"></i>
+              Trier par
+            </label>
+            <div className="relative">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-gray-700 w-full"
+              >
+                <option value="sort_order">📋 Ordre d'affichage</option>
+                <option value="name">🔤 Nom A-Z</option>
+                <option value="products_count">📦 Nb. produits</option>
+                <option value="created_at">📅 Date création</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <i className="fas fa-chevron-down text-gray-400"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter Tags */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {searchTerm && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-800">
+              Recherche: "{searchTerm}"
+              <button onClick={() => setSearchTerm('')} className="ml-2 text-purple-600 hover:text-purple-800">
+                <i className="fas fa-times"></i>
+              </button>
+            </span>
+          )}
+          {statusFilter !== 'all' && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
+              Statut: {statusFilter === 'active' ? 'Actif' : 'Inactif'}
+              <button onClick={() => setStatusFilter('all')} className="ml-2 text-green-600 hover:text-green-800">
+                <i className="fas fa-times"></i>
+              </button>
+            </span>
+          )}
+          {sortBy !== 'sort_order' && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
+              Tri: {sortBy === 'name' ? 'Nom' : sortBy === 'products_count' ? 'Nb. produits' : 'Date création'}
+              <button onClick={() => setSortBy('sort_order')} className="ml-2 text-blue-600 hover:text-blue-800">
+                <i className="fas fa-times"></i>
+              </button>
+            </span>
+          )}
+        </div>
+
+        {/* Results Summary */}
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <span>
+              <i className="fas fa-info-circle mr-1"></i>
+              {loading ? 'Chargement...' : `${filteredCategories.length} catégorie(s) sur ${categories.length}`}
+            </span>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setStatusFilter('active')}
+                className="text-xs bg-green-50 hover:bg-green-100 text-green-700 px-2 py-1 rounded transition-colors"
+              >
+                Voir actives
+              </button>
+              <button
+                onClick={() => setSortBy('products_count')}
+                className="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 px-2 py-1 rounded transition-colors"
+              >
+                Plus de produits
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center p-12">
@@ -229,18 +418,39 @@ export default function AdminCategoriesPage() {
               <p className="text-gray-600">Chargement des catégories...</p>
             </div>
           </div>
-        ) : categories.length === 0 ? (
+        ) : filteredCategories.length === 0 ? (
           <div className="text-center p-12">
             <i className="fas fa-folder-open text-6xl text-gray-400 mb-4"></i>
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">Aucune catégorie trouvée</h3>
-            <p className="text-gray-500 mb-6">Commencez par créer votre première catégorie</p>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-            >
-              <i className="fas fa-plus mr-2"></i>
-              Créer une catégorie
-            </button>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">
+              {categories.length === 0 ? 'Aucune catégorie trouvée' : 'Aucun résultat'}
+            </h3>
+            <p className="text-gray-500 mb-6">
+              {categories.length === 0 
+                ? 'Commencez par créer votre première catégorie'
+                : 'Essayez de modifier vos critères de recherche'
+              }
+            </p>
+            {categories.length === 0 ? (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              >
+                <i className="fas fa-plus mr-2"></i>
+                Créer une catégorie
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setSearchTerm('')
+                  setStatusFilter('all')
+                  setSortBy('sort_order')
+                }}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              >
+                <i className="fas fa-times mr-2"></i>
+                Effacer les filtres
+              </button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -274,7 +484,7 @@ export default function AdminCategoriesPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {categories.map((category) => (
+                {filteredCategories.map((category) => (
                   <tr key={category.$id} className="hover:bg-gray-50">
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">

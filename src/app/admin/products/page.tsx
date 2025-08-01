@@ -34,13 +34,22 @@ export default function AdminProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
+
+  // Debounce search term to avoid too many API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
 
   const productsPerPage = 10
 
   useEffect(() => {
     fetchCategories()
     fetchProducts()
-  }, [currentPage, statusFilter, categoryFilter, searchTerm])
+  }, [currentPage, statusFilter, categoryFilter, debouncedSearchTerm])
 
   const fetchCategories = async () => {
     try {
@@ -73,8 +82,12 @@ export default function AdminProductsPage() {
         queries.push(appwrite.Query.equal('category_id', categoryFilter))
       }
 
-      if (searchTerm) {
-        queries.push(appwrite.Query.search('name', searchTerm))
+      if (debouncedSearchTerm && debouncedSearchTerm.length >= 2) {
+        // Use contains for better search functionality
+        queries.push(appwrite.Query.or([
+          appwrite.Query.contains('name', debouncedSearchTerm),
+          appwrite.Query.contains('description', debouncedSearchTerm)
+        ]))
       }
 
       const result = await appwrite.getProducts(queries)
@@ -148,59 +161,181 @@ export default function AdminProductsPage() {
         </Link>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
+      {/* Modern Enhanced Filters */}
+      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+            <i className="fas fa-filter mr-2 text-blue-500"></i>
+            Filtres avancés
+          </h3>
+          <button
+            onClick={() => {
+              setSearchTerm('')
+              setStatusFilter('all')
+              setCategoryFilter('all')
+              setCurrentPage(1)
+            }}
+            className="text-sm text-gray-500 hover:text-gray-700 flex items-center transition-colors"
+          >
+            <i className="fas fa-times mr-1"></i>
+            Effacer tout
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {/* Search Input - Enhanced */}
+          <div className="lg:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Rechercher
+              <i className="fas fa-search mr-1 text-gray-400"></i>
+              Recherche globale
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <i className="fas fa-search text-gray-400"></i>
               </div>
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Nom du produit..."
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Nom, description, marque... (min 2 caractères)"
+                className="block w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 placeholder-gray-500"
               />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                >
+                  <i className="fas fa-times text-gray-400 hover:text-gray-600"></i>
+                </button>
+              )}
             </div>
           </div>
 
+          {/* Category Filter - Enhanced */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
+              <i className="fas fa-folder mr-1 text-gray-400"></i>
               Catégorie
             </label>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Toutes les catégories</option>
-              {categories.map((category) => (
-                <option key={category.$id} value={category.$id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 w-full"
+              >
+                <option value="all">Toutes</option>
+                {categories.map((category) => (
+                  <option key={category.$id} value={category.$id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <i className="fas fa-chevron-down text-gray-400"></i>
+              </div>
+            </div>
           </div>
 
+          {/* Status Filter - Enhanced */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
+              <i className="fas fa-toggle-on mr-1 text-gray-400"></i>
               Statut
             </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="active">Actif</option>
-              <option value="inactive">Inactif</option>
-              <option value="draft">Brouillon</option>
-            </select>
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 w-full"
+              >
+                <option value="all">Tous</option>
+                <option value="active">✅ Actif</option>
+                <option value="inactive">❌ Inactif</option>
+                <option value="draft">📝 Brouillon</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <i className="fas fa-chevron-down text-gray-400"></i>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <i className="fas fa-bolt mr-1 text-gray-400"></i>
+              Actions rapides
+            </label>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setStatusFilter('active')}
+                className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 px-3 py-3 rounded-xl text-sm font-medium transition-colors border border-green-200"
+                title="Voir produits actifs"
+              >
+                <i className="fas fa-eye"></i>
+              </button>
+              <button
+                onClick={() => setStatusFilter('draft')}
+                className="flex-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-3 py-3 rounded-xl text-sm font-medium transition-colors border border-yellow-200"
+                title="Voir brouillons"
+              >
+                <i className="fas fa-edit"></i>
+              </button>
+              <button
+                onClick={() => {/* Add bulk edit functionality */}}
+                className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-3 rounded-xl text-sm font-medium transition-colors border border-blue-200"
+                title="Édition groupée"
+              >
+                <i className="fas fa-tasks"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter Tags */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {searchTerm && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
+              Recherche: "{searchTerm}"
+              <button onClick={() => setSearchTerm('')} className="ml-2 text-blue-600 hover:text-blue-800">
+                <i className="fas fa-times"></i>
+              </button>
+            </span>
+          )}
+          {categoryFilter !== 'all' && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-800">
+              Catégorie: {categories.find(c => c.$id === categoryFilter)?.name}
+              <button onClick={() => setCategoryFilter('all')} className="ml-2 text-purple-600 hover:text-purple-800">
+                <i className="fas fa-times"></i>
+              </button>
+            </span>
+          )}
+          {statusFilter !== 'all' && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
+              Statut: {statusFilter === 'active' ? 'Actif' : statusFilter === 'inactive' ? 'Inactif' : 'Brouillon'}
+              <button onClick={() => setStatusFilter('all')} className="ml-2 text-green-600 hover:text-green-800">
+                <i className="fas fa-times"></i>
+              </button>
+            </span>
+          )}
+        </div>
+
+        {/* Results Summary */}
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <span>
+              <i className="fas fa-info-circle mr-1"></i>
+              {loading ? 'Chargement...' : `${products.length} produit(s) affiché(s)`}
+            </span>
+            <div className="flex items-center space-x-4">
+              <span className="text-xs">Trier par:</span>
+              <select className="text-xs border border-gray-200 rounded px-2 py-1">
+                <option>Nom A-Z</option>
+                <option>Prix croissant</option>
+                <option>Prix décroissant</option>
+                <option>Date création</option>
+                <option>Stock faible</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
