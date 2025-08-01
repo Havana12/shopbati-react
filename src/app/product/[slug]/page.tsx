@@ -43,6 +43,7 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true)
   const [selectedImage, setSelectedImage] = useState(0)
   const [quantity, setQuantity] = useState(1)
+  const [isImageZoomed, setIsImageZoomed] = useState(false)
   const { addItem, openCart, state, updateQuantity, removeItem } = useCart()
 
   useEffect(() => {
@@ -196,17 +197,31 @@ export default function ProductDetailPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
             {/* Product Images */}
             <div className="space-y-4">
-              <div className="aspect-w-1 aspect-h-1 bg-white rounded-lg shadow-lg overflow-hidden">
+              <div className="bg-white rounded-lg shadow-lg overflow-hidden relative group">
                 {productImages.length > 0 ? (
-                  <Image 
-                    src={productImages[selectedImage]} 
-                    alt={product.name}
-                    width={600}
-                    height={600}
-                    className="w-full h-96 object-cover"
-                  />
+                  <div 
+                    className="relative w-full cursor-zoom-in" 
+                    style={{ aspectRatio: '1/1' }}
+                    onClick={() => setIsImageZoomed(true)}
+                  >
+                    <Image 
+                      src={productImages[selectedImage]} 
+                      alt={product.name}
+                      fill
+                      className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"
+                      priority
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    />
+                    {/* Zoom overlay */}
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300 flex items-center justify-center">
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white bg-opacity-90 px-3 py-2 rounded-lg">
+                        <i className="fas fa-search-plus mr-2"></i>
+                        <span className="text-sm font-medium">Cliquer pour agrandir</span>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
-                  <div className="w-full h-96 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                  <div className="w-full aspect-square bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                     <i className="fas fa-box text-6xl text-gray-400"></i>
                   </div>
                 )}
@@ -214,22 +229,26 @@ export default function ProductDetailPage() {
               
               {/* Thumbnail Images */}
               {productImages.length > 1 && (
-                <div className="flex space-x-2">
+                <div className="flex space-x-2 overflow-x-auto">
                   {productImages.map((image, index) => (
                     <button
                       key={index}
                       onClick={() => setSelectedImage(index)}
-                      className={`w-20 h-20 rounded-lg overflow-hidden ${
-                        selectedImage === index ? 'ring-2 ring-blue-500' : ''
+                      className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
+                        selectedImage === index 
+                          ? 'ring-2 ring-blue-500 border-blue-500' 
+                          : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      <Image 
-                        src={image} 
-                        alt={`${product.name} ${index + 1}`}
-                        width={80}
-                        height={80}
-                        className="w-full h-full object-cover"
-                      />
+                      <div className="relative w-full h-full">
+                        <Image 
+                          src={image} 
+                          alt={`${product.name} ${index + 1}`}
+                          fill
+                          className="object-contain p-1"
+                          sizes="80px"
+                        />
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -429,17 +448,17 @@ export default function ProductDetailPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {relatedProducts.map((relatedProduct) => (
                   <div key={relatedProduct.$id} className="bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden">
-                    <div className="aspect-w-16 aspect-h-12 bg-gray-200">
+                    <div className="relative w-full h-48 bg-gray-50">
                       {relatedProduct.image_url ? (
                         <Image 
                           src={relatedProduct.image_url} 
                           alt={relatedProduct.name}
-                          width={300}
-                          height={200}
-                          className="w-full h-40 object-cover"
+                          fill
+                          className="object-contain p-2"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
                         />
                       ) : (
-                        <div className="w-full h-40 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                        <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                           <i className="fas fa-box text-2xl text-gray-400"></i>
                         </div>
                       )}
@@ -467,6 +486,51 @@ export default function ProductDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Image Zoom Modal */}
+      {isImageZoomed && productImages.length > 0 && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+          onClick={() => setIsImageZoomed(false)}
+        >
+          <div className="relative max-w-4xl max-h-full">
+            <button
+              onClick={() => setIsImageZoomed(false)}
+              className="absolute top-4 right-4 z-10 bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-2 rounded-full transition-all"
+            >
+              <i className="fas fa-times text-xl"></i>
+            </button>
+            <div className="relative w-full h-full">
+              <Image 
+                src={productImages[selectedImage]} 
+                alt={product.name}
+                width={800}
+                height={800}
+                className="max-w-full max-h-full object-contain"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+            {productImages.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                {productImages.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setSelectedImage(index)
+                    }}
+                    className={`w-3 h-3 rounded-full transition-all ${
+                      selectedImage === index 
+                        ? 'bg-white' 
+                        : 'bg-white bg-opacity-50 hover:bg-opacity-75'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <Footer />
     </>
