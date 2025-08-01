@@ -117,12 +117,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
           ...(accountType === 'individual' ? {
             firstName: firstName.trim(),
             lastName: lastName.trim(),
-            raisonSociale: '',
-            siret: '',
-            tvaNumber: '',
           } : {
-            firstName: '',
-            lastName: '',
             raisonSociale: raisonSociale.trim(),
             siret: siret.trim(),
             tvaNumber: tvaNumber.trim(),
