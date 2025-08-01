@@ -373,7 +373,7 @@ export default function CategoryPage() {
             {loading ? (
               [...Array(15)].map((_, index) => (
                 <div key={index} className="bg-white rounded-2xl overflow-hidden shadow-lg animate-pulse">
-                  <div className="h-64 bg-gradient-to-br from-gray-200 to-gray-300"></div>
+                  <div className="aspect-square bg-gradient-to-br from-gray-200 to-gray-300"></div>
                   <div className="p-6">
                     <div className="h-6 bg-gray-200 rounded mb-3"></div>
                     <div className="h-4 bg-gray-200 rounded mb-4"></div>
@@ -385,22 +385,27 @@ export default function CategoryPage() {
             ) : currentProducts.length > 0 ? (
               currentProducts.map((product) => (
                 <div key={product.$id} className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-                  <div className="relative overflow-hidden">
+                  <div className="relative overflow-hidden bg-gray-50 aspect-square">
                     <img
-                      src={product.image_url || '/images/placeholder.jpg'}
+                      src={product.image_url || '/images/placeholder.svg'}
                       alt={product.name}
-                      className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500"
+                      className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-500"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/images/placeholder.svg'
+                      }}
                     />
                     {product.featured && (
-                      <div className="absolute top-4 left-4 bg-gradient-to-r from-orange-500 to-red-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
+                      <div className="absolute top-4 left-4 bg-gradient-to-r from-orange-500 to-red-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg z-10">
                         ⭐ Vedette
                       </div>
                     )}
-                    <div className="absolute top-4 right-4 bg-black/20 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute top-4 right-4 bg-black/20 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                       <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                       </svg>
                     </div>
+                    {/* Image loading placeholder */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 opacity-0 group-hover:opacity-5 transition-opacity"></div>
                   </div>
                   
                   <div className="p-6">
