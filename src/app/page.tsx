@@ -276,7 +276,7 @@ export default function HomePage() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % 3)
+      setCurrentSlide((prev) => (prev + 1) % 2)
     }, 5000)
     return () => clearInterval(interval)
   }, [])
@@ -306,53 +306,128 @@ export default function HomePage() {
     <div className="min-h-screen bg-neutral-50">
       <Header />
       
-      {/* Section Héro Moderne */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-brand-500 via-brand-600 to-brand-700">
-        {/* Motif de fond */}
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iNCIvPjwvZz48L2c+PC9zdmc+')] opacity-40"></div>
-        
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
-          <div className="text-center">
-            {/* Badge */}
-            <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 text-white text-sm font-medium mb-8 animate-fade-in">
-              <span className="mr-2">⭐</span>
-              Matériaux Professionnels Certifiés
-            </div>
-            
-            {/* Titre principal */}
-            <h1 className="text-5xl lg:text-7xl font-bold text-white mb-6 animate-fade-in-up">
-              SHOPBATI
-            </h1>
-            
-            {/* Sous-titre */}
-            <p className="text-xl lg:text-2xl text-white/90 mb-8 max-w-3xl mx-auto animate-fade-in-up">
-              Votre plateforme de confiance pour matériaux de construction de qualité professionnelle
-            </p>
-            
-            {/* Boutons CTA */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in-up">
-              <Link 
-                href="/produits" 
-                className="inline-flex items-center px-8 py-4 rounded-xl bg-white text-brand-600 font-semibold hover:bg-neutral-100 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
-              >
-                <span className="mr-2">🛍️</span>
-                Explorer le Catalogue
-              </Link>
-              <Link 
-                href="/contact" 
-                className="inline-flex items-center px-8 py-4 rounded-xl bg-transparent text-white font-semibold border-2 border-white/30 hover:bg-white/10 backdrop-blur-sm transition-all duration-200"
-              >
-                <span className="mr-2">💬</span>
-                Demander un Devis
-              </Link>
+      {/* Carousel Hero Section */}
+      <section className="relative h-screen overflow-hidden">
+        {/* Carousel Container */}
+        <div className="relative w-full h-full">
+          {/* Slide 1 */}
+          <div className={`absolute inset-0 transition-opacity duration-1000 ${currentSlide === 0 ? 'opacity-100' : 'opacity-0'}`}>
+            <div className="relative w-full h-full">
+              <img 
+                src="/images/christopher-burns-8KfCR12oeUM-unsplash.jpg" 
+                alt="Construction Materials"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-black/40"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center text-white max-w-4xl px-4">
+                  <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 text-white text-sm font-medium mb-8">
+                    <span className="mr-2">⭐</span>
+                    Matériaux Professionnels Certifiés
+                  </div>
+                  <h1 className="text-5xl lg:text-7xl font-bold mb-6">
+                    SHOPBATI
+                  </h1>
+                  <p className="text-xl lg:text-2xl mb-8 text-white/90">
+                    Votre partenaire de confiance pour tous vos projets de construction
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <Link 
+                      href="/produits" 
+                      className="inline-flex items-center px-8 py-4 rounded-xl bg-white text-brand-600 font-semibold hover:bg-neutral-100 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+                    >
+                      <span className="mr-2">🛍️</span>
+                      Explorer le Catalogue
+                    </Link>
+                    <Link 
+                      href="/contact" 
+                      className="inline-flex items-center px-8 py-4 rounded-xl bg-transparent text-white font-semibold border-2 border-white/30 hover:bg-white/10 backdrop-blur-sm transition-all duration-200"
+                    >
+                      <span className="mr-2">💬</span>
+                      Demander un Devis
+                    </Link>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
+
+          {/* Slide 2 */}
+          <div className={`absolute inset-0 transition-opacity duration-1000 ${currentSlide === 1 ? 'opacity-100' : 'opacity-0'}`}>
+            <div className="relative w-full h-full">
+              <img 
+                src="/images/jeriden-villegas-VLPUm5wP5Z0-unsplash.webp" 
+                alt="Professional Construction"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-black/40"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center text-white max-w-4xl px-4">
+                  <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 text-white text-sm font-medium mb-8">
+                    <span className="mr-2">🏗️</span>
+                    Qualité Professionnelle Garantie
+                  </div>
+                  <h1 className="text-5xl lg:text-7xl font-bold mb-6">
+                    EXCELLENCE
+                  </h1>
+                  <p className="text-xl lg:text-2xl mb-8 text-white/90">
+                    Des matériaux de première qualité pour des constructions durables
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <Link 
+                      href="/categories" 
+                      className="inline-flex items-center px-8 py-4 rounded-xl bg-white text-brand-600 font-semibold hover:bg-neutral-100 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
+                    >
+                      <span className="mr-2">�</span>
+                      Voir les Catégories
+                    </Link>
+                    <Link 
+                      href="/about" 
+                      className="inline-flex items-center px-8 py-4 rounded-xl bg-transparent text-white font-semibold border-2 border-white/30 hover:bg-white/10 backdrop-blur-sm transition-all duration-200"
+                    >
+                      <span className="mr-2">ℹ️</span>
+                      En Savoir Plus
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation Arrows */}
+          <button 
+            onClick={() => setCurrentSlide(currentSlide === 0 ? 1 : 0)}
+            className="absolute left-4 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all duration-200 z-10"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          
+          <button 
+            onClick={() => setCurrentSlide(currentSlide === 0 ? 1 : 0)}
+            className="absolute right-4 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all duration-200 z-10"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+
+          {/* Dots Navigation */}
+          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-3 z-10">
+            {[0, 1].map((index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentSlide(index)}
+                className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                  index === currentSlide 
+                    ? 'bg-white scale-125' 
+                    : 'bg-white/50 hover:bg-white/75'
+                }`}
+              />
+            ))}
+          </div>
         </div>
-        
-        {/* Éléments décoratifs flottants */}
-        <div className="absolute top-20 left-10 w-20 h-20 bg-white/10 rounded-full animate-float"></div>
-        <div className="absolute top-40 right-20 w-16 h-16 bg-white/10 rounded-full animate-float" style={{animationDelay: '1s'}}></div>
-        <div className="absolute bottom-20 left-20 w-12 h-12 bg-white/10 rounded-full animate-float" style={{animationDelay: '2s'}}></div>
       </section>
 
       {/* Section Avantages */}
