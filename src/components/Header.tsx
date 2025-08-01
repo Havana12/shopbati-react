@@ -169,7 +169,7 @@ export default function Header() {
   }
 
   return (
-    <header className="bg-white shadow-lg sticky top-0 z-50">
+    <header className="bg-white sticky top-0 z-50">
       {/* Top Orange Banner */}
       <div className="bg-orange-600 text-white text-center py-2 text-sm font-medium">
         <div className="container mx-auto px-4">
@@ -395,7 +395,7 @@ export default function Header() {
         </div>
 
         {/* Navigation Menu */}
-        <nav className="border-t border-gray-200 bg-white shadow-sm">
+        <nav className="bg-white">
           <div className="hidden md:flex items-center justify-center py-4">
             <div className="flex items-center space-x-2">
               <Link
@@ -473,7 +473,7 @@ export default function Header() {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden border-t border-gray-200 py-4 bg-white shadow-lg">
+          <div className="md:hidden py-4 bg-white">
             <div className="container mx-auto px-4">
               <div className="flex flex-col space-y-2">
                 <div className="relative mb-4">
