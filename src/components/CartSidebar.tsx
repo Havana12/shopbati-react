@@ -234,7 +234,7 @@ export default function CartSidebar() {
       {/* Email Form Modal */}
       {showEmailForm && (
         <EmailForm
-          onSubmit={(email, name, address) => processOrder(email, name, address)}
+          onSubmit={(email, name, address, customerType, professionalInfo) => processOrder(email, name, address, customerType, professionalInfo)}
           onCancel={() => setShowEmailForm(false)}
           isProcessing={isProcessing}
         />

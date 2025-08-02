@@ -43,7 +43,13 @@ export function useOrder() {
     return null
   }
 
-  const processOrder = async (email?: string, name?: string, address?: { street: string; city: string; postalCode: string }) => {
+  const processOrder = async (
+    email?: string, 
+    name?: string, 
+    address?: { street: string; city: string; postalCode: string },
+    customerType?: 'particulier' | 'professionnel',
+    professionalInfo?: { company?: string; siret?: string; vatNumber?: string }
+  ) => {
     if (state.items.length === 0) {
       showToast('Votre panier est vide', 'error')
       return
@@ -76,7 +82,10 @@ export function useOrder() {
             city: address.city,
             postalCode: address.postalCode,
             country: 'France'
-          } : undefined
+          } : undefined,
+          // Add customer type and professional info
+          customerType: customerType || 'particulier',
+          professionalInfo: customerType === 'professionnel' ? professionalInfo : undefined
         }
       }
 

@@ -44,6 +44,12 @@ export interface CustomerInfo {
     postalCode: string
     country: string
   }
+  customerType?: 'particulier' | 'professionnel'
+  professionalInfo?: {
+    company?: string
+    siret?: string
+    vatNumber?: string
+  }
 }
 
 // Générer un ID de commande unique
