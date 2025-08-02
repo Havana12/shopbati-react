@@ -308,54 +308,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Section Avantages */}
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl lg:text-5xl font-bold text-neutral-900 mb-4">
-              Pourquoi Choisir ShopBati
-            </h2>
-            <p className="text-xl text-neutral-600 max-w-3xl mx-auto">
-              Nous nous engageons à fournir les meilleurs matériaux avec un service exceptionnel
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="group text-center p-8 rounded-2xl bg-gradient-to-br from-neutral-50 to-neutral-100 hover:from-brand-50 hover:to-brand-100 transition-all duration-300 hover:shadow-brand-lg hover:-translate-y-2">
-              <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-2xl text-white group-hover:scale-110 transition-transform duration-300">
-                🚚
-              </div>
-              <h3 className="text-2xl font-bold text-neutral-900 mb-4">Livraison Express</h3>
-              <p className="text-neutral-600 leading-relaxed">
-                Livraison gratuite dès 100€ d'achat avec expédition en 24-48h partout en France
-              </p>
-            </div>
-            
-            <div className="group text-center p-8 rounded-2xl bg-gradient-to-br from-neutral-50 to-neutral-100 hover:from-brand-50 hover:to-brand-100 transition-all duration-300 hover:shadow-brand-lg hover:-translate-y-2">
-              <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-construction-green to-green-600 flex items-center justify-center text-2xl text-white group-hover:scale-110 transition-transform duration-300">
-                🏆
-              </div>
-              <h3 className="text-2xl font-bold text-neutral-900 mb-4">Qualité Garantie</h3>
-              <p className="text-neutral-600 leading-relaxed">
-                Uniquement les meilleures marques et produits certifiés pour vos projets de construction
-              </p>
-            </div>
-            
-            <div className="group text-center p-8 rounded-2xl bg-gradient-to-br from-neutral-50 to-neutral-100 hover:from-brand-50 hover:to-brand-100 transition-all duration-300 hover:shadow-brand-lg hover:-translate-y-2">
-              <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-construction-blue to-blue-600 flex items-center justify-center text-2xl text-white group-hover:scale-110 transition-transform duration-300">
-                💬
-              </div>
-              <h3 className="text-2xl font-bold text-neutral-900 mb-4">Support Expert</h3>
-              <p className="text-neutral-600 leading-relaxed">
-                Conseil technique spécialisé pour vous accompagner dans le choix de vos matériaux
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Section Catégories */}
-      <section className="py-20 bg-neutral-50">
+      <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl lg:text-5xl font-bold text-neutral-900 mb-4">
@@ -418,6 +372,52 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Section Avantages - Déplacée après les catégories */}
+      <section className="py-20 bg-neutral-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl lg:text-5xl font-bold text-neutral-900 mb-4">
+              Pourquoi Choisir ShopBati
+            </h2>
+            <p className="text-xl text-neutral-600 max-w-3xl mx-auto">
+              Nous nous engageons à fournir les meilleurs matériaux avec un service exceptionnel
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="group text-center p-8 rounded-2xl bg-gradient-to-br from-neutral-50 to-neutral-100 hover:from-brand-50 hover:to-brand-100 transition-all duration-300 hover:shadow-brand-lg hover:-translate-y-2">
+              <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-2xl text-white group-hover:scale-110 transition-transform duration-300">
+                🚚
+              </div>
+              <h3 className="text-2xl font-bold text-neutral-900 mb-4">Livraison Express</h3>
+              <p className="text-neutral-600 leading-relaxed">
+                Livraison gratuite dès 100€ d'achat avec expédition en 24-48h partout en France
+              </p>
+            </div>
+            
+            <div className="group text-center p-8 rounded-2xl bg-gradient-to-br from-neutral-50 to-neutral-100 hover:from-brand-50 hover:to-brand-100 transition-all duration-300 hover:shadow-brand-lg hover:-translate-y-2">
+              <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-construction-green to-green-600 flex items-center justify-center text-2xl text-white group-hover:scale-110 transition-transform duration-300">
+                🏆
+              </div>
+              <h3 className="text-2xl font-bold text-neutral-900 mb-4">Qualité Garantie</h3>
+              <p className="text-neutral-600 leading-relaxed">
+                Uniquement les meilleures marques et produits certifiés pour vos projets de construction
+              </p>
+            </div>
+            
+            <div className="group text-center p-8 rounded-2xl bg-gradient-to-br from-neutral-50 to-neutral-100 hover:from-brand-50 hover:to-brand-100 transition-all duration-300 hover:shadow-brand-lg hover:-translate-y-2">
+              <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-construction-blue to-blue-600 flex items-center justify-center text-2xl text-white group-hover:scale-110 transition-transform duration-300">
+                💬
+              </div>
+              <h3 className="text-2xl font-bold text-neutral-900 mb-4">Support Expert</h3>
+              <p className="text-neutral-600 leading-relaxed">
+                Conseil technique spécialisé pour vous accompagner dans le choix de vos matériaux
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Section Produits en Vedette */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -448,8 +448,16 @@ export default function HomePage() {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {featuredProducts.map((product) => (
                 <div key={product.$id} className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-neutral-200 hover:border-brand-200">
+                  
+                  {/* Titre en haut de la carte (au-dessus de l'image) */}
+                  <div className="p-3 pb-2">
+                    <h3 className="font-bold text-neutral-900 text-base leading-snug group-hover:text-brand-600 transition-colors min-h-[3rem] flex items-center justify-center text-center">
+                      {product.name || 'Produit'}
+                    </h3>
+                  </div>
+                  
                   {/* Image Container */}
-                  <div className="relative overflow-hidden bg-gray-50 aspect-square">
+                  <div className="relative overflow-hidden bg-gray-50 aspect-square mx-3 rounded-lg">
                     <img
                       src={product.image_url || '/images/placeholder.svg'}
                       alt={product.name || 'Produit'}
@@ -461,11 +469,8 @@ export default function HomePage() {
                   </div>
                   
                   {/* Content */}
-                  <div className="p-4 space-y-3">
-                    <h3 className="font-semibold text-neutral-900 text-sm leading-tight line-clamp-2 group-hover:text-brand-600 transition-colors">
-                      {product.name || 'Produit'}
-                    </h3>
-                    
+                  <div className="p-4 pt-3 space-y-3">
+                    {/* Description */}
                     {product.description && (
                       <p className="text-xs text-neutral-600 line-clamp-2 leading-relaxed">
                         {product.description}
