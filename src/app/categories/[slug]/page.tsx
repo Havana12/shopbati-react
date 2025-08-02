@@ -92,7 +92,7 @@ export default function CategoryPage() {
         const productsResult = await appwrite.getProducts([
           appwrite.Query.equal('category_id', foundCategory.$id),
           appwrite.Query.equal('status', 'active'),
-          appwrite.Query.limit(100)
+          appwrite.Query.limit(500) // Increased limit for categories with many products
         ])
         
         console.log('🛍️ Products found for category:', productsResult.documents.length)
@@ -126,7 +126,7 @@ export default function CategoryPage() {
           const productsResult = await appwrite.getProducts([
             appwrite.Query.equal('category_id', foundCategory.$id),
             appwrite.Query.equal('status', 'active'),
-            appwrite.Query.limit(100)
+            appwrite.Query.limit(500) // Increased limit for categories with many products
           ])
           
           console.log('🛍️ Products found for category (by name):', productsResult.documents.length)

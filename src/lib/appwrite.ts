@@ -28,9 +28,16 @@ export class AppwriteService {
 
   async getProducts(queries: string[] = []) {
     try {
-      // Add a limit of 100 to ensure we get all products (you can increase this if needed)
-      const defaultQueries = [Query.limit(100)]
-      const allQueries = [...defaultQueries, ...queries]
+      // Don't add default limit if queries already contain limit/offset (for pagination)
+      const hasLimitOrOffset = queries.some(q => 
+        q.includes('limit(') || q.includes('offset(')
+      )
+      
+      let allQueries = queries
+      if (!hasLimitOrOffset) {
+        // Only add default limit if no pagination is specified
+        allQueries = [Query.limit(100), ...queries]
+      }
       
       return await this.databases.listDocuments(
         process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
@@ -49,7 +56,7 @@ export class AppwriteService {
       return await this.databases.listDocuments(
         process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
         'products',
-        [Query.limit(200)] // Increased limit to handle more products
+        [Query.limit(1000)] // Increased limit to handle more products
       )
     } catch (error) {
       console.error('Error fetching all products:', error)
