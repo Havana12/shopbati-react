@@ -152,11 +152,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const existingItem = state.items.find(cartItem => cartItem.$id === item.$id)
     dispatch({ type: 'ADD_ITEM', payload: item })
     
-    if (existingItem) {
-      showToast(`Quantité augmentée : ${existingItem.quantity + 1}x "${item.name}"`, 'success')
-    } else {
-      showToast(`✅ "${item.name}" ajouté au panier`, 'success')
-    }
+    // Toast notifications removed as requested
   }
   
   const removeItem = (id: string) => {
