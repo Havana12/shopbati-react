@@ -64,6 +64,7 @@ export default function AdminOrdersPage() {
       'pending': '⏳ En attente',
       'processing': '⚙️ En cours', 
       'delivered': '📦 Livré',
+      'livré': '📦 Livré', // Add French version
       'cancelled': '❌ Annulé'
     }
     return labels[status] || status
@@ -142,7 +143,7 @@ export default function AdminOrdersPage() {
       const currentYear = new Date().getFullYear()
 
       setOrderStats({
-        delivered: allOrders.filter(order => order.status === 'delivered').length,
+        delivered: allOrders.filter(order => order.status === 'delivered' || order.status === 'livré').length,
         cancelled: allOrders.filter(order => order.status === 'cancelled').length,
         monthlyRevenue: allOrders
           .filter(order => {
@@ -169,9 +170,9 @@ export default function AdminOrdersPage() {
         updated_at: new Date().toISOString()
       }
       
-      // Si le statut devient "delivered", mettre automatiquement payment_status à "paid"
-      if (newStatus === 'delivered') {
-        updateData.payment_status = 'paid'
+      // Si le statut devient "livré", mettre automatiquement payment_status à "payé"
+      if (newStatus === 'livré') {
+        updateData.payment_status = 'payé'
       }
       
       // Si le statut devient "cancelled", mettre automatiquement payment_status à "cancelled"
@@ -191,7 +192,7 @@ export default function AdminOrdersPage() {
         setSelectedOrder(prev => prev ? { 
           ...prev, 
           status: newStatus,
-          payment_status: newStatus === 'delivered' ? 'paid' : newStatus === 'cancelled' ? 'cancelled' : prev.payment_status
+          payment_status: newStatus === 'livré' ? 'payé' : newStatus === 'cancelled' ? 'cancelled' : prev.payment_status
         } : null)
       }
     } catch (error) {
@@ -207,6 +208,7 @@ export default function AdminOrdersPage() {
       case 'processing':
         return 'bg-blue-100 text-blue-800'
       case 'delivered':
+      case 'livré': // Add French version
         return 'bg-green-100 text-green-800'
       case 'cancelled':
         return 'bg-red-100 text-red-800'
@@ -218,6 +220,7 @@ export default function AdminOrdersPage() {
   const getPaymentStatusColor = (status: string) => {
     switch (status) {
       case 'paid':
+      case 'payé': // Add French version
         return 'bg-green-100 text-green-800'
       case 'pending':
         return 'bg-yellow-100 text-yellow-800'
@@ -359,7 +362,7 @@ export default function AdminOrdersPage() {
                 className="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 text-gray-700 w-full"
               >
                 <option value="all">Tous</option>
-                <option value="delivered">📦 Livré</option>
+                <option value="livré">📦 Livré</option>
                 <option value="cancelled">❌ Annulé</option>
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -381,7 +384,7 @@ export default function AdminOrdersPage() {
                 className="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 text-gray-700 w-full"
               >
                 <option value="all">Tous</option>
-                <option value="paid">💳 Payé</option>
+                <option value="payé">💳 Payé</option>
                 <option value="failed">❌ Échoué</option>
                 <option value="cancelled">🚫 Annulé</option>
               </select>
@@ -419,7 +422,7 @@ export default function AdminOrdersPage() {
         {/* Quick Actions */}
         <div className="mt-4 flex flex-wrap gap-2">
           <button
-            onClick={() => setStatusFilter('delivered')}
+            onClick={() => setStatusFilter('livré')}
             className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-green-200"
           >
             <i className="fas fa-check mr-1"></i>
@@ -590,8 +593,9 @@ export default function AdminOrdersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPaymentStatusColor(order.payment_status)}`}>
-                          {order.payment_status === 'paid' ? 'Payé' : 
-                           order.payment_status === 'pending' ? 'En attente' : 'Échoué'}
+                          {order.payment_status === 'paid' || order.payment_status === 'payé' ? 'Payé' : 
+                           order.payment_status === 'pending' ? 'En attente' : 
+                           order.payment_status === 'cancelled' ? 'Annulé' : 'Échoué'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -610,7 +614,7 @@ export default function AdminOrdersPage() {
                             onChange={(e) => updateOrderStatus(order.$id, e.target.value)}
                             className="text-sm border border-gray-300 rounded px-2 py-1"
                           >
-                            <option value="delivered">Livré</option>
+                            <option value="livré">Livré</option>
                             <option value="cancelled">Annulé</option>
                           </select>
                         </div>

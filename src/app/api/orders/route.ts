@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { OrderData } from '@/lib/orderService'
 import EmailService from '@/lib/emailService'
 import { InvoiceGenerator } from '@/lib/invoiceGenerator'
+import { AppwriteService } from '@/lib/appwrite'
 import { Resend } from 'resend'
 
 export async function POST(request: NextRequest) {
@@ -25,8 +26,8 @@ export async function POST(request: NextRequest) {
       customerName: orderData.customerName || '',
       customerPhone: '',
       items: orderData.items,
-      subtotal: orderData.total,
-      shipping: 0,
+      subtotal: orderData.total, // Use the total for now since subtotal might not be separate
+      shipping: 0, // Shipping is usually included in total for this system
       total: orderData.total,
       shippingAddress: addressToUse,
       billingAddress: addressToUse,
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest) {
 
     if (orderSaved.success) {
       // Send invoice directly using InvoiceGenerator and Resend
+      let emailSent = false
       try {
         // Préparer les données pour le générateur de factures avec l'adresse correcte
         const invoiceData = {
@@ -67,6 +69,26 @@ export async function POST(request: NextRequest) {
         
         if (error) {
           console.error('❌ Erreur envoi email Resend:', error)
+        } else {
+          emailSent = true
+          console.log('✅ Invoice email sent successfully:', data?.id)
+          
+          // Update order status to delivered/paid after successful email
+          if (orderSaved.orderId) {
+            try {
+              const appwrite = AppwriteService.getInstance()
+              await appwrite.updateOrder(orderSaved.orderId, {
+                status: 'livré',
+                payment_status: 'payé',
+                updated_at: new Date().toISOString(),
+                invoice_sent_at: new Date().toISOString()
+              })
+              console.log('✅ Order status updated to livré/payé after email sent:', orderSaved.orderId)
+            } catch (updateError) {
+              console.error('❌ Error updating order status:', updateError)
+              // Don't fail the order if status update fails
+            }
+          }
         }
       } catch (emailError) {
         console.error('❌ Erreur lors de la génération/envoi de facture:', emailError)
@@ -75,8 +97,9 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ 
         success: true, 
-        message: 'Commande sauvegardée et facture envoyée',
-        orderId: orderData.orderId 
+        message: emailSent ? 'Commande sauvegardée et facture envoyée' : 'Commande sauvegardée (erreur envoi email)',
+        orderId: orderData.orderId,
+        emailSent
       })
     } else {
       return NextResponse.json({ 

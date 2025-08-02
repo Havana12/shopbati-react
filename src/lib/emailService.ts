@@ -98,10 +98,14 @@ export class EmailService {
         customer_email: orderData.customerEmail,
         customer_name: orderData.customerName,
         customer_phone: orderData.customerPhone || '',
-        status: 'pending',
+        total_amount: orderData.total || 0, // Add the total amount
+        subtotal_amount: orderData.subtotal || 0, // Add subtotal
+        shipping_amount: orderData.shipping || 0, // Add shipping cost
+        status: 'livré', // Set status to delivered since we're processing the order immediately
         currency: 'EUR',
-        payment_status: 'pending',
+        payment_status: 'payé', // Set payment status to paid since we're confirming the order
         payment_method: orderData.paymentMethod,
+        items: JSON.stringify(orderData.items), // Add order items
         shipping_address: JSON.stringify(orderData.shippingAddress),
         billing_address: JSON.stringify(orderData.billingAddress || orderData.shippingAddress),
         notes: orderData.specialInstructions || '',
@@ -111,7 +115,14 @@ export class EmailService {
       
       const result = await appwrite.createOrder(orderDocument)
       
-      console.log('✅ Order created in database:', result.$id)
+      console.log('✅ Order created in database:', {
+        orderId: result.$id,
+        order_number: orderDocument.order_number,
+        total_amount: orderDocument.total_amount,
+        status: orderDocument.status,
+        payment_status: orderDocument.payment_status,
+        customer_email: orderDocument.customer_email
+      })
       
       return {
         success: true,
@@ -123,6 +134,34 @@ export class EmailService {
       return {
         success: false,
         error: 'Erreur lors de la sauvegarde de la commande'
+      }
+    }
+  }
+
+  // Update order status after successful email sending
+  async updateOrderStatusAfterEmail(orderId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const appwrite = AppwriteService.getInstance()
+      
+      // Update order status to delivered and payment to paid
+      const updateData = {
+        status: 'livré',
+        payment_status: 'payé',
+        updated_at: new Date().toISOString(),
+        invoice_sent_at: new Date().toISOString()
+      }
+      
+      await appwrite.updateOrder(orderId, updateData)
+      
+      console.log('✅ Order status updated to delivered/paid after email sent:', orderId)
+      
+      return { success: true }
+      
+    } catch (error) {
+      console.error('❌ Error updating order status:', error)
+      return {
+        success: false,
+        error: 'Erreur lors de la mise à jour du statut de commande'
       }
     }
   }
