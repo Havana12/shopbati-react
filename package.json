@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "add-reference": "node scripts/add-reference-attribute.js",
+    "add-subcategories": "node scripts/add-subcategories.js"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.6.0",

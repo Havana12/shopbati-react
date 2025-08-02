@@ -15,6 +15,7 @@ interface Product {
   brand?: string
   stock_quantity?: number
   technical_specs?: string
+  reference?: string
   created_at: string
   updated_at: string
 }
@@ -86,7 +87,9 @@ export default function AdminProductsPage() {
         // Use contains for better search functionality
         queries.push(appwrite.Query.or([
           appwrite.Query.contains('name', debouncedSearchTerm),
-          appwrite.Query.contains('description', debouncedSearchTerm)
+          appwrite.Query.contains('description', debouncedSearchTerm),
+          appwrite.Query.contains('reference', debouncedSearchTerm),
+          appwrite.Query.contains('brand', debouncedSearchTerm)
         ]))
       }
 
@@ -197,7 +200,7 @@ export default function AdminProductsPage() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Nom, description, marque... (min 2 caractères)"
+                placeholder="Nom, description, référence, marque... (min 2 caractères)"
                 className="block w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 placeholder-gray-500"
               />
               {searchTerm && (
@@ -371,6 +374,9 @@ export default function AdminProductsPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">
                       Produit
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/12">
+                      Référence
+                    </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/8">
                       Marque
                     </th>
@@ -424,6 +430,13 @@ export default function AdminProductsPage() {
                               Créé le {new Date(product.created_at).toLocaleDateString('fr-FR')}
                             </div>
                           </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-mono text-gray-900 bg-gray-50 px-2 py-1 rounded border">
+                          {product.reference || (
+                            <span className="text-gray-400 italic">Non générée</span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

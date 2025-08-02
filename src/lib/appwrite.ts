@@ -70,6 +70,62 @@ export class AppwriteService {
     }
   }
 
+  async createProduct(productData: any) {
+    try {
+      return await this.databases.createDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        'products',
+        'unique()',
+        productData
+      )
+    } catch (error) {
+      console.error('Error creating product:', error)
+      throw error
+    }
+  }
+
+  async updateProduct(productId: string, productData: any) {
+    try {
+      return await this.databases.updateDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        'products',
+        productId,
+        productData
+      )
+    } catch (error) {
+      console.error('Error updating product:', error)
+      throw error
+    }
+  }
+
+  async deleteProduct(productId: string) {
+    try {
+      return await this.databases.deleteDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        'products',
+        productId
+      )
+    } catch (error) {
+      console.error('Error deleting product:', error)
+      throw error
+    }
+  }
+
+  // Check if a reference already exists
+  async checkReferenceExists(reference: string) {
+    try {
+      const result = await this.databases.listDocuments(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        'products',
+        [this.Query.equal('reference', reference)]
+      )
+      return result.documents.length > 0
+    } catch (error) {
+      console.error('Error checking reference:', error)
+      return false
+    }
+  }
+
   // Category methods
   async getCategories(queries: string[] = []) {
     try {
@@ -80,6 +136,187 @@ export class AppwriteService {
       )
     } catch (error) {
       console.error('Error fetching categories:', error)
+      throw error
+    }
+  }
+
+  // Get categories hierarchically (organized by parent-child relationship)
+  async getCategoriesHierarchy() {
+    try {
+      const result = await this.databases.listDocuments(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        'categories',
+        [this.Query.orderAsc('level'), this.Query.orderAsc('sort_order'), this.Query.limit(200)]
+      )
+      return this.buildCategoryTree(result.documents)
+    } catch (error) {
+      console.error('Error fetching categories hierarchy:', error)
+      throw error
+    }
+  }
+
+  // Build tree structure from flat categories list
+  private buildCategoryTree(categories: any[]): any[] {
+    const categoryMap = new Map()
+    const tree: any[] = []
+
+    // First pass: create map of all categories
+    categories.forEach(category => {
+      categoryMap.set(category.$id, { ...category, children: [] })
+    })
+
+    // Second pass: build tree structure
+    categories.forEach(category => {
+      const node = categoryMap.get(category.$id)
+      if (category.parent_id && categoryMap.has(category.parent_id)) {
+        // Add to parent's children
+        categoryMap.get(category.parent_id).children.push(node)
+      } else {
+        // Top-level category
+        tree.push(node)
+      }
+    })
+
+    return tree
+  }
+
+  // Get subcategories of a specific category
+  async getSubcategories(parentId: string) {
+    try {
+      return await this.databases.listDocuments(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        'categories',
+        [
+          this.Query.equal('parent_id', parentId),
+          this.Query.orderAsc('sort_order'),
+          this.Query.limit(100)
+        ]
+      )
+    } catch (error) {
+      console.error('Error fetching subcategories:', error)
+      throw error
+    }
+  }
+
+  // Get category path (breadcrumb)
+  async getCategoryPath(categoryId: string): Promise<any[]> {
+    try {
+      const path: any[] = []
+      let currentCategory = await this.getCategory(categoryId)
+      
+      while (currentCategory) {
+        path.unshift(currentCategory)
+        if (currentCategory.parent_id) {
+          currentCategory = await this.getCategory(currentCategory.parent_id)
+        } else {
+          break
+        }
+      }
+      
+      return path
+    } catch (error) {
+      console.error('Error fetching category path:', error)
+      return []
+    }
+  }
+
+  // Create category with hierarchy support
+  async createCategory(categoryData: any) {
+    try {
+      // Calculate level based on parent
+      let level = 0
+      let path = categoryData.slug || categoryData.name.toLowerCase().replace(/\s+/g, '-')
+      
+      if (categoryData.parent_id) {
+        const parent = await this.getCategory(categoryData.parent_id)
+        level = (parent.level || 0) + 1
+        path = `${parent.path}/${path}`
+        
+        // Update parent's has_children flag
+        await this.updateCategory(categoryData.parent_id, { has_children: true })
+      }
+
+      const finalData = {
+        ...categoryData,
+        level,
+        path,
+        has_children: false
+      }
+
+      return await this.databases.createDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        'categories',
+        'unique()',
+        finalData
+      )
+    } catch (error) {
+      console.error('Error creating category:', error)
+      throw error
+    }
+  }
+
+  // Update category with hierarchy support
+  async updateCategory(categoryId: string, categoryData: any) {
+    try {
+      // If parent_id is being changed, recalculate hierarchy
+      if ('parent_id' in categoryData) {
+        let level = 0
+        let path = categoryData.slug || categoryData.name?.toLowerCase().replace(/\s+/g, '-')
+        
+        if (categoryData.parent_id) {
+          const parent = await this.getCategory(categoryData.parent_id)
+          level = (parent.level || 0) + 1
+          path = `${parent.path}/${path}`
+          
+          // Update parent's has_children flag
+          await this.updateCategory(categoryData.parent_id, { has_children: true })
+        }
+
+        categoryData.level = level
+        categoryData.path = path
+      }
+
+      return await this.databases.updateDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        'categories',
+        categoryId,
+        categoryData
+      )
+    } catch (error) {
+      console.error('Error updating category:', error)
+      throw error
+    }
+  }
+
+  // Delete category with hierarchy support
+  async deleteCategory(categoryId: string) {
+    try {
+      // Check if category has children
+      const subcategories = await this.getSubcategories(categoryId)
+      if (subcategories.documents.length > 0) {
+        throw new Error('Cannot delete category with subcategories. Please delete subcategories first or move them to another parent.')
+      }
+
+      // Get category to check parent
+      const category = await this.getCategory(categoryId)
+      
+      const result = await this.databases.deleteDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        'categories',
+        categoryId
+      )
+
+      // Update parent's has_children flag if needed
+      if (category.parent_id) {
+        const remainingSiblings = await this.getSubcategories(category.parent_id)
+        if (remainingSiblings.documents.length === 0) {
+          await this.updateCategory(category.parent_id, { has_children: false })
+        }
+      }
+
+      return result
+    } catch (error) {
+      console.error('Error deleting category:', error)
       throw error
     }
   }

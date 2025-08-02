@@ -225,7 +225,12 @@ export default function HomePage() {
       console.log('- DATABASE_ID:', process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID)
       
       const appwrite = AppwriteService.getInstance()
-      const result = await appwrite.getCategories()
+      // Only fetch main categories (level 0) for home page
+      const result = await appwrite.getCategories([
+        appwrite.Query.equal('level', 0),
+        appwrite.Query.equal('status', 'active'),
+        appwrite.Query.orderAsc('sort_order')
+      ])
       
       console.log('📁 Categories result:', result)
       
@@ -233,9 +238,9 @@ export default function HomePage() {
         // Sort categories by sort_order if available
         const sortedCategories = (result.documents as unknown as Category[]).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
         setCategories(sortedCategories)
-        console.log('✅ Categories loaded from database:', sortedCategories.length)
+        console.log('✅ Main categories loaded from database:', sortedCategories.length)
       } else {
-        console.log('⚠️ No categories found in database, using fallback')
+        console.log('⚠️ No main categories found in database, using fallback')
       }
     } catch (error) {
       console.error('❌ Error fetching categories:', error)
@@ -495,20 +500,32 @@ export default function HomePage() {
                 href={`/categories/${category.slug}`}
                 className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-brand-xl transition-all duration-300 hover:-translate-y-2"
               >
-                <div className="h-48 bg-gradient-to-br from-brand-400 to-brand-600 flex flex-col items-center justify-center relative overflow-hidden">
-                  <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSIjZmZmZmZmIiBmaWxsLW9wYWNpdHk9IjAuMSI+PHBhdGggZD0iTTIwIDIwbDEwLTEwdjIwbC0xMC0xMHptMCAwbC0xMCAxMHYtMjBsMTAgMTB6Ii8+PC9nPjwvc3ZnPg==')] opacity-30"></div>
-                  <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-white/10"></div>
-                  <div className="relative z-10 group-hover:scale-110 transition-all duration-300 mb-2">
-                    {getCategoryIcon(category.name)}
-                  </div>
-                  <div className="relative z-10 text-white text-4xl group-hover:scale-110 transition-all duration-300">
-                    {category.name === 'Ciments' && '🏗️'}
-                    {category.name === 'Briques' && '🧱'}
-                    {category.name === 'Carrelage' && '⬜'}
-                    {category.name === 'Métaux' && '⚙️'}
-                    {category.name === 'Isolants' && '🛡️'}
-                    {category.name === 'Peintures' && '🎨'}
-                  </div>
+                <div className="h-48 relative overflow-hidden">
+                  {category.image_url ? (
+                    <img 
+                      src={category.image_url} 
+                      alt={category.name}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-all duration-300"
+                    />
+                  ) : (
+                    <div className="h-full bg-gradient-to-br from-brand-400 to-brand-600 flex flex-col items-center justify-center relative overflow-hidden">
+                      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSIjZmZmZmZmIiBmaWxsLW9wYWNpdHk9IjAuMSI+PHBhdGggZD0iTTIwIDIwbDEwLTEwdjIwbC0xMC0xMHptMCAwbC0xMCAxMHYtMjBsMTAgMTB6Ii8+PC9nPjwvc3ZnPg==')] opacity-30"></div>
+                      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-white/10"></div>
+                      <div className="relative z-10 group-hover:scale-110 transition-all duration-300 mb-2">
+                        {getCategoryIcon(category.name)}
+                      </div>
+                      <div className="relative z-10 text-white text-4xl group-hover:scale-110 transition-all duration-300">
+                        {category.name === 'Ciments' && '🏗️'}
+                        {category.name === 'Briques' && '🧱'}
+                        {category.name === 'Carrelage' && '⬜'}
+                        {category.name === 'Métaux' && '⚙️'}
+                        {category.name === 'Isolants' && '🛡️'}
+                        {category.name === 'Peintures' && '🎨'}
+                      </div>
+                    </div>
+                  )}
+                  {/* Overlay gradient for better text readability */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </div>
                 <div className="p-6">
                   <h3 className="text-xl font-bold text-neutral-900 mb-2 group-hover:text-brand-600 transition-colors">

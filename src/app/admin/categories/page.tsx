@@ -11,58 +11,227 @@ interface Category {
   slug: string
   image_url?: string
   parent_id?: string
+  level?: number
+  path?: string
+  has_children?: boolean
   status: string
   sort_order: number
   products_count?: number
+  children?: Category[]
   created_at: string
   updated_at: string
 }
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
+  const [flatCategories, setFlatCategories] = useState<Category[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [sortBy, setSortBy] = useState('sort_order')
   const [filteredCategories, setFilteredCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
+    const [viewMode, setViewMode] = useState<'tree' | 'list'>('tree')
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     filterCategories()
-  }, [categories, searchTerm, statusFilter, sortBy])
+  }, [flatCategories, searchTerm, statusFilter, sortBy, viewMode])
 
   const filterCategories = () => {
-    let filtered = [...categories]
+    if (viewMode === 'tree') {
+      // For tree view, apply filters recursively to hierarchical structure
+      const filterRecursive = (cats: Category[]): Category[] => {
+        return cats.map(category => {
+          const children = category.children ? filterRecursive(category.children) : []
+          
+          // Check if category matches filters
+          const matchesSearch = !searchTerm || 
+            category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            category.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            category.slug.toLowerCase().includes(searchTerm.toLowerCase())
+          
+          const matchesStatus = statusFilter === 'all' || category.status === statusFilter
+          
+          // Include category if it matches filters OR has children that match
+          const shouldInclude = (matchesSearch && matchesStatus) || children.length > 0
+          
+          return shouldInclude ? { ...category, children } : null
+        }).filter(Boolean) as Category[]
+      }
+      
+      setFilteredCategories(filterRecursive(categories))
+    } else {
+      // For list view, use flat categories
+      let filtered = [...flatCategories]
 
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(category =>
-        category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        category.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        category.slug.toLowerCase().includes(searchTerm.toLowerCase())
+      // Search filter
+      if (searchTerm) {
+        filtered = filtered.filter(category =>
+          category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          category.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          category.slug.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      }
+
+      // Status filter
+      if (statusFilter !== 'all') {
+        filtered = filtered.filter(category => category.status === statusFilter)
+      }
+
+      // Sort
+      switch (sortBy) {
+        case 'name':
+          filtered.sort((a, b) => a.name.localeCompare(b.name))
+          break
+        case 'products_count':
+          filtered.sort((a, b) => (b.products_count || 0) - (a.products_count || 0))
+          break
+        case 'created_at':
+          filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          break
+        default:
+          filtered.sort((a, b) => a.sort_order - b.sort_order)
+      }
+      
+      setFilteredCategories(filtered)
+    }
+  }
+
+  // Toggle category expansion in tree view
+  const toggleCategory = (categoryId: string) => {
+    const newExpanded = new Set(expandedCategories)
+    if (newExpanded.has(categoryId)) {
+      newExpanded.delete(categoryId)
+    } else {
+      newExpanded.add(categoryId)
+    }
+    setExpandedCategories(newExpanded)
+  }
+
+  // Render category rows recursively for tree view
+  const renderCategoryRows = (categories: Category[], level: number = 0): JSX.Element[] => {
+    const rows: JSX.Element[] = []
+    
+    categories.forEach(category => {
+      const hasChildren = category.children && category.children.length > 0
+      const isExpanded = expandedCategories.has(category.$id)
+      
+      rows.push(
+        <tr key={category.$id} className="hover:bg-gray-50">
+          <td className="px-4 py-4 whitespace-nowrap">
+            <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+              {category.image_url ? (
+                <img
+                  src={category.image_url}
+                  alt={category.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <i className="fas fa-folder text-gray-400 text-lg"></i>
+              )}
+            </div>
+          </td>
+          <td className="px-6 py-4 whitespace-nowrap">
+            <div className="flex items-center">
+              <div style={{ paddingLeft: `${level * 20}px` }} className="flex items-center">
+                {hasChildren && (
+                  <button
+                    onClick={() => toggleCategory(category.$id)}
+                    className="mr-2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                  >
+                    <i className={`fas fa-chevron-${isExpanded ? 'down' : 'right'} text-xs`}></i>
+                  </button>
+                )}
+                {level > 0 && (
+                  <span className="mr-2 text-gray-300">
+                    {'│ '.repeat(level - 1)}{'├─ '}
+                  </span>
+                )}
+                <span className="text-sm font-medium text-gray-900">{category.name}</span>
+                {level > 0 && (
+                  <span className="ml-2 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                    Niveau {level}
+                  </span>
+                )}
+              </div>
+            </div>
+          </td>
+          <td className="px-6 py-4 whitespace-nowrap">
+            <div className="text-sm text-gray-600 font-mono bg-gray-100 px-2 py-1 rounded text-center">
+              {category.slug}
+            </div>
+          </td>
+          <td className="px-6 py-4">
+            <div className="text-sm text-gray-600 max-w-xs">
+              {category.description || 'Aucune description'}
+            </div>
+          </td>
+          <td className="px-6 py-4 whitespace-nowrap text-center">
+            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+              category.status === 'active' 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-red-100 text-red-800'
+            }`}>
+              {category.status === 'active' ? 'Actif' : 'Inactif'}
+            </span>
+          </td>
+          <td className="px-6 py-4 whitespace-nowrap text-center">
+            <span className="text-sm text-gray-600 font-medium">
+              {category.sort_order}
+            </span>
+          </td>
+          <td className="px-6 py-4 whitespace-nowrap text-center">
+            <span className="text-sm font-medium text-blue-600">
+              {category.products_count || 0}
+            </span>
+          </td>
+          <td className="px-6 py-4 whitespace-nowrap text-center">
+            <div className="flex justify-center space-x-2">
+              <button
+                onClick={() => handleEdit(category)}
+                className="text-blue-600 hover:text-blue-900 transition-colors"
+                title="Modifier"
+              >
+                <i className="fas fa-edit"></i>
+              </button>
+              <button
+                onClick={() => {
+                  setFormData({
+                    name: '',
+                    description: '',
+                    slug: '',
+                    image_url: '',
+                    parent_id: category.$id,
+                    status: 'active',
+                    sort_order: 0
+                  })
+                  setEditingCategory(null)
+                  setShowCreateModal(true)
+                }}
+                className="text-green-600 hover:text-green-900 transition-colors"
+                title="Ajouter une sous-catégorie"
+              >
+                <i className="fas fa-plus"></i>
+              </button>
+              <button
+                onClick={() => handleDelete(category.$id)}
+                className="text-red-600 hover:text-red-900 transition-colors"
+                title="Supprimer"
+              >
+                <i className="fas fa-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
       )
-    }
-
-    // Status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(category => category.status === statusFilter)
-    }
-
-    // Sort
-    switch (sortBy) {
-      case 'name':
-        filtered.sort((a, b) => a.name.localeCompare(b.name))
-        break
-      case 'products_count':
-        filtered.sort((a, b) => (b.products_count || 0) - (a.products_count || 0))
-        break
-      case 'created_at':
-        filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        break
-      default:
-        filtered.sort((a, b) => a.sort_order - b.sort_order)
-    }
-
-    setFilteredCategories(filtered)
+      
+      // Add children rows if expanded
+      if (hasChildren && isExpanded) {
+        rows.push(...renderCategoryRows(category.children!, level + 1))
+      }
+    })
+    
+    return rows
   }
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
@@ -71,6 +240,7 @@ export default function AdminCategoriesPage() {
     description: '',
     slug: '',
     image_url: '',
+    parent_id: '',
     status: 'active',
     sort_order: 0
   })
@@ -83,23 +253,27 @@ export default function AdminCategoriesPage() {
     setLoading(true)
     try {
       const appwrite = AppwriteService.getInstance()
-      const result = await appwrite.getCategories([
+      
+      // Get hierarchical categories
+      const hierarchicalResult = await appwrite.getCategoriesHierarchy()
+      setCategories(hierarchicalResult)
+      
+      // Get flat categories for filtering
+      const flatResult = await appwrite.getCategories([
+        appwrite.Query.orderAsc('level'),
         appwrite.Query.orderAsc('sort_order')
       ])
       
-      // Récupérer tous les produits pour compter par catégorie
+      // Get all products to count by category
       const allProductsResult = await appwrite.getProducts([
         appwrite.Query.limit(1000)
       ])
       
-      // Compter les produits pour chaque catégorie
-      const categoriesWithCount = result.documents.map((category: any) => {
-        // Filtrer côté client pour trouver les produits de cette catégorie
+      // Count products for each category
+      const categoriesWithCount = flatResult.documents.map((category: any) => {
         const categoryProducts = allProductsResult.documents.filter((product: any) => {
           return product.category_id === category.$id
         })
-        
-        console.log(`� RÉSULTAT - ${category.name}: ${categoryProducts.length} produits`)
         
         return {
           ...category,
@@ -107,7 +281,35 @@ export default function AdminCategoriesPage() {
         }
       })
       
-      setCategories(categoriesWithCount as Category[])
+      setFlatCategories(categoriesWithCount as Category[])
+      
+      // Add product counts to hierarchical structure
+      const addProductCounts = (cats: Category[]): Category[] => {
+        return cats.map(cat => {
+          const withCount = categoriesWithCount.find(c => c.$id === cat.$id)
+          return {
+            ...cat,
+            products_count: withCount?.products_count || 0,
+            children: cat.children ? addProductCounts(cat.children) : []
+          }
+        })
+      }
+      
+      setCategories(addProductCounts(hierarchicalResult))
+      
+      // Expand all categories that have children by default
+      const categoriesToExpand = new Set<string>()
+      const collectExpandableCategories = (cats: Category[]) => {
+        cats.forEach(cat => {
+          if (cat.children && cat.children.length > 0) {
+            categoriesToExpand.add(cat.$id)
+            collectExpandableCategories(cat.children)
+          }
+        })
+      }
+      collectExpandableCategories(addProductCounts(hierarchicalResult))
+      setExpandedCategories(categoriesToExpand)
+      
     } catch (error) {
       console.error('Error fetching categories:', error)
     } finally {
@@ -164,6 +366,7 @@ export default function AdminCategoriesPage() {
         description: '',
         slug: '',
         image_url: '',
+        parent_id: '',
         status: 'active',
         sort_order: 0
       })
@@ -185,6 +388,7 @@ export default function AdminCategoriesPage() {
       description: category.description,
       slug: category.slug,
       image_url: category.image_url || '',
+      parent_id: category.parent_id || '',
       status: category.status,
       sort_order: category.sort_order
     })
@@ -239,6 +443,7 @@ export default function AdminCategoriesPage() {
       description: '',
       slug: '',
       image_url: '',
+      parent_id: '',
       status: 'active',
       sort_order: 0
     })
@@ -253,6 +458,30 @@ export default function AdminCategoriesPage() {
           <p className="text-gray-600 mt-2">Organisez vos produits par catégories</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 mt-4 sm:mt-0">
+          <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <i className="fas fa-list mr-2"></i>
+              Liste
+            </button>
+            <button
+              onClick={() => setViewMode('tree')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                viewMode === 'tree'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <i className="fas fa-sitemap mr-2"></i>
+              Hiérarchie
+            </button>
+          </div>
           <button
             onClick={() => setShowCreateModal(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
@@ -484,82 +713,84 @@ export default function AdminCategoriesPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredCategories.map((category) => (
-                  <tr key={category.$id} className="hover:bg-gray-50">
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
-                        {category.image_url ? (
-                          <img
-                            src={category.image_url}
-                            alt={category.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <i className="fas fa-folder text-gray-400 text-lg"></i>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{category.name}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-600 font-mono bg-gray-100 px-2 py-1 rounded text-center">
-                        {category.slug}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-600 max-w-xs">
-                        {category.description || 'Aucune description'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        category.status === 'active' 
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {category.status === 'active' ? 'Actif' : 'Inactif'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="text-sm text-gray-900 font-medium">{category.sort_order}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="text-sm text-gray-900 font-bold bg-blue-50 px-2 py-1 rounded">
-                        {category.products_count || 0}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex items-center justify-center space-x-1">
-                        <button
-                          onClick={() => handleEdit(category)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg text-sm transition-colors"
-                          title="Modifier"
-                        >
-                          <i className="fas fa-edit"></i>
-                        </button>
-                        <button
-                          onClick={() => toggleStatus(category.$id, category.status)}
-                          className={`p-2 rounded-lg text-sm transition-colors ${
-                            category.status === 'active' 
-                              ? 'bg-yellow-600 hover:bg-yellow-700 text-white' 
-                              : 'bg-green-600 hover:bg-green-700 text-white'
-                          }`}
-                          title={category.status === 'active' ? 'Désactiver' : 'Activer'}
-                        >
-                          <i className={`fas ${category.status === 'active' ? 'fa-eye-slash' : 'fa-eye'}`}></i>
-                        </button>
-                        <button
-                          onClick={() => handleDelete(category.$id)}
-                          className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-lg text-sm transition-colors"
-                          title="Supprimer"
-                        >
-                          <i className="fas fa-trash"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {viewMode === 'tree' 
+                  ? renderCategoryRows(categories)
+                  : filteredCategories.map((category) => (
+                    <tr key={category.$id} className="hover:bg-gray-50">
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                          {category.image_url ? (
+                            <img
+                              src={category.image_url}
+                              alt={category.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <i className="fas fa-folder text-gray-400 text-lg"></i>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{category.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-600 font-mono bg-gray-100 px-2 py-1 rounded text-center">
+                          {category.slug}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-600 max-w-xs">
+                          {category.description || 'Aucune description'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          category.status === 'active' 
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {category.status === 'active' ? 'Actif' : 'Inactif'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="text-sm text-gray-900 font-medium">{category.sort_order}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="text-sm text-gray-900 font-bold bg-blue-50 px-2 py-1 rounded">
+                          {category.products_count || 0}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center space-x-1">
+                          <button
+                            onClick={() => handleEdit(category)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg text-sm transition-colors"
+                            title="Modifier"
+                          >
+                            <i className="fas fa-edit"></i>
+                          </button>
+                          <button
+                            onClick={() => toggleStatus(category.$id, category.status)}
+                            className={`p-2 rounded-lg text-sm transition-colors ${
+                              category.status === 'active' 
+                                ? 'bg-yellow-600 hover:bg-yellow-700 text-white' 
+                                : 'bg-green-600 hover:bg-green-700 text-white'
+                            }`}
+                            title={category.status === 'active' ? 'Désactiver' : 'Activer'}
+                          >
+                            <i className={`fas ${category.status === 'active' ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(category.$id)}
+                            className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-lg text-sm transition-colors"
+                            title="Supprimer"
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
@@ -572,7 +803,8 @@ export default function AdminCategoriesPage() {
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">
-                {editingCategory ? 'Modifier la catégorie' : 'Nouvelle catégorie'}
+                {editingCategory ? 'Modifier la catégorie' : 
+                 formData.parent_id ? 'Nouvelle sous-catégorie' : 'Nouvelle catégorie'}
               </h2>
               <button
                 onClick={closeModal}
@@ -637,6 +869,33 @@ export default function AdminCategoriesPage() {
                   className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="https://example.com/image.jpg"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Catégorie parent (optionnel)
+                </label>
+                <select
+                  value={formData.parent_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, parent_id: e.target.value }))}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Catégorie principale</option>
+                  {flatCategories
+                    .filter(cat => cat.$id !== editingCategory?.$id) // Avoid circular references
+                    .map(category => (
+                      <option key={category.$id} value={category.$id}>
+                        {category.level > 0 && '—'.repeat(category.level) + ' '}
+                        {category.name}
+                      </option>
+                    ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.parent_id 
+                    ? `Cette catégorie sera une sous-catégorie de "${flatCategories.find(c => c.$id === formData.parent_id)?.name}"`
+                    : 'Sélectionnez une catégorie parent pour créer une sous-catégorie'
+                  }
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

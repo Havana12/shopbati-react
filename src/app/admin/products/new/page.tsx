@@ -25,11 +25,51 @@ export default function NewProductPage() {
     category_id: '',
     brand: '',
     stock_quantity: '',
-    technical_specs: ''
+    technical_specs: '',
+    reference: ''
   })
+
+  // Generate unique reference function
+  const generateUniqueReference = async (): Promise<string> => {
+    const appwrite = AppwriteService.getInstance()
+    let attempts = 0
+    const maxAttempts = 10
+
+    while (attempts < maxAttempts) {
+      // Generate random reference: 3-6 digits (100 to 999999)
+      const minDigits = 3
+      const maxDigits = 6
+      const digits = Math.floor(Math.random() * (maxDigits - minDigits + 1)) + minDigits
+      const min = Math.pow(10, digits - 1)
+      const max = Math.pow(10, digits) - 1
+      const reference = Math.floor(Math.random() * (max - min + 1)) + min
+
+      try {
+        // Check if reference already exists
+        const existingProducts = await appwrite.getProducts([
+          appwrite.Query.equal('reference', reference.toString())
+        ])
+
+        if (existingProducts.documents.length === 0) {
+          return reference.toString()
+        }
+      } catch (error) {
+        console.error('Error checking reference uniqueness:', error)
+      }
+
+      attempts++
+    }
+
+    // Fallback: use timestamp-based reference if all attempts fail
+    return `REF${Date.now().toString().slice(-6)}`
+  }
 
   useEffect(() => {
     fetchCategories()
+    // Generate initial reference
+    generateUniqueReference().then(ref => {
+      setFormData(prev => ({ ...prev, reference: ref }))
+    })
   }, [])
 
   const fetchCategories = async () => {
@@ -64,6 +104,7 @@ export default function NewProductPage() {
         brand: formData.brand,
         stock_quantity: parseInt(formData.stock_quantity) || 0,
         technical_specs: formData.technical_specs || null,
+        reference: formData.reference,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
@@ -163,6 +204,38 @@ export default function NewProductPage() {
                     className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Ex: Bosch, Makita..."
                   />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Référence produit *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const newRef = await generateUniqueReference()
+                        setFormData(prev => ({ ...prev, reference: newRef }))
+                      }}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    >
+                      <i className="fas fa-sync-alt mr-1"></i>
+                      Régénérer
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    name="reference"
+                    value={formData.reference}
+                    onChange={handleInputChange}
+                    required
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono bg-gray-50"
+                    placeholder="Référence unique..."
+                    readOnly
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Référence unique générée automatiquement (3 à 6 chiffres)
+                  </p>
                 </div>
 
                 <div>
