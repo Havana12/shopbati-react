@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { AppwriteService } from '../lib/appwrite'
@@ -28,120 +29,11 @@ interface Product {
   created_at?: string
 }
 
-// Données simulées pour SHOPBATI France
-
-const categories = [
-  { $id: '1', name: 'Ciments', description: 'Ciments et liants hydrauliques', slug: 'ciments', status: 'active', sort_order: 1 },
-  { $id: '2', name: 'Briques', description: 'Briques et blocs de maçonnerie', slug: 'briques', status: 'active', sort_order: 2 },
-  { $id: '3', name: 'Carrelage', description: 'Revêtements céramiques', slug: 'carrelage', status: 'active', sort_order: 3 },
-  { $id: '4', name: 'Métaux', description: 'Fer et acier pour constructions', slug: 'metaux', status: 'active', sort_order: 4 },
-  { $id: '5', name: 'Isolants', description: 'Matériaux isolants thermiques', slug: 'isolants', status: 'active', sort_order: 5 },
-  { $id: '6', name: 'Peintures', description: 'Peintures et vernis professionnels', slug: 'peintures', status: 'active', sort_order: 6 }
-]
-
 export default function HomePage() {
   const [currentSlide, setCurrentSlide] = useState(0)
-  const [categories, setCategories] = useState<Category[]>([
-    // Fallback categories in case database fails
-    { $id: '1', name: 'Ciments', description: 'Ciments et liants hydrauliques', slug: 'ciments', status: 'active', sort_order: 1 },
-    { $id: '2', name: 'Briques', description: 'Briques et blocs de maçonnerie', slug: 'briques', status: 'active', sort_order: 2 },
-    { $id: '3', name: 'Carrelage', description: 'Revêtements céramiques', slug: 'carrelage', status: 'active', sort_order: 3 },
-    { $id: '4', name: 'Métaux', description: 'Fer et acier pour constructions', slug: 'metaux', status: 'active', sort_order: 4 },
-    { $id: '5', name: 'Isolants', description: 'Matériaux isolants thermiques', slug: 'isolants', status: 'active', sort_order: 5 },
-    { $id: '6', name: 'Peintures', description: 'Peintures et vernis professionnels', slug: 'peintures', status: 'active', sort_order: 6 }
-  ])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([
-    // Fallback products - seulement 8 pour la page d'accueil
-    {
-      $id: '1',
-      name: 'Ciment Portland 25kg',
-      description: 'Ciment de haute qualité pour constructions',
-      price: 45.99,
-      image_url: '/images/cement.jpg',
-      slug: 'ciment-portland-25kg',
-      status: 'active',
-      featured: true,
-      created_at: '2024-01-01'
-    },
-    {
-      $id: '2', 
-      name: 'Briques Rouges',
-      description: 'Briques traditionnelles pour maçonnerie',
-      price: 2.50,
-      image_url: '/images/bricks.jpg',
-      slug: 'briques-rouges',
-      status: 'active',
-      featured: true,
-      created_at: '2024-01-01'
-    },
-    {
-      $id: '3',
-      name: 'Carrelage Céramique 60x60',
-      description: 'Carrelage pour sols et revêtements',
-      price: 25.90,
-      image_url: '/images/tiles.jpg',
-      slug: 'carrelage-ceramique',
-      status: 'active',
-      featured: true,
-      created_at: '2024-01-01'
-    },
-    {
-      $id: '4',
-      name: 'Fer à Béton φ12',
-      description: 'Barres en acier pour béton armé',
-      price: 85.00,
-      image_url: '/images/rebar.jpg',
-      slug: 'fer-a-beton',
-      status: 'active',
-      featured: true,
-      created_at: '2024-01-01'
-    },
-    {
-      $id: '5',
-      name: 'Isolant Laine de Verre',
-      description: 'Isolant thermique haute performance',
-      price: 15.50,
-      image_url: '/images/insulation.jpg',
-      slug: 'isolant-laine-verre',
-      status: 'active',
-      featured: true,
-      created_at: '2024-01-01'
-    },
-    {
-      $id: '6',
-      name: 'Peinture Acrylique Blanche',
-      description: 'Peinture professionnelle pour intérieur',
-      price: 32.90,
-      image_url: '/images/paint.jpg',
-      slug: 'peinture-acrylique-blanche',
-      status: 'active',
-      featured: true,
-      created_at: '2024-01-01'
-    },
-    {
-      $id: '7',
-      name: 'Sable Fin de Rivière',
-      description: 'Sable de qualité pour mortiers',
-      price: 18.75,
-      image_url: '/images/sand.jpg',
-      slug: 'sable-fin-riviere',
-      status: 'active',
-      featured: true,
-      created_at: '2024-01-01'
-    },
-    {
-      $id: '8',
-      name: 'Bois de Charpente',
-      description: 'Poutres en bois massif traité',
-      price: 125.00,
-      image_url: '/images/wood.jpg',
-      slug: 'bois-charpente',
-      status: 'active',
-      featured: true,
-      created_at: '2024-01-01'
-    }
-  ])
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
 
   // Function to get category icon
   const getCategoryIcon = (categoryName: string) => {
@@ -218,64 +110,45 @@ export default function HomePage() {
   const fetchCategories = async () => {
     try {
       setLoading(true)
-      console.log('🔍 Home page: Attempting to fetch categories from Appwrite...')
-      console.log('🔧 Environment variables check:')
-      console.log('- ENDPOINT:', process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT)
-      console.log('- PROJECT_ID:', process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID)
-      console.log('- DATABASE_ID:', process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID)
-      
       const appwrite = AppwriteService.getInstance()
-      // Only fetch main categories (level 0) for home page
       const result = await appwrite.getCategories([
         appwrite.Query.equal('level', 0),
         appwrite.Query.equal('status', 'active'),
         appwrite.Query.orderAsc('sort_order')
       ])
       
-      console.log('📁 Categories result:', result)
-      
       if (result && result.documents && result.documents.length > 0) {
-        // Sort categories by sort_order if available
         const sortedCategories = (result.documents as unknown as Category[]).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
         setCategories(sortedCategories)
-        console.log('✅ Main categories loaded from database:', sortedCategories.length)
-      } else {
-        console.log('⚠️ No main categories found in database, using fallback')
       }
     } catch (error) {
-      console.error('❌ Error fetching categories:', error)
-      // Keep fallback categories if fetch fails
+      console.error('Error fetching categories:', error)
     } finally {
       setLoading(false)
     }
   }
 
   const fetchProducts = async () => {
+    setLoading(true)
     try {
-      console.log('🛍️ Home page: Attempting to fetch products from Appwrite...')
       const appwrite = AppwriteService.getInstance()
-      // Limiter à 8 produits maximum pour la page d'accueil
       const result = await appwrite.getProducts([
         appwrite.Query.limit(8),
         appwrite.Query.equal('status', 'active'),
         appwrite.Query.orderDesc('created_at')
       ])
       
-      console.log('🛍️ Products result:', result)
-      
       if (result && result.documents && result.documents.length > 0) {
-        // S'assurer qu'on a maximum 8 produits
         const limitedProducts = result.documents.slice(0, 8)
         setFeaturedProducts(limitedProducts as unknown as Product[])
-        console.log('✅ Products loaded from database:', limitedProducts.length)
       } else {
-        console.log('⚠️ No products found in database, keeping fallback products')
+        setFeaturedProducts([])
       }
     } catch (error) {
-      console.error('❌ Error fetching products:', error)
-      console.log('⚠️ Using fallback products due to error')
-      // Garder seulement 8 produits de fallback
-      setFeaturedProducts(prev => prev.slice(0, 8))
+      console.error('Error fetching products:', error)
+      setFeaturedProducts([])
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -302,7 +175,7 @@ export default function HomePage() {
     {
       name: 'Pierre Moreau',
       company: 'Moreau Construction',
-      text: 'La variété de produits disponibles est impressionnante. Je trouve toujours ce dont j\'ai besoin.',
+      text: 'La variété de produits disponibles est impressionnante. Je trouve toujours ce dont j\\\'ai besoin.',
       rating: 5
     }
   ]
@@ -557,39 +430,87 @@ export default function HomePage() {
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {featuredProducts.map((product) => (
-              <div key={product.$id} className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-brand-xl transition-all duration-300 hover:-translate-y-2 border border-neutral-100">
-                <div className="h-48 bg-gradient-to-br from-neutral-100 to-neutral-200 flex items-center justify-center relative overflow-hidden">
-                  <span className="text-5xl group-hover:scale-110 transition-transform duration-300">
-                    {getProductIcon(product.name)}
-                  </span>
-                </div>
-                <div className="p-6">
-                  <h3 className="text-lg font-bold text-neutral-900 mb-2 group-hover:text-brand-600 transition-colors">
-                    {product.name}
-                  </h3>
-                  <p className="text-neutral-600 text-sm mb-4 line-clamp-2">
-                    {product.description}
-                  </p>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-2xl font-bold text-brand-600">
-                      {product.price.toFixed(2)}€
-                    </span>
-                    <span className="text-xs text-neutral-500 bg-neutral-100 px-2 py-1 rounded-full">
-                      TTC
-                    </span>
+          {loading ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+              {[...Array(8)].map((_, index) => (
+                <div key={index} className="bg-white rounded-2xl overflow-hidden shadow-lg border border-neutral-100 animate-pulse">
+                  <div className="h-48 bg-neutral-200"></div>
+                  <div className="p-6">
+                    <div className="h-5 bg-neutral-200 rounded mb-2"></div>
+                    <div className="h-4 bg-neutral-200 rounded mb-4"></div>
+                    <div className="h-6 bg-neutral-200 rounded mb-4"></div>
+                    <div className="h-10 bg-neutral-200 rounded"></div>
                   </div>
-                  <Link 
-                    href={product.slug && product.slug !== '' ? `/product/${product.slug}` : `/product/${product.$id}`}
-                    className="block w-full text-center bg-brand-500 hover:bg-brand-600 text-white py-3 rounded-xl font-medium transition-colors duration-200"
-                  >
-                    Voir les détails
-                  </Link>
                 </div>
+              ))}
+            </div>
+          ) : featuredProducts.length > 0 ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {featuredProducts.map((product) => (
+                <div key={product.$id} className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-neutral-200 hover:border-brand-200">
+                  {/* Image Container */}
+                  <div className="relative overflow-hidden bg-gray-50 aspect-square">
+                    <img
+                      src={product.image_url || '/images/placeholder.svg'}
+                      alt={product.name || 'Produit'}
+                      className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-500"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/images/placeholder.svg'
+                      }}
+                    />
+                  </div>
+                  
+                  {/* Content */}
+                  <div className="p-4 space-y-3">
+                    <h3 className="font-semibold text-neutral-900 text-sm leading-tight line-clamp-2 group-hover:text-brand-600 transition-colors">
+                      {product.name || 'Produit'}
+                    </h3>
+                    
+                    {product.description && (
+                      <p className="text-xs text-neutral-600 line-clamp-2 leading-relaxed">
+                        {product.description}
+                      </p>
+                    )}
+                    
+                    {/* Prix */}
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xl font-bold text-brand-600">
+                        {(product.price || 0).toFixed(2)}€
+                      </span>
+                      <span className="text-xs text-neutral-500 uppercase tracking-wide">
+                        TTC
+                      </span>
+                    </div>
+                    
+                    {/* Bouton */}
+                    <Link 
+                      href={product.slug && product.slug !== '' ? `/product/${product.slug}` : `/product/${product.$id}`}
+                      className="block w-full text-center bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white py-2.5 rounded-lg font-medium text-sm transition-all duration-200 transform hover:scale-[0.98] active:scale-95"
+                    >
+                      Voir les détails
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <div className="max-w-md mx-auto">
+                <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-neutral-100 flex items-center justify-center">
+                  <span className="text-4xl">📦</span>
+                </div>
+                <h3 className="text-xl font-semibold text-neutral-700 mb-2">Aucun produit disponible</h3>
+                <p className="text-neutral-500 mb-6">Les produits seront affichés ici une fois ajoutés à la base de données.</p>
+                <Link 
+                  href="/admin/products/new"
+                  className="inline-flex items-center px-6 py-3 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-medium transition-colors duration-200"
+                >
+                  <span className="mr-2">➕</span>
+                  Ajouter des produits
+                </Link>
               </div>
-            ))}
-          </div>
+            </div>
+          )}
           
           <div className="text-center mt-12">
             <Link 

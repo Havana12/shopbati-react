@@ -43,9 +43,8 @@ export default function AdminOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [orderStats, setOrderStats] = useState({
-    pending: 0,
-    processing: 0,
     delivered: 0,
+    cancelled: 0,
     monthlyRevenue: 0
   })
 
@@ -63,9 +62,7 @@ export default function AdminOrdersPage() {
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
       'pending': '⏳ En attente',
-      'confirmed': '✅ Confirmé',
-      'processing': '⚙️ En cours',
-      'shipped': '🚚 Expédié',
+      'processing': '⚙️ En cours', 
       'delivered': '📦 Livré',
       'cancelled': '❌ Annulé'
     }
@@ -88,6 +85,32 @@ export default function AdminOrdersPage() {
 
       if (statusFilter !== 'all') {
         queries.push(appwrite.Query.equal('status', statusFilter))
+      }
+
+      if (paymentFilter !== 'all') {
+        queries.push(appwrite.Query.equal('payment_status', paymentFilter))
+      }
+
+      if (dateFilter !== 'all') {
+        const today = new Date()
+        let startDate = new Date()
+        
+        switch (dateFilter) {
+          case 'today':
+            startDate.setHours(0, 0, 0, 0)
+            break
+          case 'week':
+            startDate.setDate(today.getDate() - 7)
+            break
+          case 'month':
+            startDate.setMonth(today.getMonth() - 1)
+            break
+          case 'quarter':
+            startDate.setMonth(today.getMonth() - 3)
+            break
+        }
+        
+        queries.push(appwrite.Query.greaterThanEqual('$createdAt', startDate.toISOString()))
       }
 
       if (debouncedSearchTerm && debouncedSearchTerm.length >= 2) {
@@ -119,9 +142,8 @@ export default function AdminOrdersPage() {
       const currentYear = new Date().getFullYear()
 
       setOrderStats({
-        pending: allOrders.filter(order => order.status === 'pending').length,
-        processing: allOrders.filter(order => order.status === 'processing' || order.status === 'confirmed').length,
         delivered: allOrders.filter(order => order.status === 'delivered').length,
+        cancelled: allOrders.filter(order => order.status === 'cancelled').length,
         monthlyRevenue: allOrders
           .filter(order => {
             const orderDate = new Date(order.created_at)
@@ -140,18 +162,37 @@ export default function AdminOrdersPage() {
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
       const appwrite = AppwriteService.getInstance()
+      
+      // Préparer les données de mise à jour
+      const updateData: any = {
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      }
+      
+      // Si le statut devient "delivered", mettre automatiquement payment_status à "paid"
+      if (newStatus === 'delivered') {
+        updateData.payment_status = 'paid'
+      }
+      
+      // Si le statut devient "cancelled", mettre automatiquement payment_status à "cancelled"
+      if (newStatus === 'cancelled') {
+        updateData.payment_status = 'cancelled'
+      }
+      
       await appwrite.databases.updateDocument(
         process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
         'orders',
         orderId,
-        { 
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        }
+        updateData
       )
+      
       fetchOrders()
       if (selectedOrder && selectedOrder.$id === orderId) {
-        setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null)
+        setSelectedOrder(prev => prev ? { 
+          ...prev, 
+          status: newStatus,
+          payment_status: newStatus === 'delivered' ? 'paid' : newStatus === 'cancelled' ? 'cancelled' : prev.payment_status
+        } : null)
       }
     } catch (error) {
       console.error('Error updating order status:', error)
@@ -163,12 +204,8 @@ export default function AdminOrdersPage() {
     switch (status) {
       case 'pending':
         return 'bg-yellow-100 text-yellow-800'
-      case 'confirmed':
-        return 'bg-blue-100 text-blue-800'
       case 'processing':
-        return 'bg-purple-100 text-purple-800'
-      case 'shipped':
-        return 'bg-indigo-100 text-indigo-800'
+        return 'bg-blue-100 text-blue-800'
       case 'delivered':
         return 'bg-green-100 text-green-800'
       case 'cancelled':
@@ -208,27 +245,27 @@ export default function AdminOrdersPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <i className="fas fa-clock text-yellow-600 text-xl"></i>
+            <div className="p-2 bg-green-100 rounded-lg">
+              <i className="fas fa-check text-green-600 text-xl"></i>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">En attente</p>
-              <p className="text-2xl font-bold text-gray-900">{orderStats.pending}</p>
+              <p className="text-sm font-medium text-gray-600">Livrés</p>
+              <p className="text-2xl font-bold text-gray-900">{orderStats.delivered}</p>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <i className="fas fa-cogs text-blue-600 text-xl"></i>
+            <div className="p-2 bg-red-100 rounded-lg">
+              <i className="fas fa-times text-red-600 text-xl"></i>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">En cours</p>
-              <p className="text-2xl font-bold text-gray-900">{orderStats.processing}</p>
+              <p className="text-sm font-medium text-gray-600">Annulés</p>
+              <p className="text-2xl font-bold text-gray-900">{orderStats.cancelled}</p>
             </div>
           </div>
         </div>
@@ -322,10 +359,6 @@ export default function AdminOrdersPage() {
                 className="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 text-gray-700 w-full"
               >
                 <option value="all">Tous</option>
-                <option value="pending">⏳ En attente</option>
-                <option value="confirmed">✅ Confirmé</option>
-                <option value="processing">⚙️ En cours</option>
-                <option value="shipped">🚚 Expédié</option>
                 <option value="delivered">📦 Livré</option>
                 <option value="cancelled">❌ Annulé</option>
               </select>
@@ -349,8 +382,8 @@ export default function AdminOrdersPage() {
               >
                 <option value="all">Tous</option>
                 <option value="paid">💳 Payé</option>
-                <option value="pending">⏳ En attente</option>
                 <option value="failed">❌ Échoué</option>
+                <option value="cancelled">🚫 Annulé</option>
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                 <i className="fas fa-chevron-down text-gray-400"></i>
@@ -386,18 +419,18 @@ export default function AdminOrdersPage() {
         {/* Quick Actions */}
         <div className="mt-4 flex flex-wrap gap-2">
           <button
-            onClick={() => setStatusFilter('pending')}
-            className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-yellow-200"
+            onClick={() => setStatusFilter('delivered')}
+            className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-green-200"
           >
-            <i className="fas fa-clock mr-1"></i>
-            En attente ({orderStats.pending})
+            <i className="fas fa-check mr-1"></i>
+            Livrés ({orderStats.delivered})
           </button>
           <button
-            onClick={() => setStatusFilter('processing')}
-            className="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-blue-200"
+            onClick={() => setStatusFilter('cancelled')}
+            className="bg-red-50 hover:bg-red-100 text-red-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-red-200"
           >
-            <i className="fas fa-cogs mr-1"></i>
-            En cours ({orderStats.processing})
+            <i className="fas fa-times mr-1"></i>
+            Annulés ({orderStats.cancelled})
           </button>
           <button
             onClick={() => setDateFilter('today')}
@@ -407,11 +440,18 @@ export default function AdminOrdersPage() {
             Aujourd'hui
           </button>
           <button
-            onClick={() => setPaymentFilter('pending')}
+            onClick={() => setPaymentFilter('failed')}
             className="bg-red-50 hover:bg-red-100 text-red-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-red-200"
           >
             <i className="fas fa-exclamation-triangle mr-1"></i>
-            Paiements en attente
+            Paiements échoués
+          </button>
+          <button
+            onClick={() => setPaymentFilter('cancelled')}
+            className="bg-gray-50 hover:bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-gray-200"
+          >
+            <i className="fas fa-ban mr-1"></i>
+            Paiements annulés
           </button>
         </div>
 
@@ -570,10 +610,6 @@ export default function AdminOrdersPage() {
                             onChange={(e) => updateOrderStatus(order.$id, e.target.value)}
                             className="text-sm border border-gray-300 rounded px-2 py-1"
                           >
-                            <option value="pending">En attente</option>
-                            <option value="confirmed">Confirmé</option>
-                            <option value="processing">En cours</option>
-                            <option value="shipped">Expédié</option>
                             <option value="delivered">Livré</option>
                             <option value="cancelled">Annulé</option>
                           </select>

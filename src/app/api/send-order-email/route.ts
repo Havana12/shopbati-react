@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { OrderData } from '@/lib/orderService'
 import { Resend } from 'resend'
 import { InvoiceGenerator } from '@/lib/invoiceGenerator'
+import { AppwriteService } from '@/lib/appwrite'
 
 export async function POST(request: NextRequest) {
   try {
@@ -83,6 +84,9 @@ export async function POST(request: NextRequest) {
             }, { status: 500 })
           }
           
+          // Mettre à jour le statut de la commande après envoi réussi de la facture
+          await updateOrderStatusAfterInvoice(orderData.orderId)
+          
           return NextResponse.json({ 
             success: true, 
             message: `📧 Email envoyé en mode test à ${testEmail}`,
@@ -99,9 +103,12 @@ export async function POST(request: NextRequest) {
         }, { status: 500 })
       }
       
+      // Mettre à jour le statut de la commande après envoi réussi de la facture
+      await updateOrderStatusAfterInvoice(orderData.orderId)
+      
       return NextResponse.json({ 
         success: true, 
-        message: `📧 Facture envoyée avec succès à ${orderData.customerEmail}!`,
+        message: `📧 Facture envoyée avec succès à ${orderData.customerEmail}! Commande marquée comme livrée.`,
         directSend: true 
       })
       
@@ -118,6 +125,42 @@ export async function POST(request: NextRequest) {
       success: false, 
       message: 'Erreur serveur général' 
     }, { status: 500 })
+  }
+}
+
+// Fonction pour mettre à jour le statut de la commande après envoi de la facture
+async function updateOrderStatusAfterInvoice(orderId: string) {
+  try {
+    const appwrite = AppwriteService.getInstance()
+    
+    // Chercher la commande par order_number
+    const result = await appwrite.databases.listDocuments(
+      process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+      'orders',
+      [appwrite.Query.equal('order_number', orderId)]
+    )
+    
+    if (result.documents.length > 0) {
+      const order = result.documents[0]
+      
+      // Mettre à jour: status = "delivered" et payment_status = "paid"
+      await appwrite.databases.updateDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        'orders',
+        order.$id,
+        {
+          status: 'delivered',
+          payment_status: 'paid',
+          updated_at: new Date().toISOString()
+        }
+      )
+      
+      console.log(`✅ Commande ${orderId} mise à jour: status=delivered, payment_status=paid`)
+    } else {
+      console.warn(`⚠️ Commande ${orderId} non trouvée pour mise à jour du statut`)
+    }
+  } catch (error) {
+    console.error('❌ Erreur lors de la mise à jour du statut de la commande:', error)
   }
 }
 
