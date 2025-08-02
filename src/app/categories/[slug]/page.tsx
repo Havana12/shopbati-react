@@ -368,127 +368,92 @@ export default function CategoryPage() {
             </div>
           </div>
 
-          {/* Modern Products Grid - Full Width */}
+          {/* Simple Products Grid - Style épuré comme la page produits */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
             {loading ? (
               [...Array(15)].map((_, index) => (
-                <div key={index} className="bg-white rounded-2xl overflow-hidden shadow-lg animate-pulse">
-                  <div className="aspect-square bg-gradient-to-br from-gray-200 to-gray-300"></div>
-                  <div className="p-6">
-                    <div className="h-6 bg-gray-200 rounded mb-3"></div>
+                <div key={index} className="bg-white rounded-lg border border-gray-200 overflow-hidden animate-pulse">
+                  <div className="aspect-square bg-gray-200"></div>
+                  <div className="p-4">
+                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
                     <div className="h-4 bg-gray-200 rounded mb-4"></div>
-                    <div className="h-8 bg-gray-200 rounded mb-4"></div>
-                    <div className="h-12 bg-gray-200 rounded"></div>
+                    <div className="h-10 bg-gray-200 rounded"></div>
                   </div>
                 </div>
               ))
             ) : currentProducts.length > 0 ? (
               currentProducts.map((product) => (
-                <div key={product.$id} className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-                  <div className="relative overflow-hidden bg-gray-50 aspect-square">
-                    <img
-                      src={product.image_url || '/images/placeholder.svg'}
-                      alt={product.name}
-                      className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-500"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = '/images/placeholder.svg'
-                      }}
-                    />
-                    {product.featured && (
-                      <div className="absolute top-4 left-4 bg-gradient-to-r from-orange-500 to-red-500 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg z-10">
-                        ⭐ Vedette
-                      </div>
-                    )}
-                    <div className="absolute top-4 right-4 bg-black/20 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                      </svg>
-                    </div>
-                    {/* Image loading placeholder */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 opacity-0 group-hover:opacity-5 transition-opacity"></div>
+                <div key={product.$id} className="bg-white rounded-lg border border-gray-300 overflow-hidden hover:shadow-md transition-shadow duration-200">
+                  
+                  {/* Titre EN HAUT - au-dessus de l'image - CENTRÉ - GRAS - CLIQUABLE */}
+                  <div className="p-3 pb-2">
+                    <Link 
+                      href={`/product/${product.slug || product.$id}`}
+                      className="block"
+                    >
+                      <h3 className="text-sm font-bold text-gray-900 leading-tight min-h-[2.5rem] flex items-center justify-center text-center hover:text-orange-600 transition-colors cursor-pointer">
+                        {product.name}
+                      </h3>
+                    </Link>
                   </div>
                   
-                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-orange-600 bg-orange-50 px-2 py-1 rounded-full">
-                        {category.name}
-                      </span>
-                      {product.stock && product.stock < 10 && (
-                        <span className="text-xs text-red-600 bg-red-50 px-2 py-1 rounded-full">
-                          Stock faible
-                        </span>
-                      )}
+                  {/* Image du produit - CLIQUABLE */}
+                  <Link 
+                    href={`/product/${product.slug || product.$id}`}
+                    className="block"
+                  >
+                    <div className="aspect-square bg-gray-50 px-4 pb-4 cursor-pointer hover:bg-gray-100 transition-colors">
+                      <img
+                        src={product.image_url || '/images/placeholder.svg'}
+                        alt={product.name}
+                        className="w-full h-full object-contain hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/images/placeholder.svg'
+                        }}
+                      />
                     </div>
-                    
-                    <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 group-hover:text-orange-600 transition-colors">
-                      {product.name}
-                    </h3>
-                    
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                      {product.description}
-                    </p>
-                    
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="text-2xl font-bold text-gray-900">
-                        €{product.price.toFixed(2)}
-                      </div>
-                      {product.brand && (
-                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                          {product.brand}
+                  </Link>
+                  
+                  {/* Contenu sous l'image */}
+                  <div className="p-3">
+                    {/* Contrôles de quantité - centrés */}
+                    <div className="flex items-center justify-center mb-3">
+                      <div className="flex items-center border border-gray-300 rounded">
+                        <button 
+                          onClick={() => {
+                            const currentQty = getProductQuantityInCart(product.$id);
+                            if (currentQty > 0) {
+                              updateQuantity(product.$id, currentQty - 1);
+                            }
+                          }}
+                          className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors text-lg font-bold"
+                        >
+                          −
+                        </button>
+                        
+                        <span className="w-12 h-8 flex items-center justify-center text-sm font-medium border-l border-r border-gray-300">
+                          {getProductQuantityInCart(product.$id) || 1}
                         </span>
-                      )}
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      {getProductQuantityInCart(product.$id) > 0 ? (
-                        /* Product already in cart - show quantity controls */
-                        <div className="flex-1 flex items-center bg-orange-50 border-2 border-orange-500 rounded-xl overflow-hidden">
-                          <button 
-                            onClick={() => updateQuantity(product.$id, getProductQuantityInCart(product.$id) - 1)}
-                            className="px-3 py-3 bg-orange-500 hover:bg-orange-600 text-white transition-colors"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                            </svg>
-                          </button>
-                          
-                          <div className="flex-1 text-center py-3 font-bold text-orange-700">
-                            {getProductQuantityInCart(product.$id)}
-                          </div>
-                          
-                          <button 
-                            onClick={() => handleAddToCart(product)}
-                            className="px-3 py-3 bg-orange-500 hover:bg-orange-600 text-white transition-colors"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                            </svg>
-                          </button>
-                        </div>
-                      ) : (
-                        /* Product not in cart - show add button */
+                        
                         <button 
                           onClick={() => handleAddToCart(product)}
-                          className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-orange-600 hover:to-orange-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                          className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors text-lg font-bold"
                         >
-                          <svg className="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m-2.4 0L3 3z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM20 19.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-                          </svg>
-                          Ajouter au panier
+                          +
                         </button>
-                      )}
-                      
-                      <Link
-                        href={`/product/${product.$id}`}
-                        className="bg-gray-100 hover:bg-gray-200 p-3 rounded-xl transition-colors inline-flex items-center justify-center"
-                      >
-                        <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      </Link>
+                      </div>
                     </div>
+                    
+                    {/* Bouton panier orange */}
+                    <button 
+                      onClick={() => handleAddToCart(product)}
+                      className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 px-4 rounded flex items-center justify-center transition-colors duration-200"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m-2.4 0L3 3z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM20 19.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
               ))
