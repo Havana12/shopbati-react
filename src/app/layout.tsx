@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { CartProvider } from '@/contexts/CartContext'
+import CartSidebar from '@/components/CartSidebar'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -20,7 +22,10 @@ export default function RootLayout({
       </head>
       <body>
         <AuthProvider>
-          {children}
+          <CartProvider>
+            {children}
+            <CartSidebar />
+          </CartProvider>
         </AuthProvider>
       </body>
     </html>

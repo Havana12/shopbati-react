@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { debugUserAuth } from '@/lib/appwrite'
 
 interface AuthModalProps {
   isOpen: boolean
@@ -12,9 +13,20 @@ interface AuthModalProps {
 export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [name, setName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [raisonSociale, setRaisonSociale] = useState('')
+  const [siret, setSiret] = useState('')
+  const [tvaNumber, setTvaNumber] = useState('')
+  const [phone, setPhone] = useState('')
+  const [accountType, setAccountType] = useState<'professional' | 'individual'>('individual')
+  // Champs d'adresse obligatoires
+  const [address, setAddress] = useState('')
+  const [postalCode, setPostalCode] = useState('')
+  const [city, setCity] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
   const [mode, setMode] = useState<'login' | 'register'>(defaultMode)
   const [showPassword, setShowPassword] = useState(false)
   const { login, register } = useAuth()
@@ -26,9 +38,19 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
     } else {
       setEmail('')
       setPassword('')
-      setName('')
+      setFirstName('')
+      setLastName('')
+      setRaisonSociale('')
+      setSiret('')
+      setTvaNumber('')
+      setPhone('')
+      setAddress('')
+      setPostalCode('')
+      setCity('')
       setError('')
+      setSuccessMessage('')
       setShowPassword(false)
+      setAccountType('individual')
     }
   }, [isOpen, defaultMode])
 
@@ -36,28 +58,114 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
     e.preventDefault()
     setLoading(true)
     setError('')
+    setSuccessMessage('')
 
     try {
       if (mode === 'register') {
-        if (!name.trim()) {
-          setError('Veuillez saisir votre nom complet')
+        // Validation based on account type
+        if (accountType === 'individual') {
+          if (!firstName.trim() || !lastName.trim()) {
+            setError('Veuillez saisir votre prénom et nom')
+            return
+          }
+        } else {
+          if (!raisonSociale.trim()) {
+            setError('Veuillez saisir la raison sociale de votre entreprise')
+            return
+          }
+          if (!siret.trim()) {
+            setError('Veuillez saisir votre numéro SIRET')
+            return
+          }
+        }
+        
+        if (!address.trim() || !postalCode.trim() || !city.trim()) {
+          setError('Veuillez saisir votre adresse complète (adresse, code postal, ville)')
           return
         }
         if (password.length < 8) {
           setError('Le mot de passe doit contenir au moins 8 caractères')
           return
         }
-        await register(email, password, name)
+        
+        console.log('Modal registration with:', {
+          email,
+          accountType: accountType,
+          ...(accountType === 'individual' ? {
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+          } : {
+            raisonSociale: raisonSociale.trim(),
+            siret: siret.trim(),
+            tvaNumber: tvaNumber.trim(),
+          }),
+          phone: phone.trim(),
+          address: address.trim(),
+          postalCode: postalCode.trim(),
+          city: city.trim(),
+          country: 'France'
+        })
+        
+        // Prepare user data based on account type
+        const userData = {
+          phone: phone.trim(),
+          accountType: accountType,
+          address: address.trim(),
+          postalCode: postalCode.trim(),
+          city: city.trim(),
+          country: 'France',
+          ...(accountType === 'individual' ? {
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+          } : {
+            raisonSociale: raisonSociale.trim(),
+            siret: siret.trim(),
+            tvaNumber: tvaNumber.trim(),
+          })
+        }
+        
+        // For display name, use appropriate value based on account type
+        const displayName = accountType === 'individual' 
+          ? `${firstName.trim()} ${lastName.trim()}`
+          : raisonSociale.trim()
+          
+        await register(email, password, displayName, userData)
       } else {
         await login(email, password)
       }
       onClose()
     } catch (error: any) {
-      if (mode === 'register') {
-        setError('Erreur lors de la création du compte. Vérifiez vos informations.')
-      } else {
-        setError('Email ou mot de passe incorrect')
+      // Handle the special case where account was created but login failed
+      if (error.message === 'ACCOUNT_CREATED_LOGIN_REQUIRED') {
+        setError('') // Clear any existing error immediately
+        setSuccessMessage('✅ Compte créé avec succès ! Veuillez maintenant vous connecter avec vos identifiants.')
+        setMode('login') // Switch to login mode
+        // Keep the email and password for easy login
+        setLoading(false) // Set loading to false here to avoid showing error
+        return
       }
+      
+      // Debug login errors
+      if (mode === 'login' && error.message && error.message.includes('Invalid credentials')) {
+        console.log('🔍 Debugging login failure in modal...')
+        console.log('📧 Email:', email)
+        console.log('🔑 Password length:', password.length)
+        
+        debugUserAuth(email).then(status => {
+          console.log('🔍 Debug result for modal login:', status)
+          if (!status.authExists) {
+            console.log('❌ PROBLÈME: Utilisateur n\'existe PAS dans Appwrite Auth!')
+            console.log('💡 Solution: L\'utilisateur doit être créé dans Appwrite Auth')
+          } else if (status.authExists) {
+            console.log('✅ Utilisateur existe dans Auth - problème de mot de passe')
+          }
+        }).catch(debugError => {
+          console.log('Debug failed:', debugError)
+        })
+      }
+      
+      // Use the specific error message from AuthContext
+      setError(error.message || (mode === 'register' ? 'Erreur lors de la création du compte. Vérifiez vos informations.' : 'Email ou mot de passe incorrect'))
       console.error('Authentication error:', error)
     } finally {
       setLoading(false)
@@ -114,23 +222,188 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
               </div>
             )}
 
+            {successMessage && (
+              <div className="mb-4 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg flex items-center">
+                {successMessage}
+              </div>
+            )}
+
             <div className="space-y-4">
               {mode === 'register' && (
-                <div>
-                  <label htmlFor="modal-name" className="block text-sm font-medium text-gray-700 mb-2">
-                    <i className="fas fa-user mr-2 text-orange-500"></i>
-                    Nom complet
-                  </label>
-                  <input
-                    id="modal-name"
-                    type="text"
-                    required={mode === 'register'}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
-                    placeholder="Jean Dupont"
-                  />
-                </div>
+                <>
+                  {/* Account Type Selection */}
+                  <div>
+                    <label htmlFor="modal-accountType" className="block text-sm font-medium text-gray-700 mb-2">
+                      <i className="fas fa-user-tag mr-2 text-orange-500"></i>
+                      Type de compte
+                    </label>
+                    <select
+                      id="modal-accountType"
+                      value={accountType}
+                      onChange={(e) => setAccountType(e.target.value as 'individual' | 'professional')}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
+                    >
+                      <option value="individual">🏠 Particulier</option>
+                      <option value="professional">🏢 Professionnel</option>
+                    </select>
+                  </div>
+
+                  {/* Individual Account Fields */}
+                  {accountType === 'individual' && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="modal-firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                          <i className="fas fa-user mr-2 text-orange-500"></i>
+                          Prénom *
+                        </label>
+                        <input
+                          id="modal-firstName"
+                          type="text"
+                          required
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
+                          placeholder="Jean"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="modal-lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                          <i className="fas fa-user mr-2 text-orange-500"></i>
+                          Nom *
+                        </label>
+                        <input
+                          id="modal-lastName"
+                          type="text"
+                          required
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
+                          placeholder="Dupont"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Professional Account Fields */}
+                  {accountType === 'professional' && (
+                    <>
+                      <div>
+                        <label htmlFor="modal-raisonSociale" className="block text-sm font-medium text-gray-700 mb-2">
+                          <i className="fas fa-building mr-2 text-orange-500"></i>
+                          Raison Sociale *
+                        </label>
+                        <input
+                          id="modal-raisonSociale"
+                          type="text"
+                          required
+                          value={raisonSociale}
+                          onChange={(e) => setRaisonSociale(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
+                          placeholder="ENTREPRISE DUPONT SARL"
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label htmlFor="modal-siret" className="block text-sm font-medium text-gray-700 mb-2">
+                            <i className="fas fa-file-contract mr-2 text-orange-500"></i>
+                            SIRET *
+                          </label>
+                          <input
+                            id="modal-siret"
+                            type="text"
+                            required
+                            value={siret}
+                            onChange={(e) => setSiret(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
+                            placeholder="12345678901234"
+                            maxLength={14}
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="modal-tvaNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                            <i className="fas fa-percent mr-2 text-orange-500"></i>
+                            N° TVA (optionnel)
+                          </label>
+                          <input
+                            id="modal-tvaNumber"
+                            type="text"
+                            value={tvaNumber}
+                            onChange={(e) => setTvaNumber(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
+                            placeholder="FR12345678901"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Common Fields */}
+                  <div>
+                    <label htmlFor="modal-phone" className="block text-sm font-medium text-gray-700 mb-2">
+                      <i className="fas fa-phone mr-2 text-orange-500"></i>
+                      Téléphone (optionnel)
+                    </label>
+                    <input
+                      id="modal-phone"
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
+                      placeholder="06 12 34 56 78"
+                    />
+                  </div>
+
+                  {/* Address Fields */}
+                  <div>
+                    <label htmlFor="modal-address" className="block text-sm font-medium text-gray-700 mb-2">
+                      <i className="fas fa-map-marker-alt mr-2 text-orange-500"></i>
+                      Adresse de livraison *
+                    </label>
+                    <input
+                      id="modal-address"
+                      type="text"
+                      required
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
+                      placeholder="123 Rue de la République"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="modal-postalCode" className="block text-sm font-medium text-gray-700 mb-2">
+                        <i className="fas fa-mail-bulk mr-2 text-orange-500"></i>
+                        Code postal *
+                      </label>
+                      <input
+                        id="modal-postalCode"
+                        type="text"
+                        required
+                        value={postalCode}
+                        onChange={(e) => setPostalCode(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
+                        placeholder="75001"
+                        maxLength={5}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="modal-city" className="block text-sm font-medium text-gray-700 mb-2">
+                        <i className="fas fa-city mr-2 text-orange-500"></i>
+                        Ville *
+                      </label>
+                      <input
+                        id="modal-city"
+                        type="text"
+                        required
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-colors"
+                        placeholder="Paris"
+                      />
+                    </div>
+                  </div>
+                </>
               )}
 
               <div>

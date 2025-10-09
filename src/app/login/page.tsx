@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
+import { debugUserAuth } from '@/lib/appwrite'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -11,15 +12,24 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [isRegister, setIsRegister] = useState(false)
-  const [name, setName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [accountType, setAccountType] = useState<'professional' | 'individual'>('professional')
+  // Nouveaux champs d'adresse obligatoires
+  const [address, setAddress] = useState('')
+  const [postalCode, setPostalCode] = useState('')
+  const [city, setCity] = useState('')
+  const [country, setCountry] = useState('France')
   const [showPassword, setShowPassword] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
   const router = useRouter()
   const { login, register, isAuthenticated } = useAuth()
 
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/account')
+      router.push('/') // Redirect to homepage instead of /account
     }
   }, [isAuthenticated, router])
 
@@ -30,25 +40,120 @@ export default function LoginPage() {
 
     try {
       if (isRegister) {
-        if (!name.trim()) {
-          setError('Veuillez saisir votre nom complet')
+        if (!firstName.trim() || !lastName.trim()) {
+          setError('Veuillez saisir votre prénom et nom')
+          return
+        }
+        if (!address.trim() || !postalCode.trim() || !city.trim()) {
+          setError('Veuillez saisir votre adresse complète (adresse, code postal, ville)')
           return
         }
         if (password.length < 8) {
           setError('Le mot de passe doit contenir au moins 8 caractères')
           return
         }
-        await register(email, password, name)
+        // Combine first and last name for the register function
+        const fullName = `${firstName.trim()} ${lastName.trim()}`
+        console.log('Attempting registration with:', {
+          email,
+          fullName,
+          additionalData: {
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            phone: phone.trim(),
+            accountType: accountType,
+            address: address.trim(),
+            postalCode: postalCode.trim(),
+            city: city.trim(),
+            country: country
+          }
+        })
+        await register(email, password, fullName, {
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone: phone.trim(),
+          accountType: accountType,
+          address: address.trim(),
+          postalCode: postalCode.trim(),
+          city: city.trim(),
+          country: country
+        })
       } else {
         await login(email, password)
       }
-      router.push('/account')
+      router.push('/') // Redirect to homepage instead of /account
     } catch (error: any) {
-      if (isRegister) {
-        setError('Erreur lors de la création du compte. Vérifiez vos informations.')
-      } else {
-        setError('Email ou mot de passe incorrect')
+      // Handle the special case where account was created but login failed
+      if (error.message === 'ACCOUNT_CREATED_LOGIN_REQUIRED') {
+        setError('') // Clear any existing error immediately
+        setSuccessMessage('✅ Compte créé avec succès ! Veuillez maintenant vous connecter avec vos identifiants.')
+        setIsRegister(false) // Switch to login mode
+        // Keep the email and password for easy login
+        // setEmail('') - Don't clear email
+        // setPassword('') - Don't clear password
+        setLoading(false) // Set loading to false here to avoid showing error
+        return
       }
+      
+      // Special handling for password sync required
+      if (!isRegister && error.message && error.message.startsWith('SYNC_PASSWORD_REQUIRED:')) {
+        const parts = error.message.split(':')
+        const emailFromError = parts[1]
+        const passwordFromError = parts[2]
+        
+        setError('')
+        setSuccessMessage('🔧 Configuration de votre mot de passe en cours...')
+        
+        try {
+          // Try to sync the password
+          const { syncDbPasswordToAuth } = await import('@/lib/appwrite')
+          const result = await syncDbPasswordToAuth(emailFromError, passwordFromError)
+          
+          if (result.success) {
+            setSuccessMessage('✅ Mot de passe configuré avec succès ! Connexion automatique...')
+            
+            // The sync function already logged us in, just redirect
+            setTimeout(() => {
+              router.push('/')
+            }, 1500)
+            return
+          } else if (result.requiresPasswordRecovery) {
+            setSuccessMessage('')
+            setError('⚠️ Configuration requise: Un email de récupération a été envoyé pour configurer votre mot de passe. Vérifiez votre boîte email.')
+          }
+        } catch (syncError: any) {
+          console.error('Failed to sync password:', syncError)
+          setSuccessMessage('')
+          setError('Impossible de configurer automatiquement le mot de passe. Veuillez contacter le support.')
+        }
+        setLoading(false)
+        return
+      }
+      
+      // Special handling for DB user without Auth user
+      if (!isRegister && error.message && error.message.includes('existe dans notre base de données mais n\'est pas configuré pour l\'authentification')) {
+        setError('')
+        setSuccessMessage('� Votre compte a été trouvé. Création des identifiants de connexion...')
+        
+        try {
+          // Try to create the Auth user from the DB user
+          const { createAuthUserFromDB } = await import('@/lib/appwrite')
+          await createAuthUserFromDB(email, password)
+          setSuccessMessage('✅ Identifiants créés avec succès ! Connexion en cours...')
+          
+          // Now try to login
+          await login(email, password)
+          router.push('/')
+          return
+        } catch (authCreationError: any) {
+          console.error('Failed to create Auth user:', authCreationError)
+          setSuccessMessage('')
+          setError('Impossible de créer les identifiants de connexion. Veuillez contacter le support.')
+        }
+      }
+      
+      // Use the specific error message from the login process
+      setError(error.message || (isRegister ? 'Erreur lors de la création du compte. Vérifiez vos informations.' : 'Email ou mot de passe incorrect'))
       console.error('Authentication error:', error)
     } finally {
       setLoading(false)
@@ -58,10 +163,14 @@ export default function LoginPage() {
   const switchMode = () => {
     setIsRegister(!isRegister)
     setError('')
-    setName('')
+    setSuccessMessage('')
+    setFirstName('')
+    setLastName('')
+    setPhone('')
     setEmail('')
     setPassword('')
     setShowPassword(false)
+    setAccountType('professional')
   }
 
   return (
@@ -82,30 +191,172 @@ export default function LoginPage() {
         
         {/* Form Card */}
         <div className="bg-white backdrop-blur-sm bg-opacity-95 rounded-2xl shadow-2xl p-8">
+          {successMessage && (
+            <div className="mb-6 bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-xl">
+              <div className="flex items-start">
+                <i className="fas fa-check-circle mr-3 text-green-500 mt-0.5"></i>
+                <div className="flex-1">
+                  <span>{successMessage}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl flex items-center">
-              <i className="fas fa-exclamation-triangle mr-3 text-red-500"></i>
-              <span>{error}</span>
+            <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl">
+              <div className="flex items-start">
+                <i className="fas fa-exclamation-triangle mr-3 text-red-500 mt-0.5"></i>
+                <div className="flex-1">
+                  <span>{error}</span>
+                  {error.includes('adresse email est déjà utilisée') && isRegister && (
+                    <button
+                      onClick={switchMode}
+                      className="block mt-2 text-sm text-red-700 hover:text-red-800 underline"
+                    >
+                      → Se connecter avec cette adresse email
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
           
           <form onSubmit={handleSubmit} className="space-y-6">
             {isRegister && (
-              <div>
-                <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
-                  <i className="fas fa-user mr-2 text-orange-500"></i>
-                  Nom complet
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  required={isRegister}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
-                  placeholder="Jean Dupont"
-                />
-              </div>
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="firstName" className="block text-sm font-semibold text-gray-700 mb-2">
+                      <i className="fas fa-user mr-2 text-orange-500"></i>
+                      Prénom
+                    </label>
+                    <input
+                      id="firstName"
+                      type="text"
+                      required={isRegister}
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                      placeholder="Jean"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="lastName" className="block text-sm font-semibold text-gray-700 mb-2">
+                      <i className="fas fa-user mr-2 text-orange-500"></i>
+                      Nom
+                    </label>
+                    <input
+                      id="lastName"
+                      type="text"
+                      required={isRegister}
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                      placeholder="Dupont"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-2">
+                    <i className="fas fa-phone mr-2 text-orange-500"></i>
+                    Téléphone (optionnel)
+                  </label>
+                  <input
+                    id="phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                    placeholder="06 12 34 56 78"
+                  />
+                </div>
+
+                {/* Nouveaux champs d'adresse obligatoires */}
+                <div>
+                  <label htmlFor="address" className="block text-sm font-semibold text-gray-700 mb-2">
+                    <i className="fas fa-map-marker-alt mr-2 text-orange-500"></i>
+                    Adresse de livraison *
+                  </label>
+                  <input
+                    id="address"
+                    type="text"
+                    required={isRegister}
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                    placeholder="123 Rue de la République"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label htmlFor="postalCode" className="block text-sm font-semibold text-gray-700 mb-2">
+                      <i className="fas fa-mail-bulk mr-2 text-orange-500"></i>
+                      Code postal *
+                    </label>
+                    <input
+                      id="postalCode"
+                      type="text"
+                      required={isRegister}
+                      value={postalCode}
+                      onChange={(e) => setPostalCode(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                      placeholder="75001"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="city" className="block text-sm font-semibold text-gray-700 mb-2">
+                      <i className="fas fa-city mr-2 text-orange-500"></i>
+                      Ville *
+                    </label>
+                    <input
+                      id="city"
+                      type="text"
+                      required={isRegister}
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                      placeholder="Paris"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="country" className="block text-sm font-semibold text-gray-700 mb-2">
+                      <i className="fas fa-flag mr-2 text-orange-500"></i>
+                      Pays *
+                    </label>
+                    <select
+                      id="country"
+                      required={isRegister}
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                    >
+                      <option value="France">France</option>
+                      <option value="Belgique">Belgique</option>
+                      <option value="Suisse">Suisse</option>
+                      <option value="Luxembourg">Luxembourg</option>
+                      <option value="Canada">Canada</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div>
+                  <label htmlFor="accountType" className="block text-sm font-semibold text-gray-700 mb-2">
+                    <i className="fas fa-briefcase mr-2 text-orange-500"></i>
+                    Type de compte
+                  </label>
+                  <select
+                    id="accountType"
+                    value={accountType}
+                    onChange={(e) => setAccountType(e.target.value as 'professional' | 'individual')}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 bg-gray-50 hover:bg-white"
+                  >
+                    <option value="professional">Professionnel</option>
+                    <option value="individual">Particulier</option>
+                  </select>
+                </div>
+              </>
             )}
 
             <div>

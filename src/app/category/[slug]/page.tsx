@@ -1,8 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import Image from 'next/image'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
@@ -14,355 +13,419 @@ interface Product {
   description: string
   price: number
   image_url?: string
-  slug?: string
+  slug: string
   status: string
+  category_id: string
+  category_name?: string
   featured?: boolean
-  created_at: string
+  stock?: number
+  brand?: string
+  $createdAt: string
+  $updatedAt: string
 }
 
 interface Category {
   $id: string
   name: string
   description?: string
-  image_url?: string
   slug?: string
   status: string
   sort_order?: number
+  product_count?: number
 }
+
+const fallbackProducts: Product[] = [
+  {
+    $id: 'fallback-1',
+    name: 'Ciment Portland CEM II/A-L 42.5 R - 25kg',
+    description: 'Ciment de haute qualité pour béton armé et précontraint. Résistance élevée et prise rapide.',
+    price: 8.95,
+    image_url: '/images/cement.jpg',
+    slug: 'ciment-portland-25kg',
+    status: 'active',
+    category_id: 'cat-1',
+    category_name: 'MAÇON',
+    featured: true,
+    stock: 150,
+    brand: 'LAFARGE',
+    $createdAt: '2024-01-01T00:00:00.000Z',
+    $updatedAt: '2024-01-01T00:00:00.000Z'
+  },
+  {
+    $id: 'fallback-2',
+    name: 'Brique Rouge 20x10x5cm',
+    description: 'Briques de construction traditionnelles en terre cuite. Résistantes et durables.',
+    price: 0.45,
+    image_url: '/images/brick.jpg',
+    slug: 'brique-rouge-20x10x5',
+    status: 'active',
+    category_id: 'cat-1',
+    category_name: 'MAÇON',
+    featured: false,
+    stock: 2500,
+    brand: 'WIENERBERGER',
+    $createdAt: '2024-01-01T00:00:00.000Z',
+    $updatedAt: '2024-01-01T00:00:00.000Z'
+  },
+  {
+    $id: 'fallback-3',
+    name: 'Peinture Acrylique Blanc Mat 10L',
+    description: 'Peinture acrylique de qualité professionnelle. Excellent pouvoir couvrant.',
+    price: 45.90,
+    image_url: '/images/paint.jpg',
+    slug: 'peinture-acrylique-blanc-10l',
+    status: 'active',
+    category_id: 'cat-3',
+    category_name: 'PEINTRE',
+    featured: true,
+    stock: 85,
+    brand: 'DULUX',
+    $createdAt: '2024-01-01T00:00:00.000Z',
+    $updatedAt: '2024-01-01T00:00:00.000Z'
+  },
+  {
+    $id: 'fallback-4',
+    name: 'Carrelage Grès Cérame 60x60cm',
+    description: 'Carrelage moderne en grès cérame. Facile d\'entretien et résistant.',
+    price: 25.50,
+    image_url: '/images/tile.jpg',
+    slug: 'carrelage-gres-60x60',
+    status: 'active',
+    category_id: 'cat-4',
+    category_name: 'CARRELEUR',
+    featured: false,
+    stock: 120,
+    brand: 'PORCELANOSA',
+    $createdAt: '2024-01-01T00:00:00.000Z',
+    $updatedAt: '2024-01-01T00:00:00.000Z'
+  }
+]
 
 export default function CategoryPage() {
   const params = useParams()
-  const [category, setCategory] = useState<Category | null>(null)
+  const categorySlug = params.slug as string
+  
   const [products, setProducts] = useState<Product[]>([])
+  const [category, setCategory] = useState<Category | null>(null)
   const [loading, setLoading] = useState(true)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [sortBy, setSortBy] = useState('created_at')
-  const [sortOrder, setSortOrder] = useState('desc')
-
-  const productsPerPage = 12
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sortBy, setSortBy] = useState('name')
+  const [priceRange, setPriceRange] = useState('all')
+  const [isFromDatabase, setIsFromDatabase] = useState(false)
 
   useEffect(() => {
-    if (params.slug) {
-      fetchCategoryAndProducts(params.slug as string)
-    }
-  }, [params.slug, currentPage, sortBy, sortOrder])
+    fetchCategoryAndProducts()
+  }, [categorySlug])
 
-  const fetchCategoryAndProducts = async (categorySlug: string) => {
-    setLoading(true)
+  const fetchCategoryAndProducts = async () => {
     try {
       const appwrite = AppwriteService.getInstance()
       
-      // Try to find category by slug first, then by ID
-      let categoryQuery = [
+      const categoriesResult = await appwrite.getCategories([
         appwrite.Query.equal('status', 'active'),
-        appwrite.Query.equal('slug', categorySlug)
-      ]
+        appwrite.Query.limit(100)
+      ])
       
-      let categoryResult = await appwrite.databases.listDocuments(
-        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
-        'categories',
-        categoryQuery
-      )
-
-      // If not found by slug, try by ID
-      if (categoryResult.documents.length === 0) {
-        categoryQuery = [
-          appwrite.Query.equal('status', 'active'),
-          appwrite.Query.equal('$id', categorySlug)
-        ]
-        
-        categoryResult = await appwrite.databases.listDocuments(
-          process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
-          'categories',
-          categoryQuery
-        )
+      let foundCategory: Category | null = null
+      if (categoriesResult.documents && categoriesResult.documents.length > 0) {
+        foundCategory = (categoriesResult.documents as unknown as Category[]).find(cat => 
+          cat.slug === categorySlug || 
+          cat.name.toLowerCase().replace(/\s+/g, '-') === categorySlug
+        ) || null
       }
-
-      if (categoryResult.documents.length > 0) {
-        const foundCategory = categoryResult.documents[0] as unknown as Category
+      
+      if (foundCategory) {
         setCategory(foundCategory)
         
-        // Fetch products for this category
-        const productQueries = [
+        const productsResult = await appwrite.getProducts([
           appwrite.Query.equal('status', 'active'),
           appwrite.Query.equal('category_id', foundCategory.$id),
-          appwrite.Query.limit(productsPerPage),
-          appwrite.Query.offset((currentPage - 1) * productsPerPage)
-        ]
-
-        // Add sorting
-        if (sortOrder === 'asc') {
-          productQueries.push(appwrite.Query.orderAsc(sortBy))
+          appwrite.Query.limit(100)
+        ])
+        
+        if (productsResult.documents && productsResult.documents.length > 0) {
+          setProducts(productsResult.documents as unknown as Product[])
+          setIsFromDatabase(true)
         } else {
-          productQueries.push(appwrite.Query.orderDesc(sortBy))
+          const categoryFallbackProducts = fallbackProducts.filter(product => 
+            product.category_name === foundCategory.name
+          )
+          setProducts(categoryFallbackProducts)
+          setIsFromDatabase(false)
         }
-
-        const productsResult = await appwrite.databases.listDocuments(
-          process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
-          'products',
-          productQueries
+      } else {
+        const mockCategory: Category = {
+          $id: 'mock-' + categorySlug,
+          name: categorySlug.replace(/-/g, ' ').toUpperCase(),
+          description: 'Découvrez nos produits dans cette catégorie',
+          slug: categorySlug,
+          status: 'active',
+          sort_order: 1,
+          product_count: 0
+        }
+        setCategory(mockCategory)
+        
+        const categoryFallbackProducts = fallbackProducts.filter(product => 
+          product.category_name?.toLowerCase().includes(categorySlug.replace(/-/g, ' ').toLowerCase()) ||
+          categorySlug.toLowerCase().includes(product.category_name?.toLowerCase() || '')
         )
-
-        setProducts(productsResult.documents as unknown as Product[])
-        setTotalPages(Math.ceil(productsResult.total / productsPerPage))
+        setProducts(categoryFallbackProducts)
+        setIsFromDatabase(false)
       }
     } catch (error) {
       console.error('Error fetching category and products:', error)
+      const mockCategory: Category = {
+        $id: 'mock-' + categorySlug,
+        name: categorySlug.replace(/-/g, ' ').toUpperCase(),
+        description: 'Découvrez nos produits dans cette catégorie',
+        slug: categorySlug,
+        status: 'active',
+        sort_order: 1,
+        product_count: 0
+      }
+      setCategory(mockCategory)
+      setProducts(fallbackProducts)
+      setIsFromDatabase(false)
     } finally {
       setLoading(false)
     }
   }
 
-  const addToCart = (product: Product) => {
-    const cartItems = JSON.parse(localStorage.getItem('shopbati_cart') || '[]')
-    const existingItem = cartItems.find((item: any) => item.productId === product.$id)
+  const filterAndSortProducts = () => {
+    let filtered = products.filter(product =>
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.brand && product.brand.toLowerCase().includes(searchTerm.toLowerCase()))
+    )
 
-    if (existingItem) {
-      existingItem.quantity += 1
-    } else {
-      cartItems.push({
-        productId: product.$id,
-        name: product.name,
-        price: product.price,
-        quantity: 1,
-        image_url: product.image_url
+    if (priceRange !== 'all') {
+      const [min, max] = priceRange.split('-').map(Number)
+      filtered = filtered.filter(product => {
+        if (max) {
+          return product.price >= min && product.price <= max
+        } else {
+          return product.price >= min
+        }
       })
     }
 
-    localStorage.setItem('shopbati_cart', JSON.stringify(cartItems))
-    window.dispatchEvent(new Event('cartUpdated'))
-    alert(`${product.name} ajouté au panier !`)
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'price-asc':
+          return a.price - b.price
+        case 'price-desc':
+          return b.price - a.price
+        case 'name':
+          return a.name.localeCompare(b.name)
+        case 'newest':
+          return new Date(b.$createdAt).getTime() - new Date(a.$createdAt).getTime()
+        default:
+          return a.name.localeCompare(b.name)
+      }
+    })
+
+    return filtered
   }
 
-  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const [field, order] = e.target.value.split('-')
-    setSortBy(field)
-    setSortOrder(order)
-    setCurrentPage(1)
+  const filteredProducts = filterAndSortProducts()
+
+  const getCategoryIcon = (name: string) => {
+    const lowerName = name.toLowerCase()
+    if (lowerName.includes('macon') || lowerName.includes('maçon')) return '🏗️'
+    if (lowerName.includes('menuisier') || lowerName.includes('serrurerie')) return '🔧'
+    if (lowerName.includes('peintre')) return '🎨'
+    if (lowerName.includes('carreleur')) return '🏠'
+    if (lowerName.includes('plomberie')) return '🚿'
+    if (lowerName.includes('chauffage')) return '🔥'
+    if (lowerName.includes('sanitaire')) return '🚿'
+    if (lowerName.includes('électric')) return '⚡'
+    if (lowerName.includes('outillage')) return '🔨'
+    if (lowerName.includes('isolation')) return '🛡️'
+    return '🏠'
   }
 
   if (loading) {
     return (
-      <>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
         <Header />
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="text-center">
-            <i className="fas fa-spinner fa-spin text-4xl text-blue-600 mb-4"></i>
-            <p className="text-gray-600">Chargement de la catégorie...</p>
-          </div>
+        <div className="flex justify-center items-center py-32">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-600"></div>
         </div>
         <Footer />
-      </>
-    )
-  }
-
-  if (!category) {
-    return (
-      <>
-        <Header />
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="text-center">
-            <i className="fas fa-exclamation-triangle text-6xl text-gray-400 mb-4"></i>
-            <h1 className="text-2xl font-bold text-gray-700 mb-2">Catégorie introuvable</h1>
-            <p className="text-gray-500 mb-6">La catégorie que vous recherchez n'existe pas.</p>
-            <Link href="/shop" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors">
-              <i className="fas fa-store mr-2"></i>Retour à la boutique
-            </Link>
-          </div>
-        </div>
-        <Footer />
-      </>
+      </div>
     )
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
       <Header />
       
-      <div className="min-h-screen bg-gray-50">
-        {/* Category Hero */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
-          <div className="container mx-auto px-4 py-16">
-            <div className="flex flex-col md:flex-row items-center">
-              <div className="md:w-2/3 mb-8 md:mb-0">
-                <nav className="text-sm text-blue-200 mb-4">
-                  <Link href="/" className="hover:text-white">Accueil</Link>
-                  <span className="mx-2">/</span>
-                  <Link href="/shop" className="hover:text-white">Boutique</Link>
-                  <span className="mx-2">/</span>
-                  <span>{category.name}</span>
-                </nav>
-                <h1 className="text-4xl md:text-5xl font-bold mb-4">{category.name}</h1>
-                {category.description && (
-                  <p className="text-xl text-blue-100 leading-relaxed">
-                    {category.description}
-                  </p>
-                )}
-                <div className="mt-6 flex items-center text-blue-200">
-                  <i className="fas fa-boxes mr-2"></i>
-                  <span>{products.length} produits disponibles</span>
+      {/* Products Section */}
+      <section className="py-12">
+        <div className="container mx-auto px-6 max-w-[1400px]">
+          <nav className="mb-8">
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <Link href="/" className="hover:text-orange-600 transition-colors">Accueil</Link>
+              <span>›</span>
+              <Link href="/categories" className="hover:text-orange-600 transition-colors">Catégories</Link>
+              <span>›</span>
+              <span className="text-gray-900 font-medium">{category?.name}</span>
+            </div>
+          </nav>
+
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 mb-8 backdrop-blur-sm">
+            <div className="flex flex-col xl:flex-row gap-6 items-center">
+              
+              <div className="flex-1 relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
                 </div>
+                <input
+                  type="text"
+                  placeholder="Rechercher des produits..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 text-gray-700 placeholder-gray-500"
+                />
               </div>
-              {category.image_url && (
-                <div className="md:w-1/3">
-                  <Image 
-                    src={category.image_url} 
-                    alt={category.name}
-                    width={400}
-                    height={300}
-                    className="rounded-lg shadow-xl"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
 
-        <div className="container mx-auto px-4 py-8">
-          {/* Sort Options */}
-          <div className="bg-white rounded-lg shadow-lg p-4 mb-6 flex flex-col sm:flex-row justify-between items-center">
-            <div className="text-sm text-gray-600 mb-4 sm:mb-0">
-              Affichage de {((currentPage - 1) * productsPerPage) + 1} à {Math.min(currentPage * productsPerPage, products.length)} produits sur {products.length}
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <label className="text-sm font-medium text-gray-700">Trier par:</label>
-              <select
-                value={`${sortBy}-${sortOrder}`}
-                onChange={handleSortChange}
-                className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                <option value="created_at-desc">Plus récents</option>
-                <option value="created_at-asc">Plus anciens</option>
-                <option value="price-asc">Prix croissant</option>
-                <option value="price-desc">Prix décroissant</option>
-                <option value="name-asc">Nom A-Z</option>
-                <option value="name-desc">Nom Z-A</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Products Grid */}
-          {products.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="bg-white rounded-lg shadow-lg p-12">
-                <i className="fas fa-box-open text-6xl text-gray-400 mb-4"></i>
-                <h3 className="text-xl font-semibold text-gray-700 mb-2">Aucun produit dans cette catégorie</h3>
-                <p className="text-gray-500 mb-6">Cette catégorie ne contient aucun produit pour le moment.</p>
-                <Link 
-                  href="/shop"
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+              <div className="min-w-[200px]">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full py-4 px-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 text-gray-700"
                 >
-                  <i className="fas fa-store mr-2"></i>Voir tous les produits
-                </Link>
+                  <option value="name">Trier par nom</option>
+                  <option value="price-asc">Prix croissant</option>
+                  <option value="price-desc">Prix décroissant</option>
+                  <option value="newest">Plus récents</option>
+                </select>
+              </div>
+
+              <div className="min-w-[180px]">
+                <select
+                  value={priceRange}
+                  onChange={(e) => setPriceRange(e.target.value)}
+                  className="w-full py-4 px-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 text-gray-700"
+                >
+                  <option value="all">Tous les prix</option>
+                  <option value="0-10">0€ - 10€</option>
+                  <option value="10-50">10€ - 50€</option>
+                  <option value="50-100">50€ - 100€</option>
+                  <option value="100">Plus de 100€</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {isFromDatabase ? (
+                  <div className="flex items-center gap-2 bg-green-100 text-green-800 px-4 py-3 rounded-xl font-medium">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span>En direct</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 bg-yellow-100 text-yellow-800 px-4 py-3 rounded-xl font-medium">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <span>Démo</span>
+                  </div>
+                )}
               </div>
             </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
-                {products.map((product) => (
-                  <div key={product.$id} className="bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden group">
-                    <div className="relative">
-                      <div className="aspect-w-16 aspect-h-12 bg-gray-200">
-                        {product.image_url ? (
-                          <Image 
-                            src={product.image_url} 
-                            alt={product.name}
-                            width={400}
-                            height={300}
-                            className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                            <i className="fas fa-box text-4xl text-gray-400"></i>
-                          </div>
-                        )}
+          </div>
+
+          {filteredProducts.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8">
+              {filteredProducts.map((product) => (
+                <div
+                  key={product.$id}
+                  className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-100 overflow-hidden"
+                >
+                  <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+                    {product.image_url ? (
+                      <img
+                        src={product.image_url}
+                        alt={product.name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
                       </div>
-                      {product.featured && (
-                        <span className="absolute top-2 left-2 bg-yellow-500 text-black px-2 py-1 rounded text-xs font-bold">
-                          <i className="fas fa-star mr-1"></i>Vedette
+                    )}
+                    
+                    {product.featured && (
+                      <div className="absolute top-3 left-3 bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-bold">
+                        Populaire
+                      </div>
+                    )}
+                    
+                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-gray-700 px-3 py-1 rounded-full text-xs font-medium">
+                      Stock: {product.stock || 0}
+                    </div>
+                  </div>
+                  
+                  <div className="p-6">
+                    <div className="mb-2">
+                      {product.brand && (
+                        <span className="inline-block bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-medium mb-2">
+                          {product.brand}
                         </span>
                       )}
                     </div>
                     
-                    <div className="p-4">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
-                        {product.name}
-                      </h3>
-                      <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                        {product.description ? product.description.substring(0, 100) + '...' : ''}
-                      </p>
-                      
-                      <div className="flex items-center justify-between">
-                        <span className="text-xl font-bold text-green-600">
-                          {product.price.toFixed(2)}€
-                        </span>
-                        <div className="flex space-x-2">
-                          <Link 
-                            href={`/product/${product.slug || product.$id}`}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm transition-colors"
-                          >
-                            <i className="fas fa-eye mr-1"></i>Voir
-                          </Link>
-                          <button
-                            onClick={() => addToCart(product)}
-                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm transition-colors"
-                          >
-                            <i className="fas fa-cart-plus mr-1"></i>Panier
-                          </button>
-                        </div>
+                    <h3 className="font-bold text-gray-900 mb-3 line-clamp-2 group-hover:text-orange-600 transition-colors">
+                      {product.name}
+                    </h3>
+                    
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-2 leading-relaxed">
+                      {product.description}
+                    </p>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="text-2xl font-bold text-orange-600">
+                        {product.price.toFixed(2)}€
                       </div>
+                      
+                      <Link
+                        href={`/product/${product.slug}`}
+                        className="inline-flex items-center bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                      >
+                        <span className="mr-2">Voir</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                        </svg>
+                      </Link>
                     </div>
                   </div>
-                ))}
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex justify-center items-center space-x-2">
-                  <button
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-400 transition-colors"
-                  >
-                    <i className="fas fa-chevron-left mr-2"></i>Précédent
-                  </button>
                   
-                  {[...Array(Math.min(5, totalPages))].map((_, index) => {
-                    const pageNum = Math.max(1, currentPage - 2) + index
-                    if (pageNum > totalPages) return null
-                    
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`px-4 py-2 rounded transition-colors ${
-                          pageNum === currentPage
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    )
-                  })}
-                  
-                  <button
-                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages}
-                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-400 transition-colors"
-                  >
-                    Suivant<i className="fas fa-chevron-right ml-2"></i>
-                  </button>
+                  <div className="absolute inset-0 bg-gradient-to-r from-orange-500/0 to-orange-600/0 group-hover:from-orange-500/5 group-hover:to-orange-600/5 transition-all duration-300 rounded-2xl"></div>
                 </div>
-              )}
-            </>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16">
+              <div className="text-6xl text-gray-300 mb-4">📦</div>
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                Aucun produit trouvé
+              </h3>
+              <p className="text-gray-500 mb-6">
+                Essayez de modifier vos filtres de recherche
+              </p>
+              <Link
+                href="/produits"
+                className="inline-flex items-center bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200"
+              >
+                Voir tous les produits
+              </Link>
+            </div>
           )}
         </div>
-      </div>
+      </section>
 
       <Footer />
-    </>
+    </div>
   )
 }

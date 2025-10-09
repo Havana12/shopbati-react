@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import Header from '@/components/Header'
+
 import Footer from '@/components/Footer'
 
 export default function ContactPage() {
@@ -42,8 +42,6 @@ export default function ContactPage() {
 
   return (
     <>
-      <Header />
-      
       <div className="min-h-screen bg-gray-50">
         {/* Hero Section */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">

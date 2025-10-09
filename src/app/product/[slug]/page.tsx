@@ -7,6 +7,7 @@ import Link from 'next/link'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { AppwriteService } from '@/lib/appwrite'
+import { useCart } from '@/contexts/CartContext'
 
 interface Product {
   $id: string
@@ -22,7 +23,7 @@ interface Product {
   created_at: string
   technical_specs?: string
   brand?: string
-  stock_quantity?: number
+  stock?: number
   weight?: number
   dimensions?: string
 }
@@ -42,6 +43,8 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true)
   const [selectedImage, setSelectedImage] = useState(0)
   const [quantity, setQuantity] = useState(1)
+  const [isImageZoomed, setIsImageZoomed] = useState(false)
+  const { addItem, openCart, state, updateQuantity, removeItem } = useCart()
 
   useEffect(() => {
     if (params.slug) {
@@ -53,51 +56,58 @@ export default function ProductDetailPage() {
     setLoading(true)
     try {
       const appwrite = AppwriteService.getInstance()
+      let foundProduct = null
       
-      // Try to find product by slug first, then by ID
-      let productQuery = [
-        appwrite.Query.equal('status', 'active'),
-        appwrite.Query.equal('slug', productSlug)
-      ]
-      
-      let result = await appwrite.databases.listDocuments(
-        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
-        'products',
-        productQuery
-      )
-
-      // If not found by slug, try by ID
-      if (result.documents.length === 0) {
-        productQuery = [
+      // First try to find product by slug using the products list
+      try {
+        const result = await appwrite.getProducts([
           appwrite.Query.equal('status', 'active'),
-          appwrite.Query.equal('$id', productSlug)
-        ]
+          appwrite.Query.equal('slug', productSlug)
+        ])
         
-        result = await appwrite.databases.listDocuments(
-          process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
-          'products',
-          productQuery
-        )
+        if (result && result.documents && result.documents.length > 0) {
+          foundProduct = result.documents[0] as unknown as Product
+        }
+      } catch (slugError) {
+        console.log('Slug search failed:', slugError)
       }
 
-      if (result.documents.length > 0) {
-        const foundProduct = result.documents[0] as unknown as Product
+      // If not found by slug, try to get by ID directly
+      if (!foundProduct) {
+        try {
+          const idResult = await appwrite.getProduct(productSlug)
+          
+          // Check if the product is active
+          if (idResult && idResult.status === 'active') {
+            foundProduct = idResult as unknown as Product
+          }
+        } catch (idError) {
+          console.log('ID search failed:', idError)
+        }
+      }
+
+      if (foundProduct) {
         setProduct(foundProduct)
         
         // Fetch related products from same category
         if (foundProduct.category_id) {
-          const relatedResult = await appwrite.databases.listDocuments(
-            process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
-            'products',
-            [
+          try {
+            const relatedResult = await appwrite.getProducts([
               appwrite.Query.equal('status', 'active'),
               appwrite.Query.equal('category_id', foundProduct.category_id),
               appwrite.Query.notEqual('$id', foundProduct.$id),
               appwrite.Query.limit(4)
-            ]
-          )
-          setRelatedProducts(relatedResult.documents as unknown as RelatedProduct[])
+            ])
+            
+            if (relatedResult && relatedResult.documents && relatedResult.documents.length > 0) {
+              setRelatedProducts(relatedResult.documents as unknown as RelatedProduct[])
+            }
+          } catch (relatedError) {
+            console.log('Related products fetch failed:', relatedError)
+          }
         }
+      } else {
+        console.log('Product not found with slug/ID:', productSlug)
       }
     } catch (error) {
       console.error('Error fetching product:', error)
@@ -106,31 +116,23 @@ export default function ProductDetailPage() {
     }
   }
 
-  const addToCart = () => {
-    if (!product) return
-    
-    const cartItems = JSON.parse(localStorage.getItem('shopbati_cart') || '[]')
-    const existingItem = cartItems.find((item: any) => item.productId === product.$id)
-
-    if (existingItem) {
-      existingItem.quantity += quantity
-    } else {
-      cartItems.push({
-        productId: product.$id,
+  const handleAddToCart = (product: Product) => {
+    for (let i = 0; i < quantity; i++) {
+      addItem({
+        $id: product.$id,
         name: product.name,
         price: product.price,
-        quantity: quantity,
-        image_url: product.image_url
+        image_url: product.image_url,
+        brand: product.brand,
+        category_name: product.category_name,
+        description: product.description
       })
     }
+  }
 
-    localStorage.setItem('shopbati_cart', JSON.stringify(cartItems))
-    
-    // Trigger a custom event to update cart count in header
-    window.dispatchEvent(new Event('cartUpdated'))
-    
-    // Show success message
-    alert(`${product.name} ajouté au panier (Quantité: ${quantity}) !`)
+  const getProductQuantityInCart = (productId: string) => {
+    const item = state.items.find(item => item.$id === productId)
+    return item?.quantity || 0
   }
 
   if (loading) {
@@ -157,7 +159,7 @@ export default function ProductDetailPage() {
             <i className="fas fa-exclamation-triangle text-6xl text-gray-400 mb-4"></i>
             <h1 className="text-2xl font-bold text-gray-700 mb-2">Produit introuvable</h1>
             <p className="text-gray-500 mb-6">Le produit que vous recherchez n'existe pas ou n'est plus disponible.</p>
-            <Link href="/shop" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors">
+            <Link href="/produits" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors">
               <i className="fas fa-store mr-2"></i>Retour à la boutique
             </Link>
           </div>
@@ -179,11 +181,11 @@ export default function ProductDetailPage() {
           <nav className="text-sm text-gray-600 mb-8">
             <Link href="/" className="hover:text-blue-600">Accueil</Link>
             <span className="mx-2">/</span>
-            <Link href="/shop" className="hover:text-blue-600">Boutique</Link>
+            <Link href="/produits" className="hover:text-blue-600">Boutique</Link>
             {product.category_name && (
               <>
                 <span className="mx-2">/</span>
-                <Link href={`/category/${product.category_id}`} className="hover:text-blue-600">
+                <Link href={`/categories/${product.category_id}`} className="hover:text-blue-600">
                   {product.category_name}
                 </Link>
               </>
@@ -195,17 +197,31 @@ export default function ProductDetailPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-12">
             {/* Product Images */}
             <div className="space-y-4">
-              <div className="aspect-w-1 aspect-h-1 bg-white rounded-lg shadow-lg overflow-hidden">
+              <div className="bg-white rounded-lg shadow-lg overflow-hidden relative group">
                 {productImages.length > 0 ? (
-                  <Image 
-                    src={productImages[selectedImage]} 
-                    alt={product.name}
-                    width={600}
-                    height={600}
-                    className="w-full h-96 object-cover"
-                  />
+                  <div 
+                    className="relative w-full cursor-zoom-in" 
+                    style={{ aspectRatio: '1/1' }}
+                    onClick={() => setIsImageZoomed(true)}
+                  >
+                    <Image 
+                      src={productImages[selectedImage]} 
+                      alt={product.name}
+                      fill
+                      className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"
+                      priority
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    />
+                    {/* Zoom overlay */}
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300 flex items-center justify-center">
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white bg-opacity-90 px-3 py-2 rounded-lg">
+                        <i className="fas fa-search-plus mr-2"></i>
+                        <span className="text-sm font-medium">Cliquer pour agrandir</span>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
-                  <div className="w-full h-96 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                  <div className="w-full aspect-square bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                     <i className="fas fa-box text-6xl text-gray-400"></i>
                   </div>
                 )}
@@ -213,22 +229,26 @@ export default function ProductDetailPage() {
               
               {/* Thumbnail Images */}
               {productImages.length > 1 && (
-                <div className="flex space-x-2">
+                <div className="flex space-x-2 overflow-x-auto">
                   {productImages.map((image, index) => (
                     <button
                       key={index}
                       onClick={() => setSelectedImage(index)}
-                      className={`w-20 h-20 rounded-lg overflow-hidden ${
-                        selectedImage === index ? 'ring-2 ring-blue-500' : ''
+                      className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
+                        selectedImage === index 
+                          ? 'ring-2 ring-blue-500 border-blue-500' 
+                          : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      <Image 
-                        src={image} 
-                        alt={`${product.name} ${index + 1}`}
-                        width={80}
-                        height={80}
-                        className="w-full h-full object-cover"
-                      />
+                      <div className="relative w-full h-full">
+                        <Image 
+                          src={image} 
+                          alt={`${product.name} ${index + 1}`}
+                          fill
+                          className="object-contain p-1"
+                          sizes="80px"
+                        />
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -257,54 +277,89 @@ export default function ProductDetailPage() {
 
               {/* Stock Status */}
               <div className="mb-6">
-                {product.stock_quantity !== undefined && (
-                  <div className={`flex items-center ${product.stock_quantity > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    <i className={`fas ${product.stock_quantity > 0 ? 'fa-check-circle' : 'fa-times-circle'} mr-2`}></i>
+                {product.stock !== undefined && (
+                  <div className={`flex items-center ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <i className={`fas ${product.stock > 0 ? 'fa-check-circle' : 'fa-times-circle'} mr-2`}></i>
                     <span className="font-semibold">
-                      {product.stock_quantity > 0 ? `En stock (${product.stock_quantity} disponibles)` : 'Rupture de stock'}
+                      {product.stock > 0 ? `En stock (${product.stock} disponibles)` : 'Rupture de stock'}
                     </span>
                   </div>
                 )}
               </div>
 
               {/* Add to Cart */}
-              <div className="mb-8 space-y-4">
-                <div className="flex items-center space-x-4">
-                  <label className="font-semibold text-gray-700">Quantité:</label>
-                  <div className="flex items-center border border-gray-300 rounded">
-                    <button
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="px-3 py-2 hover:bg-gray-100 transition-colors"
-                    >
-                      <i className="fas fa-minus"></i>
-                    </button>
-                    <input
-                      type="number"
-                      min="1"
-                      value={quantity}
-                      onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-16 px-2 py-2 text-center border-x border-gray-300 focus:outline-none"
-                    />
-                    <button
-                      onClick={() => setQuantity(quantity + 1)}
-                      className="px-3 py-2 hover:bg-gray-100 transition-colors"
-                    >
-                      <i className="fas fa-plus"></i>
-                    </button>
-                  </div>
-                </div>
-
+              <div className="mb-8">
                 <div className="flex space-x-4">
-                  <button
-                    onClick={addToCart}
-                    disabled={product.stock_quantity === 0}
-                    className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-bold transition-colors"
-                  >
-                    <i className="fas fa-cart-plus mr-2"></i>Ajouter au panier
-                  </button>
-                  <button className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-lg transition-colors">
-                    <i className="fas fa-heart mr-2"></i>Favoris
-                  </button>
+                  {getProductQuantityInCart(product.$id) > 0 ? (
+                    /* Product already in cart - show quantity controls */
+                    <div className="flex-1 flex items-center bg-orange-50 border-2 border-orange-500 rounded-xl overflow-hidden">
+                      <button 
+                        onClick={() => updateQuantity(product.$id, getProductQuantityInCart(product.$id) - 1)}
+                        className="px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                        </svg>
+                      </button>
+                      
+                      <div className="flex-1 text-center py-3 font-bold text-orange-700 text-lg">
+                        {getProductQuantityInCart(product.$id)}
+                      </div>
+                      
+                      <button 
+                        onClick={() => handleAddToCart(product)}
+                        className="px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    /* Product not in cart - show add button with quantity selector */
+                    <div className="flex-1 space-y-4">
+                      <div className="flex items-center space-x-4">
+                        <label className="font-semibold text-gray-700">Quantité:</label>
+                        <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden">
+                          <button
+                            onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                            className="px-4 py-2 hover:bg-gray-100 transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                            </svg>
+                          </button>
+                          <input
+                            type="number"
+                            min="1"
+                            value={quantity}
+                            onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                            className="w-16 px-2 py-2 text-center border-x border-gray-300 focus:outline-none"
+                          />
+                          <button
+                            onClick={() => setQuantity(quantity + 1)}
+                            className="px-4 py-2 hover:bg-gray-100 transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={() => handleAddToCart(product)}
+                        disabled={product.stock === 0}
+                        className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-4 px-6 rounded-xl font-bold text-lg hover:from-orange-600 hover:to-orange-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      >
+                        <svg className="w-6 h-6 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m-2.4 0L3 3z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM20 19.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                        </svg>
+                        Ajouter au panier
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -393,17 +448,17 @@ export default function ProductDetailPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {relatedProducts.map((relatedProduct) => (
                   <div key={relatedProduct.$id} className="bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden">
-                    <div className="aspect-w-16 aspect-h-12 bg-gray-200">
+                    <div className="relative w-full h-48 bg-gray-50">
                       {relatedProduct.image_url ? (
                         <Image 
                           src={relatedProduct.image_url} 
                           alt={relatedProduct.name}
-                          width={300}
-                          height={200}
-                          className="w-full h-40 object-cover"
+                          fill
+                          className="object-contain p-2"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
                         />
                       ) : (
-                        <div className="w-full h-40 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                        <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                           <i className="fas fa-box text-2xl text-gray-400"></i>
                         </div>
                       )}
@@ -431,6 +486,51 @@ export default function ProductDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Image Zoom Modal */}
+      {isImageZoomed && productImages.length > 0 && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+          onClick={() => setIsImageZoomed(false)}
+        >
+          <div className="relative max-w-4xl max-h-full">
+            <button
+              onClick={() => setIsImageZoomed(false)}
+              className="absolute top-4 right-4 z-10 bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-2 rounded-full transition-all"
+            >
+              <i className="fas fa-times text-xl"></i>
+            </button>
+            <div className="relative w-full h-full">
+              <Image 
+                src={productImages[selectedImage]} 
+                alt={product.name}
+                width={800}
+                height={800}
+                className="max-w-full max-h-full object-contain"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+            {productImages.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                {productImages.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setSelectedImage(index)
+                    }}
+                    className={`w-3 h-3 rounded-full transition-all ${
+                      selectedImage === index 
+                        ? 'bg-white' 
+                        : 'bg-white bg-opacity-50 hover:bg-opacity-75'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <Footer />
     </>

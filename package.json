@@ -6,14 +6,28 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "add-reference": "node scripts/add-reference-attribute.js",
+    "add-subcategories": "node scripts/add-subcategories.js"
   },
   "dependencies": {
-    "react": "^18",
-    "react-dom": "^18",
-    "next": "14.2.16",
     "@fortawesome/fontawesome-free": "^6.6.0",
-    "appwrite": "^16.0.2"
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/nodemailer": "^6.4.17",
+    "appwrite": "^16.0.2",
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^17.2.1",
+    "html2canvas": "^1.4.1",
+    "jsonwebtoken": "^9.0.2",
+    "jspdf": "^3.0.1",
+    "next": "^14.2.30",
+    "node-appwrite": "^17.2.0",
+    "nodemailer": "^7.0.5",
+    "pdfkit": "^0.17.1",
+    "react": "^18",
+    "react-dom": "^18.3.1",
+    "resend": "^4.7.0"
   },
   "devDependencies": {
     "@types/node": "^20",

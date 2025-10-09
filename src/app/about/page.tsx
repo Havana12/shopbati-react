@@ -1,14 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import Header from '@/components/Header'
+
 import Footer from '@/components/Footer'
 
 export default function AboutPage() {
   return (
     <>
-      <Header />
-      
       <div className="min-h-screen bg-gray-50">
         {/* Hero Section */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
@@ -229,7 +227,7 @@ export default function AboutPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link 
-                href="/shop"
+                href="/produits"
                 className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-3 rounded-lg font-bold transition-colors"
               >
                 <i className="fas fa-store mr-2"></i>

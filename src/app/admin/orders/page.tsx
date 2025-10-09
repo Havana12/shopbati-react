@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { AppwriteService } from '@/lib/appwrite'
 
@@ -34,22 +34,45 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
+  const [paymentFilter, setPaymentFilter] = useState('all')
+  const [dateFilter, setDateFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
+  const [sortBy, setSortBy] = useState('created_at')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [orderStats, setOrderStats] = useState({
-    pending: 0,
-    processing: 0,
     delivered: 0,
+    cancelled: 0,
     monthlyRevenue: 0
   })
 
+  // Debounce search term to avoid too many API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
   const ordersPerPage = 10
+
+  // Helper function for status labels
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      'pending': '⏳ En attente',
+      'processing': '⚙️ En cours', 
+      'delivered': '📦 Livré',
+      'livré': '📦 Livré', // Add French version
+      'cancelled': '❌ Annulé'
+    }
+    return labels[status] || status
+  }
 
   useEffect(() => {
     fetchOrders()
-  }, [currentPage, statusFilter, searchTerm])
+  }, [currentPage, statusFilter, paymentFilter, dateFilter, debouncedSearchTerm, sortBy])
 
   const fetchOrders = async () => {
     setLoading(true)
@@ -65,8 +88,38 @@ export default function AdminOrdersPage() {
         queries.push(appwrite.Query.equal('status', statusFilter))
       }
 
-      if (searchTerm) {
-        queries.push(appwrite.Query.search('order_number', searchTerm))
+      if (paymentFilter !== 'all') {
+        queries.push(appwrite.Query.equal('payment_status', paymentFilter))
+      }
+
+      if (dateFilter !== 'all') {
+        const today = new Date()
+        let startDate = new Date()
+        
+        switch (dateFilter) {
+          case 'today':
+            startDate.setHours(0, 0, 0, 0)
+            break
+          case 'week':
+            startDate.setDate(today.getDate() - 7)
+            break
+          case 'month':
+            startDate.setMonth(today.getMonth() - 1)
+            break
+          case 'quarter':
+            startDate.setMonth(today.getMonth() - 3)
+            break
+        }
+        
+        queries.push(appwrite.Query.greaterThanEqual('$createdAt', startDate.toISOString()))
+      }
+
+      if (debouncedSearchTerm && debouncedSearchTerm.length >= 2) {
+        queries.push(appwrite.Query.or([
+          appwrite.Query.contains('order_number', debouncedSearchTerm),
+          appwrite.Query.contains('customer_name', debouncedSearchTerm),
+          appwrite.Query.contains('customer_email', debouncedSearchTerm)
+        ]))
       }
 
       const result = await appwrite.databases.listDocuments(
@@ -90,15 +143,14 @@ export default function AdminOrdersPage() {
       const currentYear = new Date().getFullYear()
 
       setOrderStats({
-        pending: allOrders.filter(order => order.status === 'pending').length,
-        processing: allOrders.filter(order => order.status === 'processing' || order.status === 'confirmed').length,
-        delivered: allOrders.filter(order => order.status === 'delivered').length,
+        delivered: allOrders.filter(order => order.status === 'delivered' || order.status === 'livré').length,
+        cancelled: allOrders.filter(order => order.status === 'cancelled').length,
         monthlyRevenue: allOrders
           .filter(order => {
             const orderDate = new Date(order.created_at)
             return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear
           })
-          .reduce((sum, order) => sum + order.total_amount, 0)
+          .reduce((sum, order) => sum + (order.total_amount || 0), 0)
       })
 
     } catch (error) {
@@ -111,18 +163,37 @@ export default function AdminOrdersPage() {
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
       const appwrite = AppwriteService.getInstance()
+      
+      // Préparer les données de mise à jour
+      const updateData: any = {
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      }
+      
+      // Si le statut devient "livré", mettre automatiquement payment_status à "payé"
+      if (newStatus === 'livré') {
+        updateData.payment_status = 'payé'
+      }
+      
+      // Si le statut devient "cancelled", mettre automatiquement payment_status à "cancelled"
+      if (newStatus === 'cancelled') {
+        updateData.payment_status = 'cancelled'
+      }
+      
       await appwrite.databases.updateDocument(
         process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
         'orders',
         orderId,
-        { 
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        }
+        updateData
       )
+      
       fetchOrders()
       if (selectedOrder && selectedOrder.$id === orderId) {
-        setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null)
+        setSelectedOrder(prev => prev ? { 
+          ...prev, 
+          status: newStatus,
+          payment_status: newStatus === 'livré' ? 'payé' : newStatus === 'cancelled' ? 'cancelled' : prev.payment_status
+        } : null)
       }
     } catch (error) {
       console.error('Error updating order status:', error)
@@ -134,13 +205,10 @@ export default function AdminOrdersPage() {
     switch (status) {
       case 'pending':
         return 'bg-yellow-100 text-yellow-800'
-      case 'confirmed':
-        return 'bg-blue-100 text-blue-800'
       case 'processing':
-        return 'bg-purple-100 text-purple-800'
-      case 'shipped':
-        return 'bg-indigo-100 text-indigo-800'
+        return 'bg-blue-100 text-blue-800'
       case 'delivered':
+      case 'livré': // Add French version
         return 'bg-green-100 text-green-800'
       case 'cancelled':
         return 'bg-red-100 text-red-800'
@@ -149,28 +217,10 @@ export default function AdminOrdersPage() {
     }
   }
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'En attente'
-      case 'confirmed':
-        return 'Confirmé'
-      case 'processing':
-        return 'En cours'
-      case 'shipped':
-        return 'Expédié'
-      case 'delivered':
-        return 'Livré'
-      case 'cancelled':
-        return 'Annulé'
-      default:
-        return status
-    }
-  }
-
   const getPaymentStatusColor = (status: string) => {
     switch (status) {
       case 'paid':
+      case 'payé': // Add French version
         return 'bg-green-100 text-green-800'
       case 'pending':
         return 'bg-yellow-100 text-yellow-800'
@@ -198,27 +248,27 @@ export default function AdminOrdersPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <i className="fas fa-clock text-yellow-600 text-xl"></i>
+            <div className="p-2 bg-green-100 rounded-lg">
+              <i className="fas fa-check text-green-600 text-xl"></i>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">En attente</p>
-              <p className="text-2xl font-bold text-gray-900">{orderStats.pending}</p>
+              <p className="text-sm font-medium text-gray-600">Livrés</p>
+              <p className="text-2xl font-bold text-gray-900">{orderStats.delivered}</p>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <i className="fas fa-cogs text-blue-600 text-xl"></i>
+            <div className="p-2 bg-red-100 rounded-lg">
+              <i className="fas fa-times text-red-600 text-xl"></i>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">En cours</p>
-              <p className="text-2xl font-bold text-gray-900">{orderStats.processing}</p>
+              <p className="text-sm font-medium text-gray-600">Annulés</p>
+              <p className="text-2xl font-bold text-gray-900">{orderStats.cancelled}</p>
             </div>
           </div>
         </div>
@@ -248,58 +298,222 @@ export default function AdminOrdersPage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
+      {/* Modern Enhanced Filters */}
+      <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+            <i className="fas fa-filter mr-2 text-green-500"></i>
+            Filtres avancés
+          </h3>
+          <button
+            onClick={() => {
+              setSearchTerm('')
+              setStatusFilter('all')
+              setPaymentFilter('all')
+              setDateFilter('all')
+              setCurrentPage(1)
+            }}
+            className="text-sm text-gray-500 hover:text-gray-700 flex items-center transition-colors"
+          >
+            <i className="fas fa-times mr-1"></i>
+            Effacer tout
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Search Input - Enhanced */}
+          <div className="lg:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Rechercher
+              <i className="fas fa-search mr-1 text-gray-400"></i>
+              Recherche
             </label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <i className="fas fa-search text-gray-400"></i>
               </div>
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="N° de commande, client..."
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="N° commande, client, email... (min 2 caractères)"
+                className="block w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 text-gray-700 placeholder-gray-500"
               />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center"
+                >
+                  <i className="fas fa-times text-gray-400 hover:text-gray-600"></i>
+                </button>
+              )}
             </div>
           </div>
 
+          {/* Status Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
+              <i className="fas fa-clipboard-list mr-1 text-gray-400"></i>
               Statut
             </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="pending">En attente</option>
-              <option value="confirmed">Confirmé</option>
-              <option value="processing">En cours</option>
-              <option value="shipped">Expédié</option>
-              <option value="delivered">Livré</option>
-              <option value="cancelled">Annulé</option>
-            </select>
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 text-gray-700 w-full"
+              >
+                <option value="all">Tous</option>
+                <option value="livré">📦 Livré</option>
+                <option value="cancelled">❌ Annulé</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <i className="fas fa-chevron-down text-gray-400"></i>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-end">
-            <button
-              onClick={() => {
-                setSearchTerm('')
-                setStatusFilter('all')
-                setCurrentPage(1)
-              }}
-              className="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              <i className="fas fa-times mr-2"></i>
-              Réinitialiser
-            </button>
+          {/* Payment Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <i className="fas fa-credit-card mr-1 text-gray-400"></i>
+              Paiement
+            </label>
+            <div className="relative">
+              <select
+                value={paymentFilter}
+                onChange={(e) => setPaymentFilter(e.target.value)}
+                className="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 text-gray-700 w-full"
+              >
+                <option value="all">Tous</option>
+                <option value="payé">💳 Payé</option>
+                <option value="failed">❌ Échoué</option>
+                <option value="cancelled">🚫 Annulé</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <i className="fas fa-chevron-down text-gray-400"></i>
+              </div>
+            </div>
+          </div>
+
+          {/* Date Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <i className="fas fa-calendar mr-1 text-gray-400"></i>
+              Période
+            </label>
+            <div className="relative">
+              <select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 text-gray-700 w-full"
+              >
+                <option value="all">Toutes</option>
+                <option value="today">📅 Aujourd'hui</option>
+                <option value="week">📅 Cette semaine</option>
+                <option value="month">📅 Ce mois</option>
+                <option value="quarter">📅 Ce trimestre</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                <i className="fas fa-chevron-down text-gray-400"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            onClick={() => setStatusFilter('livré')}
+            className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-green-200"
+          >
+            <i className="fas fa-check mr-1"></i>
+            Livrés ({orderStats.delivered})
+          </button>
+          <button
+            onClick={() => setStatusFilter('cancelled')}
+            className="bg-red-50 hover:bg-red-100 text-red-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-red-200"
+          >
+            <i className="fas fa-times mr-1"></i>
+            Annulés ({orderStats.cancelled})
+          </button>
+          <button
+            onClick={() => setDateFilter('today')}
+            className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-green-200"
+          >
+            <i className="fas fa-calendar-day mr-1"></i>
+            Aujourd'hui
+          </button>
+          <button
+            onClick={() => setPaymentFilter('failed')}
+            className="bg-red-50 hover:bg-red-100 text-red-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-red-200"
+          >
+            <i className="fas fa-exclamation-triangle mr-1"></i>
+            Paiements échoués
+          </button>
+          <button
+            onClick={() => setPaymentFilter('cancelled')}
+            className="bg-gray-50 hover:bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-gray-200"
+          >
+            <i className="fas fa-ban mr-1"></i>
+            Paiements annulés
+          </button>
+        </div>
+
+        {/* Filter Tags */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {searchTerm && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
+              Recherche: "{searchTerm}"
+              <button onClick={() => setSearchTerm('')} className="ml-2 text-blue-600 hover:text-blue-800">
+                <i className="fas fa-times"></i>
+              </button>
+            </span>
+          )}
+          {statusFilter !== 'all' && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
+              Statut: {getStatusLabel(statusFilter)}
+              <button onClick={() => setStatusFilter('all')} className="ml-2 text-green-600 hover:text-green-800">
+                <i className="fas fa-times"></i>
+              </button>
+            </span>
+          )}
+          {paymentFilter !== 'all' && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-800">
+              Paiement: {paymentFilter === 'paid' ? 'Payé' : paymentFilter === 'pending' ? 'En attente' : 'Échoué'}
+              <button onClick={() => setPaymentFilter('all')} className="ml-2 text-purple-600 hover:text-purple-800">
+                <i className="fas fa-times"></i>
+              </button>
+            </span>
+          )}
+          {dateFilter !== 'all' && (
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-yellow-100 text-yellow-800">
+              Période: {dateFilter === 'today' ? 'Aujourd\'hui' : dateFilter === 'week' ? 'Cette semaine' : dateFilter === 'month' ? 'Ce mois' : 'Ce trimestre'}
+              <button onClick={() => setDateFilter('all')} className="ml-2 text-yellow-600 hover:text-yellow-800">
+                <i className="fas fa-times"></i>
+              </button>
+            </span>
+          )}
+        </div>
+
+        {/* Results Summary */}
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <span>
+              <i className="fas fa-info-circle mr-1"></i>
+              {loading ? 'Chargement...' : `${orders.length} commande(s) affichée(s)`}
+            </span>
+            <div className="flex items-center space-x-4">
+              <span className="text-xs">Trier par:</span>
+              <select 
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="text-xs border border-gray-200 rounded px-2 py-1"
+              >
+                <option value="created_at">Date récente</option>
+                <option value="total_amount">Montant élevé</option>
+                <option value="customer_name">Nom client</option>
+                <option value="status">Statut</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -369,7 +583,7 @@ export default function AdminOrdersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          €{order.total_amount.toFixed(2)}
+                          €{(order.total_amount || 0).toFixed(2)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -379,8 +593,9 @@ export default function AdminOrdersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPaymentStatusColor(order.payment_status)}`}>
-                          {order.payment_status === 'paid' ? 'Payé' : 
-                           order.payment_status === 'pending' ? 'En attente' : 'Échoué'}
+                          {order.payment_status === 'paid' || order.payment_status === 'payé' ? 'Payé' : 
+                           order.payment_status === 'pending' ? 'En attente' : 
+                           order.payment_status === 'cancelled' ? 'Annulé' : 'Échoué'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -399,11 +614,7 @@ export default function AdminOrdersPage() {
                             onChange={(e) => updateOrderStatus(order.$id, e.target.value)}
                             className="text-sm border border-gray-300 rounded px-2 py-1"
                           >
-                            <option value="pending">En attente</option>
-                            <option value="confirmed">Confirmé</option>
-                            <option value="processing">En cours</option>
-                            <option value="shipped">Expédié</option>
-                            <option value="delivered">Livré</option>
+                            <option value="livré">Livré</option>
                             <option value="cancelled">Annulé</option>
                           </select>
                         </div>
@@ -499,7 +710,27 @@ export default function AdminOrdersPage() {
                 
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">Adresse de livraison</h3>
-                  <p className="text-gray-600">{selectedOrder.shipping_address}</p>
+                  <div className="text-gray-600">
+                    {typeof selectedOrder.shipping_address === 'string' ? (
+                      // Try to parse JSON string
+                      (() => {
+                        try {
+                          const address = JSON.parse(selectedOrder.shipping_address)
+                          return (
+                            <div className="space-y-1">
+                              <p>{address.street}</p>
+                              <p>{address.postalCode} {address.city}</p>
+                              <p>{address.country}</p>
+                            </div>
+                          )
+                        } catch {
+                          return <p>{selectedOrder.shipping_address}</p>
+                        }
+                      })()
+                    ) : (
+                      <p>{selectedOrder.shipping_address}</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -517,19 +748,50 @@ export default function AdminOrdersPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {selectedOrder.items?.map((item, index) => (
-                        <tr key={index}>
-                          <td className="px-4 py-2 text-sm text-gray-900">{item.product_name}</td>
-                          <td className="px-4 py-2 text-sm text-gray-900">€{item.price.toFixed(2)}</td>
-                          <td className="px-4 py-2 text-sm text-gray-900">{item.quantity}</td>
-                          <td className="px-4 py-2 text-sm text-gray-900">€{item.total.toFixed(2)}</td>
-                        </tr>
-                      ))}
+                      {(() => {
+                        let items = selectedOrder.items
+                        
+                        // If items is a string, try to parse as JSON
+                        if (typeof items === 'string') {
+                          try {
+                            items = JSON.parse(items)
+                          } catch (e) {
+                            console.error('Failed to parse items:', e)
+                            return (
+                              <tr>
+                                <td colSpan={4} className="px-4 py-2 text-sm text-gray-500 text-center">
+                                  Erreur de format des articles
+                                </td>
+                              </tr>
+                            )
+                          }
+                        }
+                        
+                        // Check if items is an array and has data
+                        if (items && Array.isArray(items) && items.length > 0) {
+                          return items.map((item: any, index: number) => (
+                            <tr key={index}>
+                              <td className="px-4 py-2 text-sm text-gray-900">{item.product_name || item.name || item.title}</td>
+                              <td className="px-4 py-2 text-sm text-gray-900">€{parseFloat(item.price || 0).toFixed(2)}</td>
+                              <td className="px-4 py-2 text-sm text-gray-900">{item.quantity || 0}</td>
+                              <td className="px-4 py-2 text-sm text-gray-900">€{parseFloat(item.total || (item.price * item.quantity) || 0).toFixed(2)}</td>
+                            </tr>
+                          ))
+                        } else {
+                          return (
+                            <tr>
+                              <td colSpan={4} className="px-4 py-2 text-sm text-gray-500 text-center">
+                                Aucun article trouvé pour cette commande
+                              </td>
+                            </tr>
+                          )
+                        }
+                      })()}
                     </tbody>
                     <tfoot className="bg-gray-50">
                       <tr>
                         <td colSpan={3} className="px-4 py-2 text-sm font-medium text-gray-900 text-right">Total:</td>
-                        <td className="px-4 py-2 text-sm font-bold text-gray-900">€{selectedOrder.total_amount.toFixed(2)}</td>
+                        <td className="px-4 py-2 text-sm font-bold text-gray-900">€{(selectedOrder.total_amount || 0).toFixed(2)}</td>
                       </tr>
                     </tfoot>
                   </table>

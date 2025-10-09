@@ -18,16 +18,16 @@ interface Category {
 }
 
 const fallbackCategories: Category[] = [
-  { $id: '1', name: 'MAÇON', description: 'Matériaux pour maçonnerie et gros œuvre', slug: 'macon', status: 'active', sort_order: 1, product_count: 250 },
-  { $id: '2', name: 'MENUISIER SERRURERIE', description: 'Bois, métaux et accessoires de menuiserie', slug: 'menuisier-serrurerie', status: 'active', sort_order: 2, product_count: 180 },
-  { $id: '3', name: 'PEINTRE', description: 'Peintures, vernis et accessoires de peinture', slug: 'peintre', status: 'active', sort_order: 3, product_count: 320 },
-  { $id: '4', name: 'CARRELEUR', description: 'Carrelages, colles et joints', slug: 'carreleur', status: 'active', sort_order: 4, product_count: 150 },
-  { $id: '5', name: 'PLOMBERIE', description: 'Tuyauterie, raccords et accessoires', slug: 'plomberie', status: 'active', sort_order: 5, product_count: 280 },
-  { $id: '6', name: 'CHAUFFAGE EAU CHAUDE', description: 'Systèmes de chauffage et eau chaude', slug: 'chauffage-eau-chaude', status: 'active', sort_order: 6, product_count: 120 },
-  { $id: '7', name: 'SANITAIRE', description: 'Équipements sanitaires et accessoires', slug: 'sanitaire', status: 'active', sort_order: 7, product_count: 95 },
-  { $id: '8', name: 'ÉLECTRICIEN', description: 'Matériel électrique et éclairage', slug: 'electricien', status: 'active', sort_order: 8, product_count: 200 },
-  { $id: '9', name: 'OUTILLAGE & PROTECTION', description: 'Outils et équipements de protection', slug: 'outillage-protection', status: 'active', sort_order: 9, product_count: 350 },
-  { $id: '10', name: 'ISOLATION THERMIQUE', description: 'Matériaux isolants et accessoires', slug: 'isolation', status: 'active', sort_order: 10, product_count: 80 }
+  { $id: '1', name: 'MAÇON', description: 'Matériaux pour maçonnerie et gros œuvre', slug: 'macon', status: 'active', sort_order: 1, product_count: 250, image_url: '/images/categories/macon.jpg' },
+  { $id: '2', name: 'MENUISIER SERRURERIE', description: 'Bois, métaux et accessoires de menuiserie', slug: 'menuisier-serrurerie', status: 'active', sort_order: 2, product_count: 180, image_url: '/images/categories/menuisier.jpg' },
+  { $id: '3', name: 'PEINTRE', description: 'Peintures, vernis et accessoires de peinture', slug: 'peintre', status: 'active', sort_order: 3, product_count: 320, image_url: '/images/categories/peintre.jpg' },
+  { $id: '4', name: 'CARRELEUR', description: 'Carrelages, colles et joints', slug: 'carreleur', status: 'active', sort_order: 4, product_count: 150, image_url: '/images/categories/carreleur.jpg' },
+  { $id: '5', name: 'PLOMBERIE', description: 'Tuyauterie, raccords et accessoires', slug: 'plomberie', status: 'active', sort_order: 5, product_count: 280, image_url: '/images/categories/plomberie.jpg' },
+  { $id: '6', name: 'CHAUFFAGE EAU CHAUDE', description: 'Systèmes de chauffage et eau chaude', slug: 'chauffage-eau-chaude', status: 'active', sort_order: 6, product_count: 120, image_url: '/images/categories/chauffage.jpg' },
+  { $id: '7', name: 'SANITAIRE', description: 'Équipements sanitaires et accessoires', slug: 'sanitaire', status: 'active', sort_order: 7, product_count: 95, image_url: '/images/categories/sanitaire.jpg' },
+  { $id: '8', name: 'ÉLECTRICIEN', description: 'Matériel électrique et éclairage', slug: 'electricien', status: 'active', sort_order: 8, product_count: 200, image_url: '/images/categories/electricien.jpg' },
+  { $id: '9', name: 'OUTILLAGE & PROTECTION', description: 'Outils et équipements de protection', slug: 'outillage-protection', status: 'active', sort_order: 9, product_count: 350, image_url: '/images/categories/outillage.jpg' },
+  { $id: '10', name: 'ISOLATION THERMIQUE', description: 'Matériaux isolants et accessoires', slug: 'isolation', status: 'active', sort_order: 10, product_count: 80, image_url: '/images/categories/isolation.jpg' }
 ]
 
 export default function CategoriesPage() {
@@ -107,43 +107,32 @@ export default function CategoriesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
       <Header />
-      
-      {/* Modern Hero Section */}
-      <section className="relative bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 text-white overflow-hidden">
-        <div className="absolute inset-0 bg-black/10"></div>
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-          }}></div>
-        </div>
-        
-        <div className="relative container mx-auto px-6 py-20">
-          <div className="text-center max-w-4xl mx-auto">
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-white to-orange-100 bg-clip-text text-transparent">
-              Catégories
+
+      {/* Modern Filters & Categories Section */}
+      <section className="py-12">
+        <div className="container mx-auto px-6 max-w-[1400px]">
+          <nav className="mb-8">
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <Link href="/" className="hover:text-orange-600 transition-colors">Accueil</Link>
+              <span>›</span>
+              <span className="text-gray-900 font-medium">Catégories</span>
+            </div>
+          </nav>
+
+          <div className="text-center mb-12">
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+              Nos Catégories de Produits
             </h1>
-            <p className="text-xl md:text-2xl text-orange-100 mb-8 leading-relaxed">
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
               Découvrez notre large gamme de matériaux organisée par métier
             </p>
-            <div className="inline-flex items-center bg-white/20 backdrop-blur-sm px-6 py-3 rounded-full border border-white/30">
+            <div className="inline-flex items-center bg-orange-100 text-orange-800 px-6 py-3 rounded-full border border-orange-200 mt-4">
               <span className="text-lg font-semibold">
                 {filteredCategories.length} catégorie{filteredCategories.length !== 1 ? 's' : ''} trouvée{filteredCategories.length !== 1 ? 's' : ''}
               </span>
             </div>
           </div>
-        </div>
-        
-        {/* Decorative bottom wave */}
-        <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1200 120" fill="none" className="w-full h-12 text-gray-50">
-            <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" fill="currentColor"></path>
-          </svg>
-        </div>
-      </section>
 
-      {/* Modern Filters & Categories Section */}
-      <section className="py-12">
-        <div className="container mx-auto px-6 max-w-[1400px]">
           {/* Advanced Filter Bar */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 mb-8 backdrop-blur-sm">
             <div className="flex flex-col xl:flex-row gap-6 items-center">

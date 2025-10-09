@@ -10,29 +10,60 @@ interface Product {
   description: string
   price: number
   image_url?: string
-  slug?: string
   status: string
   category_id?: string
-  category_name?: string
-  featured?: boolean
-  stock?: number
+  brand?: string
+  stock_quantity?: number
+  technical_specs?: string
+  reference?: string
   created_at: string
   updated_at: string
 }
 
+interface Category {
+  $id: string
+  name: string
+  slug: string
+}
+
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [categoryFilter, setCategoryFilter] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
 
-  const productsPerPage = 10
+  // Debounce search term to avoid too many API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  const productsPerPage = 50
 
   useEffect(() => {
+    fetchCategories()
     fetchProducts()
-  }, [currentPage, statusFilter, searchTerm])
+  }, [currentPage, statusFilter, categoryFilter, debouncedSearchTerm])
+
+  const fetchCategories = async () => {
+    try {
+      const appwrite = AppwriteService.getInstance()
+      const result = await appwrite.getCategories([
+        appwrite.Query.orderAsc('name'),
+        appwrite.Query.limit(100)
+      ])
+      setCategories(result.documents as unknown as Category[])
+    } catch (error) {
+      console.error('Error fetching categories:', error)
+    }
+  }
 
   const fetchProducts = async () => {
     setLoading(true)
@@ -48,8 +79,18 @@ export default function AdminProductsPage() {
         queries.push(appwrite.Query.equal('status', statusFilter))
       }
 
-      if (searchTerm) {
-        queries.push(appwrite.Query.search('name', searchTerm))
+      if (categoryFilter !== 'all') {
+        queries.push(appwrite.Query.equal('category_id', categoryFilter))
+      }
+
+      if (debouncedSearchTerm && debouncedSearchTerm.length >= 2) {
+        // Use contains for better search functionality
+        queries.push(appwrite.Query.or([
+          appwrite.Query.contains('name', debouncedSearchTerm),
+          appwrite.Query.contains('description', debouncedSearchTerm),
+          appwrite.Query.contains('reference', debouncedSearchTerm),
+          appwrite.Query.contains('brand', debouncedSearchTerm)
+        ]))
       }
 
       const result = await appwrite.getProducts(queries)
@@ -60,6 +101,13 @@ export default function AdminProductsPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Function to get category name from category_id
+  const getCategoryName = (categoryId: string | undefined): string => {
+    if (!categoryId) return 'Sans catégorie'
+    const category = categories.find(cat => cat.$id === categoryId)
+    return category ? category.name : 'Catégorie inconnue'
   }
 
   const handleDelete = async (productId: string) => {
@@ -116,76 +164,166 @@ export default function AdminProductsPage() {
         </Link>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Rechercher
-            </label>
+      {/* Compact Filters */}
+      <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-md font-semibold text-gray-900 flex items-center">
+            <i className="fas fa-filter mr-2 text-blue-500"></i>
+            Filtres
+          </h3>
+          <button
+            onClick={() => {
+              setSearchTerm('')
+              setStatusFilter('all')
+              setCategoryFilter('all')
+              setCurrentPage(1)
+            }}
+            className="text-sm text-gray-500 hover:text-gray-700 flex items-center transition-colors"
+          >
+            <i className="fas fa-times mr-1"></i>
+            Effacer
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          {/* Search Input - Compact */}
+          <div className="md:col-span-2">
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <i className="fas fa-search text-gray-400"></i>
+                <i className="fas fa-search text-gray-400 text-sm"></i>
               </div>
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Nom du produit..."
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Rechercher..."
+                className="block w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
               />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  <i className="fas fa-times text-gray-400 hover:text-gray-600 text-sm"></i>
+                </button>
+              )}
             </div>
           </div>
 
+          {/* Category Filter - Compact */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Statut
-            </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="active">Actif</option>
-              <option value="inactive">Inactif</option>
-              <option value="draft">Brouillon</option>
-            </select>
+            <div className="relative">
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="appearance-none bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm w-full"
+              >
+                <option value="all">Toutes catégories</option>
+                {categories.map((category) => (
+                  <option key={category.$id} value={category.$id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                <i className="fas fa-chevron-down text-gray-400 text-sm"></i>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-end">
-            <button
-              onClick={() => {
-                setSearchTerm('')
-                setStatusFilter('all')
-                setCurrentPage(1)
-              }}
-              className="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              <i className="fas fa-times mr-2"></i>
-              Réinitialiser
-            </button>
+          {/* Status Filter - Compact */}
+          <div>
+            <div className="relative">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="appearance-none bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm w-full"
+              >
+                <option value="all">Tous statuts</option>
+                <option value="active">✅ Actif</option>
+                <option value="inactive">❌ Inactif</option>
+                <option value="draft">📝 Brouillon</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                <i className="fas fa-chevron-down text-gray-400 text-sm"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Active Filter Tags - Compact */}
+        {(searchTerm || categoryFilter !== 'all' || statusFilter !== 'all') && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {searchTerm && (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                "{searchTerm}"
+                <button onClick={() => setSearchTerm('')} className="ml-1 text-blue-600 hover:text-blue-800">
+                  <i className="fas fa-times text-xs"></i>
+                </button>
+              </span>
+            )}
+            {categoryFilter !== 'all' && (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
+                {categories.find(c => c.$id === categoryFilter)?.name}
+                <button onClick={() => setCategoryFilter('all')} className="ml-1 text-purple-600 hover:text-purple-800">
+                  <i className="fas fa-times text-xs"></i>
+                </button>
+              </span>
+            )}
+            {statusFilter !== 'all' && (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                {statusFilter === 'active' ? 'Actif' : statusFilter === 'inactive' ? 'Inactif' : 'Brouillon'}
+                <button onClick={() => setStatusFilter('all')} className="ml-1 text-green-600 hover:text-green-800">
+                  <i className="fas fa-times text-xs"></i>
+                </button>
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Results Summary - Compact */}
+        <div className="mt-3 pt-3 border-t border-gray-200">
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <span>
+              {loading ? 'Chargement...' : `${products.length} produit(s) affiché(s)`}
+            </span>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setStatusFilter('active')}
+                className="px-2 py-1 bg-green-50 hover:bg-green-100 text-green-700 rounded text-xs transition-colors"
+                title="Produits actifs"
+              >
+                <i className="fas fa-eye"></i>
+              </button>
+              <button
+                onClick={() => setStatusFilter('draft')}
+                className="px-2 py-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded text-xs transition-colors"
+                title="Brouillons"
+              >
+                <i className="fas fa-edit"></i>
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Products Table */}
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+      {/* Compact Products Table */}
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
         {loading ? (
-          <div className="flex items-center justify-center p-12">
+          <div className="flex items-center justify-center p-8">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Chargement des produits...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+              <p className="text-gray-600 text-sm">Chargement...</p>
             </div>
           </div>
         ) : products.length === 0 ? (
-          <div className="text-center p-12">
-            <i className="fas fa-box-open text-6xl text-gray-400 mb-4"></i>
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">Aucun produit trouvé</h3>
-            <p className="text-gray-500 mb-6">Commencez par ajouter votre premier produit</p>
+          <div className="text-center p-8">
+            <i className="fas fa-box-open text-4xl text-gray-400 mb-3"></i>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">Aucun produit trouvé</h3>
+            <p className="text-gray-500 mb-4 text-sm">Commencez par ajouter votre premier produit</p>
             <Link
               href="/admin/products/new"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm"
             >
               <i className="fas fa-plus mr-2"></i>
               Ajouter un produit
@@ -194,63 +332,93 @@ export default function AdminProductsPage() {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+              <table className="min-w-full divide-y divide-gray-200 bg-white">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Produit
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Référence
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Catégorie
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Prix
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Statut
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Stock
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Créé le
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Statut
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {products.map((product) => (
-                    <tr key={product.$id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                    <tr key={product.$id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-12 w-12">
                             {product.image_url ? (
                               <img
-                                className="h-12 w-12 rounded-lg object-cover"
+                                className="h-12 w-12 rounded-lg object-cover border"
                                 src={product.image_url}
                                 alt={product.name}
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = '/images/placeholder-product.jpg'
+                                }}
                               />
                             ) : (
-                              <div className="h-12 w-12 rounded-lg bg-gray-200 flex items-center justify-center">
+                              <div className="h-12 w-12 rounded-lg bg-gray-100 flex items-center justify-center border">
                                 <i className="fas fa-box text-gray-400"></i>
                               </div>
                             )}
                           </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
+                          <div className="ml-3 flex-1 min-w-0">
+                            <div className="text-sm font-semibold text-gray-900 truncate max-w-[200px]">
                               {product.name}
                             </div>
-                            <div className="text-sm text-gray-500">
-                              {product.category_name || 'Sans catégorie'}
+                            <div className="text-xs text-gray-500 truncate max-w-[200px]">
+                              {product.description?.substring(0, 50)}
+                              {product.description && product.description.length > 50 ? '...' : ''}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
+                      <td className="px-3 py-3">
+                        <div className="text-xs font-mono text-gray-900 bg-gray-50 px-2 py-1 rounded">
+                          {product.reference || (
+                            <span className="text-gray-400 italic">-</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                          {getCategoryName(product.category_id)}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="text-sm font-bold text-gray-900">
                           {product.price.toFixed(2)}€
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 py-3">
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                          (product.stock_quantity || 0) > 10 
+                            ? 'bg-green-100 text-green-800'
+                            : (product.stock_quantity || 0) > 0
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {product.stock_quantity || 0}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                           product.status === 'active' 
                             ? 'bg-green-100 text-green-800'
@@ -262,35 +430,21 @@ export default function AdminProductsPage() {
                            product.status === 'inactive' ? 'Inactif' : 'Brouillon'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {product.stock || 0}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(product.created_at).toLocaleDateString('fr-FR')}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center justify-end space-x-2">
+                      <td className="px-3 py-3 text-center">
+                        <div className="flex items-center justify-center space-x-1">
                           <Link
                             href={`/admin/products/${product.$id}/edit`}
-                            className="text-blue-600 hover:text-blue-900"
+                            className="text-blue-600 hover:text-blue-900 p-1 rounded-md hover:bg-blue-50 transition-colors"
+                            title="Modifier"
                           >
-                            <i className="fas fa-edit"></i>
+                            <i className="fas fa-edit text-sm"></i>
                           </Link>
                           <button
-                            onClick={() => toggleStatus(product.$id, product.status)}
-                            className={`${
-                              product.status === 'active' 
-                                ? 'text-red-600 hover:text-red-900' 
-                                : 'text-green-600 hover:text-green-900'
-                            }`}
-                          >
-                            <i className={`fas ${product.status === 'active' ? 'fa-eye-slash' : 'fa-eye'}`}></i>
-                          </button>
-                          <button
                             onClick={() => handleDelete(product.$id)}
-                            className="text-red-600 hover:text-red-900"
+                            className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50 transition-colors"
+                            title="Supprimer"
                           >
-                            <i className="fas fa-trash"></i>
+                            <i className="fas fa-trash text-sm"></i>
                           </button>
                         </div>
                       </td>
@@ -300,71 +454,48 @@ export default function AdminProductsPage() {
               </table>
             </div>
 
-            {/* Pagination */}
+            {/* Compact Pagination */}
             {totalPages > 1 && (
-              <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+              <div className="bg-gray-50 px-4 py-3 border-t border-gray-200">
                 <div className="flex items-center justify-between">
-                  <div className="flex-1 flex justify-between sm:hidden">
+                  <div className="text-sm text-gray-700">
+                    Page {currentPage} sur {totalPages}
+                  </div>
+                  <div className="flex items-center space-x-2">
                     <button
                       onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                       disabled={currentPage === 1}
-                      className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                      className="px-3 py-1 border border-gray-300 text-sm rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Précédent
+                      <i className="fas fa-chevron-left"></i>
                     </button>
+                    
+                    {[...Array(Math.min(3, totalPages))].map((_, index) => {
+                      const pageNum = Math.max(1, currentPage - 1) + index
+                      if (pageNum > totalPages) return null
+                      
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`px-3 py-1 text-sm rounded-md ${
+                            pageNum === currentPage
+                              ? 'bg-blue-500 text-white'
+                              : 'border border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      )
+                    })}
+                    
                     <button
                       onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                       disabled={currentPage === totalPages}
-                      className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                      className="px-3 py-1 border border-gray-300 text-sm rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Suivant
+                      <i className="fas fa-chevron-right"></i>
                     </button>
-                  </div>
-                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-sm text-gray-700">
-                        Page <span className="font-medium">{currentPage}</span> sur{' '}
-                        <span className="font-medium">{totalPages}</span>
-                      </p>
-                    </div>
-                    <div>
-                      <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                        <button
-                          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                          disabled={currentPage === 1}
-                          className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                        >
-                          <i className="fas fa-chevron-left"></i>
-                        </button>
-                        
-                        {[...Array(Math.min(5, totalPages))].map((_, index) => {
-                          const pageNum = Math.max(1, currentPage - 2) + index
-                          if (pageNum > totalPages) return null
-                          
-                          return (
-                            <button
-                              key={pageNum}
-                              onClick={() => setCurrentPage(pageNum)}
-                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                pageNum === currentPage
-                                  ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                              }`}
-                            >
-                              {pageNum}
-                            </button>
-                          )
-                        })}
-                        
-                        <button
-                          onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                          disabled={currentPage === totalPages}
-                          className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                        >
-                          <i className="fas fa-chevron-right"></i>
-                        </button>
-                      </nav>
-                    </div>
                   </div>
                 </div>
               </div>

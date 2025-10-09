@@ -1,18 +1,43 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 
 export default function CheckoutSuccessPage() {
+  const [invoiceSent, setInvoiceSent] = useState(false)
+  const [invoiceEmail, setInvoiceEmail] = useState('')
+  const [orderNumber, setOrderNumber] = useState('')
+
   useEffect(() => {
     // Clear any remaining cart data
     localStorage.removeItem('shopbati_cart')
     window.dispatchEvent(new Event('cartUpdated'))
+    
+    // Get order number
+    const storedOrderNumber = localStorage.getItem('last_order_number')
+    if (storedOrderNumber) {
+      setOrderNumber(storedOrderNumber)
+      localStorage.removeItem('last_order_number')
+    } else {
+      // Fallback to generated order number
+      setOrderNumber(`SHOP-${Date.now().toString().slice(-6)}`)
+    }
+    
+    // Check if invoice was sent
+    const invoiceStatus = localStorage.getItem('invoice_sent')
+    const email = localStorage.getItem('invoice_email')
+    
+    if (invoiceStatus === 'true' && email) {
+      setInvoiceSent(true)
+      setInvoiceEmail(email)
+      
+      // Clean up localStorage
+      localStorage.removeItem('invoice_sent')
+      localStorage.removeItem('invoice_email')
+    }
   }, [])
-
-  const orderNumber = `SHOP-${Date.now().toString().slice(-6)}`
 
   return (
     <>
@@ -44,6 +69,28 @@ export default function CheckoutSuccessPage() {
                     Conservez ce numéro pour suivre votre commande
                   </p>
                 </div>
+
+                {/* Invoice Sent Message */}
+                {invoiceSent && (
+                  <div className="bg-green-50 rounded-lg p-4 mb-6 border border-green-200">
+                    <div className="flex items-center justify-center mb-3">
+                      <div className="bg-green-100 w-12 h-12 rounded-full flex items-center justify-center">
+                        <i className="fas fa-envelope text-green-600 text-xl"></i>
+                      </div>
+                    </div>
+                    <h3 className="text-lg font-semibold text-green-800 text-center mb-2">
+                      Facture envoyée !
+                    </h3>
+                    <p className="text-green-700 text-center">
+                      Votre facture a été automatiquement envoyée à votre boîte email :<br />
+                      <span className="font-semibold">{invoiceEmail}</span>
+                    </p>
+                    <p className="text-sm text-green-600 text-center mt-2">
+                      <i className="fas fa-info-circle mr-1"></i>
+                      Vérifiez également votre dossier spam si vous ne la trouvez pas
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Next Steps */}
@@ -93,7 +140,7 @@ export default function CheckoutSuccessPage() {
               <div className="border-t pt-8 mt-8">
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Link 
-                    href="/shop"
+                    href="/produits"
                     className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-bold transition-colors"
                   >
                     <i className="fas fa-store mr-2"></i>

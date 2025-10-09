@@ -109,7 +109,7 @@ export default function CartPage() {
                 <h2 className="text-2xl font-bold text-gray-700 mb-4">Votre panier est vide</h2>
                 <p className="text-gray-500 mb-8">Découvrez nos produits et ajoutez-les à votre panier pour continuer vos achats.</p>
                 <Link 
-                  href="/shop"
+                  href="/produits"
                   className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-bold transition-colors inline-block"
                 >
                   <i className="fas fa-store mr-2"></i>Continuer mes achats
@@ -217,7 +217,7 @@ export default function CartPage() {
                 {/* Continue Shopping */}
                 <div className="mt-6">
                   <Link 
-                    href="/shop"
+                    href="/produits"
                     className="text-blue-600 hover:text-blue-700 font-medium"
                   >
                     <i className="fas fa-arrow-left mr-2"></i>Continuer mes achats

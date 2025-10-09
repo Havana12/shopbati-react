@@ -1,27 +1,91 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AppwriteService } from '@/lib/appwrite'
 
+interface Category {
+  $id: string
+  name: string
+  slug: string
+}
+
 export default function NewProductPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     price: '',
     image_url: '',
-    slug: '',
     status: 'draft',
     category_id: '',
-    featured: false,
-    stock: '',
-    meta_title: '',
-    meta_description: '',
-    tags: ''
+    brand: '',
+    stock_quantity: '',
+    technical_specs: '',
+    reference: ''
   })
+
+  // Generate unique reference function
+  const generateUniqueReference = async (): Promise<string> => {
+    const appwrite = AppwriteService.getInstance()
+    let attempts = 0
+    const maxAttempts = 10
+
+    while (attempts < maxAttempts) {
+      // Generate random reference: 3-6 digits (100 to 999999)
+      const minDigits = 3
+      const maxDigits = 6
+      const digits = Math.floor(Math.random() * (maxDigits - minDigits + 1)) + minDigits
+      const min = Math.pow(10, digits - 1)
+      const max = Math.pow(10, digits) - 1
+      const reference = Math.floor(Math.random() * (max - min + 1)) + min
+
+      try {
+        // Check if reference already exists
+        const existingProducts = await appwrite.getProducts([
+          appwrite.Query.equal('reference', reference.toString())
+        ])
+
+        if (existingProducts.documents.length === 0) {
+          return reference.toString()
+        }
+      } catch (error) {
+        console.error('Error checking reference uniqueness:', error)
+      }
+
+      attempts++
+    }
+
+    // Fallback: use timestamp-based reference if all attempts fail
+    return `REF${Date.now().toString().slice(-6)}`
+  }
+
+  useEffect(() => {
+    fetchCategories()
+    // Generate initial reference
+    generateUniqueReference().then(ref => {
+      setFormData(prev => ({ ...prev, reference: ref }))
+    })
+  }, [])
+
+  const fetchCategories = async () => {
+    try {
+      const appwrite = AppwriteService.getInstance()
+      const result = await appwrite.getCategories([
+        appwrite.Query.orderAsc('name'),
+        appwrite.Query.limit(100)
+      ])
+      setCategories(result.documents as unknown as Category[])
+    } catch (error) {
+      console.error('Error fetching categories:', error)
+    } finally {
+      setCategoriesLoading(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,25 +93,18 @@ export default function NewProductPage() {
 
     try {
       const appwrite = AppwriteService.getInstance()
-      
-      // Generate slug from name if not provided
-      const slug = formData.slug || formData.name.toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '')
 
       const productData = {
         name: formData.name,
         description: formData.description,
         price: parseFloat(formData.price),
         image_url: formData.image_url || null,
-        slug: slug,
         status: formData.status,
         category_id: formData.category_id || null,
-        featured: formData.featured,
-        stock: parseInt(formData.stock) || 0,
-        meta_title: formData.meta_title || formData.name,
-        meta_description: formData.meta_description || formData.description.substring(0, 160),
-        tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()) : [],
+        brand: formData.brand,
+        stock_quantity: parseInt(formData.stock_quantity) || 0,
+        technical_specs: formData.technical_specs || null,
+        reference: formData.reference,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
@@ -62,7 +119,7 @@ export default function NewProductPage() {
       router.push('/admin/products')
     } catch (error) {
       console.error('Error creating product:', error)
-      alert('Erreur lors de la création du produit')
+      alert('Erreur lors de la création du produit: ' + (error as any).message)
     } finally {
       setLoading(false)
     }
@@ -136,34 +193,64 @@ export default function NewProductPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Marque *
+                  </label>
+                  <input
+                    type="text"
+                    name="brand"
+                    value={formData.brand}
+                    onChange={handleInputChange}
+                    required
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ex: Bosch, Makita..."
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Référence produit *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const newRef = await generateUniqueReference()
+                        setFormData(prev => ({ ...prev, reference: newRef }))
+                      }}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    >
+                      <i className="fas fa-sync-alt mr-1"></i>
+                      Régénérer
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    name="reference"
+                    value={formData.reference}
+                    onChange={handleInputChange}
+                    required
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono bg-gray-50"
+                    placeholder="Référence unique..."
+                    readOnly
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Référence unique générée automatiquement (3 à 6 chiffres)
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Stock
                   </label>
                   <input
                     type="number"
-                    name="stock"
-                    value={formData.stock}
+                    name="stock_quantity"
+                    value={formData.stock_quantity}
                     onChange={handleInputChange}
                     min="0"
                     className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="0"
                   />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Slug (URL)
-                  </label>
-                  <input
-                    type="text"
-                    name="slug"
-                    value={formData.slug}
-                    onChange={handleInputChange}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Généré automatiquement à partir du nom"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Laisser vide pour générer automatiquement
-                  </p>
                 </div>
 
                 <div className="md:col-span-2">
@@ -183,13 +270,14 @@ export default function NewProductPage() {
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    URL de l'image
+                    URL de l'image *
                   </label>
                   <input
                     type="url"
                     name="image_url"
                     value={formData.image_url}
                     onChange={handleInputChange}
+                    required
                     className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="https://example.com/image.jpg"
                   />
@@ -197,59 +285,16 @@ export default function NewProductPage() {
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tags (séparés par des virgules)
-                  </label>
-                  <input
-                    type="text"
-                    name="tags"
-                    value={formData.tags}
-                    onChange={handleInputChange}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="carrelage, salle de bain, moderne"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* SEO Information */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">SEO</h2>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Titre SEO
-                  </label>
-                  <input
-                    type="text"
-                    name="meta_title"
-                    value={formData.meta_title}
-                    onChange={handleInputChange}
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Titre pour les moteurs de recherche"
-                    maxLength={60}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Recommandé: 50-60 caractères
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Description SEO
+                    Spécifications techniques
                   </label>
                   <textarea
-                    name="meta_description"
-                    value={formData.meta_description}
+                    name="technical_specs"
+                    value={formData.technical_specs}
                     onChange={handleInputChange}
                     rows={3}
                     className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Description pour les moteurs de recherche"
-                    maxLength={160}
+                    placeholder="Dimensions, matériaux, caractéristiques techniques..."
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Recommandé: 150-160 caractères
-                  </p>
                 </div>
               </div>
             </div>
@@ -278,9 +323,20 @@ export default function NewProductPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Catégorie
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Catégorie
+                    </label>
+                    <button
+                      type="button"
+                      onClick={fetchCategories}
+                      disabled={categoriesLoading}
+                      className="text-blue-600 hover:text-blue-800 text-xs"
+                    >
+                      <i className={`fas fa-sync-alt mr-1 ${categoriesLoading ? 'fa-spin' : ''}`}></i>
+                      Actualiser
+                    </button>
+                  </div>
                   <select
                     name="category_id"
                     value={formData.category_id}
@@ -288,25 +344,27 @@ export default function NewProductPage() {
                     className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Sélectionner une catégorie</option>
-                    <option value="carrelage">Carrelage</option>
-                    <option value="sanitaires">Sanitaires</option>
-                    <option value="robinetterie">Robinetterie</option>
-                    <option value="outillage">Outillage</option>
-                    <option value="decoration">Décoration</option>
+                    {categoriesLoading ? (
+                      <option disabled>Chargement des catégories...</option>
+                    ) : categories.length === 0 ? (
+                      <option disabled>Aucune catégorie disponible</option>
+                    ) : (
+                      categories.map((category) => (
+                        <option key={category.$id} value={category.$id}>
+                          {category.name}
+                        </option>
+                      ))
+                    )}
                   </select>
-                </div>
-
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    name="featured"
-                    checked={formData.featured}
-                    onChange={handleInputChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label className="ml-2 block text-sm text-gray-700">
-                    Produit vedette
-                  </label>
+                  {!categoriesLoading && categories.length === 0 && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      <i className="fas fa-exclamation-triangle mr-1"></i>
+                      Créez d'abord des catégories dans la section{' '}
+                      <Link href="/admin/categories" className="underline">
+                        Gestion des catégories
+                      </Link>
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

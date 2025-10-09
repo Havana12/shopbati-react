@@ -1,73 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import Link from 'next/link'
-import { AppwriteService } from '@/lib/appwrite'
+import AdminGuard, { useAdminAuth } from '@/components/AdminGuard'
 
 interface AdminLayoutProps {
   children: React.ReactNode
 }
 
-interface User {
-  $id: string
-  name: string
-  email: string
-}
-
-export default function AdminLayout({ children }: AdminLayoutProps) {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+function AdminLayoutContent({ children }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const router = useRouter()
+  const { user, logout } = useAdminAuth()
 
-  useEffect(() => {
-    // Temporarily bypass auth for testing
-    // checkAuth()
-    setLoading(false)
-    setUser({ $id: 'temp', name: 'Admin Test', email: 'admin@test.com' })
-  }, [])
-
-  const checkAuth = async () => {
-    try {
-      const appwrite = AppwriteService.getInstance()
-      const currentUser = await appwrite.getCurrentUser()
-      
-      if (currentUser) {
-        setUser(currentUser as User)
-      } else {
-        router.push('/admin/login')
-      }
-    } catch (error) {
-      router.push('/admin/login')
-    } finally {
-      setLoading(false)
+  const handleLogout = () => {
+    if (confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) {
+      logout()
     }
-  }
-
-  const handleLogout = async () => {
-    try {
-      const appwrite = AppwriteService.getInstance()
-      await appwrite.logout()
-      router.push('/admin/login')
-    } catch (error) {
-      console.error('Logout error:', error)
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return null
   }
 
   return (
@@ -106,14 +54,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-2">
                     <i className="fas fa-user text-white text-sm"></i>
                   </div>
-                  <span className="font-medium">{user.name}</span>
+                  <span className="font-medium">{user?.name || 'Admin'}</span>
                   <i className="fas fa-chevron-down ml-1 text-sm"></i>
                 </button>
                 
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                   <div className="px-4 py-2 text-sm text-gray-700 border-b">
-                    <div className="font-medium">{user.name}</div>
-                    <div className="text-gray-500">{user.email}</div>
+                    <div className="font-medium">{user?.name || 'Admin'}</div>
+                    <div className="text-gray-500">{user?.email || ''}</div>
                   </div>
                   <button
                     onClick={handleLogout}
@@ -191,5 +139,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </main>
       </div>
     </div>
+  )
+}
+
+export default function AdminLayout({ children }: AdminLayoutProps) {
+  return (
+    <AdminGuard>
+      <AdminLayoutContent>
+        {children}
+      </AdminLayoutContent>
+    </AdminGuard>
   )
 }
