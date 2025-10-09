@@ -78,20 +78,14 @@ export default function Header() {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between py-4">
           {/* Logo */}
-          <div className="flex items-center flex-shrink-0">
+          <div className="flex items-center">
             <Link href="/" className="flex items-center">
               <img 
                 src="/images/logo_shopbat.jpg" 
                 alt="SHOPBATI Logo" 
-                className="h-12 sm:h-16 w-auto object-contain"
-                onError={(e) => {
-                  // Fallback to text if image fails to load
-                  e.currentTarget.style.display = 'none';
-                  const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                  if (fallback) fallback.style.display = 'block';
-                }}
+                className="h-16 w-auto object-contain"
               />
-              <div className="hidden text-xl sm:text-2xl font-bold text-black tracking-wide">
+              <div className="hidden text-2xl font-bold text-black tracking-wide">
                 SHOPBATI<span className="text-orange-500">.FR</span>
               </div>
             </Link>
