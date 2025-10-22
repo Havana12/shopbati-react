@@ -9,6 +9,12 @@ interface Category {
   $id: string
   name: string
   slug: string
+  subcategories?: string[]
+}
+
+interface Subcategory {
+  id: string
+  name: string
 }
 
 export default function NewProductPage() {
@@ -16,6 +22,10 @@ export default function NewProductPage() {
   const [loading, setLoading] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([])
+  const [uploadedImageUrl, setUploadedImageUrl] = useState('')
+  const [imageUploading, setImageUploading] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -23,6 +33,7 @@ export default function NewProductPage() {
     image_url: '',
     status: 'draft',
     category_id: '',
+    subcategory: '',
     brand: '',
     stock_quantity: '',
     technical_specs: '',
@@ -64,6 +75,66 @@ export default function NewProductPage() {
     return `REF${Date.now().toString().slice(-6)}`
   }
 
+  // Predefined subcategories for common construction categories
+  const categorySubcategories: { [key: string]: Subcategory[] } = {
+    'macon': [
+      { id: 'ciment', name: 'Ciment' },
+      { id: 'beton', name: 'Béton' },
+      { id: 'mortier', name: 'Mortier' },
+      { id: 'briques', name: 'Briques' },
+      { id: 'parpaings', name: 'Parpaings' },
+      { id: 'enduits', name: 'Enduits' }
+    ],
+    'menuisier-serrurerie': [
+      { id: 'visserie', name: 'Visserie' },
+      { id: 'quincaillerie', name: 'Quincaillerie' },
+      { id: 'serrures', name: 'Serrures' },
+      { id: 'poignees', name: 'Poignées' },
+      { id: 'ferrures', name: 'Ferrures' },
+      { id: 'charnières', name: 'Charnières' }
+    ],
+    'peintre': [
+      { id: 'peintures-murales', name: 'Peintures murales' },
+      { id: 'peintures-bois', name: 'Peintures bois' },
+      { id: 'vernis-lasures', name: 'Vernis et lasures' },
+      { id: 'pinceaux-rouleaux', name: 'Pinceaux et rouleaux' },
+      { id: 'enduits-preparation', name: 'Enduits de préparation' },
+      { id: 'produits-nettoyage', name: 'Produits de nettoyage' }
+    ],
+    'carreleur': [
+      { id: 'carrelage-sol', name: 'Carrelage sol' },
+      { id: 'carrelage-mural', name: 'Carrelage mural' },
+      { id: 'colles-joints', name: 'Colles et joints' },
+      { id: 'profiles-finition', name: 'Profils de finition' },
+      { id: 'outils-pose', name: 'Outils de pose' },
+      { id: 'produits-entretien', name: 'Produits d\'entretien' }
+    ],
+    'plomberie': [
+      { id: 'tuyauterie', name: 'Tuyauterie' },
+      { id: 'raccords', name: 'Raccords' },
+      { id: 'robinetterie', name: 'Robinetterie' },
+      { id: 'evacuation', name: 'Évacuation' },
+      { id: 'outillage-plomberie', name: 'Outillage plomberie' },
+      { id: 'produits-etancheite', name: 'Produits d\'étanchéité' }
+    ],
+    'electricien': [
+      { id: 'cables-fils', name: 'Câbles et fils' },
+      { id: 'appareillage', name: 'Appareillage' },
+      { id: 'tableaux-protection', name: 'Tableaux et protection' },
+      { id: 'eclairage', name: 'Éclairage' },
+      { id: 'gaines-conduits', name: 'Gaines et conduits' },
+      { id: 'outillage-electrique', name: 'Outillage électrique' }
+    ],
+    'outillage-protection': [
+      { id: 'outils-main', name: 'Outils à main' },
+      { id: 'outils-electroportatifs', name: 'Outils électroportatifs' },
+      { id: 'equipements-protection', name: 'Équipements de protection' },
+      { id: 'echafaudages-echelles', name: 'Échafaudages et échelles' },
+      { id: 'consommables', name: 'Consommables' },
+      { id: 'stockage-transport', name: 'Stockage et transport' }
+    ]
+  }
+
   useEffect(() => {
     fetchCategories()
     // Generate initial reference
@@ -71,6 +142,19 @@ export default function NewProductPage() {
       setFormData(prev => ({ ...prev, reference: ref }))
     })
   }, [])
+
+  // Update subcategories when category changes
+  useEffect(() => {
+    const selectedCategory = categories.find(cat => cat.$id === formData.category_id)
+    if (selectedCategory && categorySubcategories[selectedCategory.slug]) {
+      setSubcategories(categorySubcategories[selectedCategory.slug])
+      // Reset subcategory selection when category changes
+      setFormData(prev => ({ ...prev, subcategory: '' }))
+    } else {
+      setSubcategories([])
+      setFormData(prev => ({ ...prev, subcategory: '' }))
+    }
+  }, [formData.category_id, categories])
 
   const fetchCategories = async () => {
     try {
@@ -101,6 +185,7 @@ export default function NewProductPage() {
         image_url: formData.image_url || null,
         status: formData.status,
         category_id: formData.category_id || null,
+        subcategory: formData.subcategory || null,
         brand: formData.brand,
         stock_quantity: parseInt(formData.stock_quantity) || 0,
         technical_specs: formData.technical_specs || null,
@@ -131,6 +216,57 @@ export default function NewProductPage() {
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }))
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!formData.category_id || !formData.subcategory) {
+      alert('Veuillez d\'abord sélectionner une catégorie et sous-catégorie')
+      e.target.value = '' // Reset file input
+      return
+    }
+
+    setSelectedFile(file)
+    await uploadImage(file)
+  }
+
+  const uploadImage = async (file: File) => {
+    setImageUploading(true)
+    
+    try {
+      const selectedCategory = categories.find(cat => cat.$id === formData.category_id)
+      if (!selectedCategory) {
+        throw new Error('Category not found')
+      }
+
+      const formDataUpload = new FormData()
+      formDataUpload.append('file', file)
+      formDataUpload.append('category', selectedCategory.slug)
+      formDataUpload.append('subcategory', formData.subcategory)
+
+      const response = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: formDataUpload,
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Upload failed')
+      }
+
+      setUploadedImageUrl(result.url)
+      setFormData(prev => ({ ...prev, image_url: result.url }))
+      
+    } catch (error) {
+      console.error('Upload error:', error)
+      alert('Erreur lors de l\'upload: ' + (error as Error).message)
+      setSelectedFile(null)
+    } finally {
+      setImageUploading(false)
+    }
   }
 
   return (
@@ -270,17 +406,69 @@ export default function NewProductPage() {
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    URL de l'image *
+                    Image du produit *
                   </label>
-                  <input
-                    type="url"
-                    name="image_url"
-                    value={formData.image_url}
-                    onChange={handleInputChange}
-                    required
-                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://example.com/image.jpg"
-                  />
+                  <div className="space-y-4">
+                    {/* File Upload */}
+                    <div className="flex items-center justify-center w-full">
+                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          {imageUploading ? (
+                            <div className="text-center">
+                              <i className="fas fa-spinner fa-spin text-2xl text-blue-500 mb-2"></i>
+                              <p className="text-sm text-gray-500">Upload en cours...</p>
+                            </div>
+                          ) : selectedFile ? (
+                            <div className="text-center">
+                              <i className="fas fa-check-circle text-2xl text-green-500 mb-2"></i>
+                              <p className="text-sm text-gray-700 font-medium">{selectedFile.name}</p>
+                              <p className="text-xs text-gray-500">Image uploadée avec succès</p>
+                            </div>
+                          ) : (
+                            <div className="text-center">
+                              <i className="fas fa-cloud-upload-alt text-2xl text-gray-400 mb-2"></i>
+                              <p className="mb-2 text-sm text-gray-500">
+                                <span className="font-semibold">Cliquer pour uploader</span> ou glisser-déposer
+                              </p>
+                              <p className="text-xs text-gray-500">PNG, JPG, WebP (max 5MB)</p>
+                            </div>
+                          )}
+                        </div>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*"
+                          onChange={handleFileSelect}
+                          disabled={imageUploading || !formData.category_id || !formData.subcategory}
+                        />
+                      </label>
+                    </div>
+                    
+                    {/* Requirements notice */}
+                    {(!formData.category_id || !formData.subcategory) && (
+                      <div className="flex items-center space-x-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <i className="fas fa-info-circle text-amber-500"></i>
+                        <p className="text-sm text-amber-700">
+                          Sélectionnez d'abord une catégorie et sous-catégorie pour uploader une image
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Upload info */}
+                    {uploadedImageUrl && (
+                      <div className="flex items-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <i className="fas fa-check-circle text-green-500"></i>
+                        <div className="flex-1">
+                          <p className="text-sm text-green-700 font-medium">
+                            Image uploadée dans: shopbati/products/{categories.find(c => c.$id === formData.category_id)?.slug}/{formData.subcategory}/
+                          </p>
+                          <p className="text-xs text-green-600 mt-1 break-all">
+                            {uploadedImageUrl}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="md:col-span-2">
@@ -366,6 +554,40 @@ export default function NewProductPage() {
                     </p>
                   )}
                 </div>
+
+                {/* Subcategory dropdown */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Sous-catégorie
+                  </label>
+                  <select
+                    name="subcategory"
+                    value={formData.subcategory}
+                    onChange={handleInputChange}
+                    disabled={!formData.category_id || subcategories.length === 0}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">
+                      {!formData.category_id 
+                        ? "Sélectionnez d'abord une catégorie" 
+                        : subcategories.length === 0 
+                          ? "Aucune sous-catégorie disponible"
+                          : "Sélectionner une sous-catégorie"
+                      }
+                    </option>
+                    {subcategories.map((subcategory) => (
+                      <option key={subcategory.id} value={subcategory.id}>
+                        {subcategory.name}
+                      </option>
+                    ))}
+                  </select>
+                  {formData.category_id && subcategories.length > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      <i className="fas fa-info-circle mr-1"></i>
+                      {subcategories.length} sous-catégories disponibles
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -401,17 +623,21 @@ export default function NewProductPage() {
             </div>
 
             {/* Preview */}
-            {formData.image_url && (
+            {(uploadedImageUrl || formData.image_url) && (
               <div className="bg-white rounded-lg shadow-lg p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Aperçu de l'image</h3>
                 <img
-                  src={formData.image_url}
+                  src={uploadedImageUrl || formData.image_url}
                   alt="Aperçu"
-                  className="w-full h-48 object-cover rounded-lg"
+                  className="w-full h-48 object-cover rounded-lg border border-gray-200"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none'
                   }}
                 />
+                <div className="mt-3 text-sm text-gray-500">
+                  <i className="fas fa-folder mr-1"></i>
+                  Stocké dans Cloudflare R2
+                </div>
               </div>
             )}
           </div>
