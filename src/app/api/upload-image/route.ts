@@ -85,8 +85,19 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Upload error:', error)
+    
+    // Log environment variables to debug (remove in production)
+    console.error('Environment check:', {
+      hasEndpoint: !!process.env.CLOUDFLARE_R2_ENDPOINT,
+      hasAccessKey: !!process.env.CLOUDFLARE_R2_ACCESS_KEY_ID,
+      hasSecretKey: !!process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY,
+      hasBucketName: !!process.env.CLOUDFLARE_R2_BUCKET_NAME,
+      hasPublicUrl: !!process.env.CLOUDFLARE_R2_PUBLIC_URL,
+    })
+    
     return NextResponse.json({ 
-      error: 'Failed to upload image. Please try again.' 
+      error: 'Failed to upload image. Please try again.',
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 }
