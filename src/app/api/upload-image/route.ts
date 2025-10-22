@@ -12,11 +12,33 @@ const s3Client = new S3Client({
 })
 
 export async function POST(request: NextRequest) {
+  console.log('=== Upload Image API Called ===')
+  
+  // Log environment variables (remove in production)
+  console.log('Environment check:', {
+    hasEndpoint: !!process.env.CLOUDFLARE_R2_ENDPOINT,
+    hasAccessKey: !!process.env.CLOUDFLARE_R2_ACCESS_KEY_ID,
+    hasSecretKey: !!process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY,
+    hasBucketName: !!process.env.CLOUDFLARE_R2_BUCKET_NAME,
+    hasPublicUrl: !!process.env.CLOUDFLARE_R2_PUBLIC_URL,
+    endpoint: process.env.CLOUDFLARE_R2_ENDPOINT ? 'SET' : 'NOT SET',
+    bucketName: process.env.CLOUDFLARE_R2_BUCKET_NAME ? 'SET' : 'NOT SET'
+  })
+
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File
     const category = formData.get('category') as string
     const subcategory = formData.get('subcategory') as string
+    
+    console.log('Form data:', {
+      hasFile: !!file,
+      fileName: file?.name,
+      fileSize: file?.size,
+      fileType: file?.type,
+      category,
+      subcategory
+    })
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -56,6 +78,8 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer())
 
     // Upload to Cloudflare R2
+    console.log('Preparing upload with path:', folderPath)
+    
     const command = new PutObjectCommand({
       Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME,
       Key: folderPath,
@@ -69,7 +93,9 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    console.log('Sending command to R2...')
     await s3Client.send(command)
+    console.log('Upload successful!')
 
     // Return the public URL
     const publicUrl = `${process.env.CLOUDFLARE_R2_PUBLIC_URL}/${folderPath}`
