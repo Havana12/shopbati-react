@@ -181,7 +181,7 @@ export default function AdminSettingsPage() {
   }
 
   const handleDelete = async (admin: AdminUser) => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer l'administrateur "${admin.name}" ?`)) {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer l'administrateur "${admin.username}" ?`)) {
       return
     }
 
