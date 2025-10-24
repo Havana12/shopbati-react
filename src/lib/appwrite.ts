@@ -399,6 +399,84 @@ export class AppwriteService {
     }
   }
 
+  async createAdminUser(adminData: {
+    username: string
+    email: string
+    password: string
+    role?: string
+    status?: string
+  }) {
+    try {
+      const bcrypt = require('bcryptjs')
+      const hashedPassword = await bcrypt.hash(adminData.password, 10)
+      
+      return await this.databases.createDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        'admin_users',
+        'unique()',
+        {
+          username: adminData.username,
+          email: adminData.email,
+          password: hashedPassword,
+          role: adminData.role || 'admin',
+          status: adminData.status || 'active',
+          created_at: new Date().toISOString(),
+          last_login: null
+        }
+      )
+    } catch (error) {
+      console.error('Error creating admin user:', error)
+      throw error
+    }
+  }
+
+  async updateAdminUser(adminId: string, adminData: {
+    username?: string
+    email?: string
+    password?: string
+    role?: string
+    status?: string
+  }) {
+    try {
+      const updateData: any = {}
+      
+      if (adminData.username) updateData.username = adminData.username
+      if (adminData.email) updateData.email = adminData.email
+      if (adminData.role) updateData.role = adminData.role
+      if (adminData.status) updateData.status = adminData.status
+      
+      if (adminData.password) {
+        const bcrypt = require('bcryptjs')
+        updateData.password = await bcrypt.hash(adminData.password, 10)
+      }
+      
+      updateData.updated_at = new Date().toISOString()
+      
+      return await this.databases.updateDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        'admin_users',
+        adminId,
+        updateData
+      )
+    } catch (error) {
+      console.error('Error updating admin user:', error)
+      throw error
+    }
+  }
+
+  async deleteAdminUser(adminId: string) {
+    try {
+      return await this.databases.deleteDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        'admin_users',
+        adminId
+      )
+    } catch (error) {
+      console.error('Error deleting admin user:', error)
+      throw error
+    }
+  }
+
   async getCustomer(customerId: string) {
     try {
       return await this.databases.getDocument(
