@@ -24,15 +24,20 @@ interface Category {
   $id: string
   name: string
   slug: string
+  parent_id?: string
+  level?: number
 }
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [parentCategories, setParentCategories] = useState<Category[]>([])
+  const [subcategories, setSubcategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
+  const [subcategoryFilter, setSubcategoryFilter] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
@@ -50,16 +55,36 @@ export default function AdminProductsPage() {
   useEffect(() => {
     fetchCategories()
     fetchProducts()
-  }, [currentPage, statusFilter, categoryFilter, debouncedSearchTerm])
+  }, [currentPage, statusFilter, categoryFilter, subcategoryFilter, debouncedSearchTerm])
+
+  // Fetch subcategories when parent category changes
+  useEffect(() => {
+    if (categoryFilter !== 'all') {
+      const filtered = categories.filter(cat => cat.parent_id === categoryFilter)
+      setSubcategories(filtered)
+      // Reset subcategory filter when parent changes
+      if (subcategoryFilter !== 'all' && !filtered.find(cat => cat.$id === subcategoryFilter)) {
+        setSubcategoryFilter('all')
+      }
+    } else {
+      setSubcategories([])
+      setSubcategoryFilter('all')
+    }
+  }, [categoryFilter, categories])
 
   const fetchCategories = async () => {
     try {
       const appwrite = AppwriteService.getInstance()
       const result = await appwrite.getCategories([
         appwrite.Query.orderAsc('name'),
-        appwrite.Query.limit(100)
+        appwrite.Query.limit(200)
       ])
-      setCategories(result.documents as unknown as Category[])
+      const allCategories = result.documents as unknown as Category[]
+      setCategories(allCategories)
+      
+      // Separate parent categories (no parent_id or null parent_id)
+      const parents = allCategories.filter(cat => !cat.parent_id)
+      setParentCategories(parents)
     } catch (error) {
       console.error('Error fetching categories:', error)
     }
@@ -79,8 +104,21 @@ export default function AdminProductsPage() {
         queries.push(appwrite.Query.equal('status', statusFilter))
       }
 
-      if (categoryFilter !== 'all') {
-        queries.push(appwrite.Query.equal('category_id', categoryFilter))
+      if (subcategoryFilter !== 'all') {
+        // Filter by subcategory if selected
+        queries.push(appwrite.Query.equal('category_id', subcategoryFilter))
+      } else if (categoryFilter !== 'all') {
+        // Filter by parent category (products with this parent_id OR this category_id)
+        // Get all subcategories of this parent
+        const subCats = categories.filter(cat => cat.parent_id === categoryFilter).map(cat => cat.$id)
+        if (subCats.length > 0) {
+          queries.push(appwrite.Query.or([
+            appwrite.Query.equal('category_id', categoryFilter),
+            appwrite.Query.equal('category_id', subCats)
+          ]))
+        } else {
+          queries.push(appwrite.Query.equal('category_id', categoryFilter))
+        }
       }
 
       if (debouncedSearchTerm && debouncedSearchTerm.length >= 2) {
@@ -108,6 +146,26 @@ export default function AdminProductsPage() {
     if (!categoryId) return 'Sans catégorie'
     const category = categories.find(cat => cat.$id === categoryId)
     return category ? category.name : 'Catégorie inconnue'
+  }
+
+  // Function to get parent category name
+  const getParentCategoryName = (categoryId: string | undefined): string => {
+    if (!categoryId) return '-'
+    const category = categories.find(cat => cat.$id === categoryId)
+    if (!category) return '-'
+    
+    if (category.parent_id) {
+      const parent = categories.find(cat => cat.$id === category.parent_id)
+      return parent ? parent.name : '-'
+    }
+    return category.name
+  }
+
+  // Function to check if category is a subcategory
+  const isSubcategory = (categoryId: string | undefined): boolean => {
+    if (!categoryId) return false
+    const category = categories.find(cat => cat.$id === categoryId)
+    return category ? !!category.parent_id : false
   }
 
   const handleDelete = async (productId: string) => {
@@ -176,6 +234,7 @@ export default function AdminProductsPage() {
               setSearchTerm('')
               setStatusFilter('all')
               setCategoryFilter('all')
+              setSubcategoryFilter('all')
               setCurrentPage(1)
             }}
             className="text-sm text-gray-500 hover:text-gray-700 flex items-center transition-colors"
@@ -185,9 +244,9 @@ export default function AdminProductsPage() {
           </button>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           {/* Search Input - Compact */}
-          <div className="md:col-span-2">
+          <div>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <i className="fas fa-search text-gray-400 text-sm"></i>
@@ -219,9 +278,31 @@ export default function AdminProductsPage() {
                 className="appearance-none bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm w-full"
               >
                 <option value="all">Toutes catégories</option>
-                {categories.map((category) => (
+                {parentCategories.map((category) => (
                   <option key={category.$id} value={category.$id}>
                     {category.name}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                <i className="fas fa-chevron-down text-gray-400 text-sm"></i>
+              </div>
+            </div>
+          </div>
+
+          {/* Subcategory Filter - Compact */}
+          <div>
+            <div className="relative">
+              <select
+                value={subcategoryFilter}
+                onChange={(e) => setSubcategoryFilter(e.target.value)}
+                disabled={categoryFilter === 'all' || subcategories.length === 0}
+                className="appearance-none bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm w-full disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="all">Toutes sous-catégories</option>
+                {subcategories.map((subcategory) => (
+                  <option key={subcategory.$id} value={subcategory.$id}>
+                    {subcategory.name}
                   </option>
                 ))}
               </select>
@@ -252,7 +333,7 @@ export default function AdminProductsPage() {
         </div>
 
         {/* Active Filter Tags - Compact */}
-        {(searchTerm || categoryFilter !== 'all' || statusFilter !== 'all') && (
+        {(searchTerm || categoryFilter !== 'all' || subcategoryFilter !== 'all' || statusFilter !== 'all') && (
           <div className="mt-3 flex flex-wrap gap-2">
             {searchTerm && (
               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
@@ -264,8 +345,16 @@ export default function AdminProductsPage() {
             )}
             {categoryFilter !== 'all' && (
               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
-                {categories.find(c => c.$id === categoryFilter)?.name}
+                {parentCategories.find(c => c.$id === categoryFilter)?.name}
                 <button onClick={() => setCategoryFilter('all')} className="ml-1 text-purple-600 hover:text-purple-800">
+                  <i className="fas fa-times text-xs"></i>
+                </button>
+              </span>
+            )}
+            {subcategoryFilter !== 'all' && (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-indigo-100 text-indigo-800">
+                {subcategories.find(c => c.$id === subcategoryFilter)?.name}
+                <button onClick={() => setSubcategoryFilter('all')} className="ml-1 text-indigo-600 hover:text-indigo-800">
                   <i className="fas fa-times text-xs"></i>
                 </button>
               </span>
@@ -287,22 +376,6 @@ export default function AdminProductsPage() {
             <span>
               {loading ? 'Chargement...' : `${products.length} produit(s) affiché(s)`}
             </span>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setStatusFilter('active')}
-                className="px-2 py-1 bg-green-50 hover:bg-green-100 text-green-700 rounded text-xs transition-colors"
-                title="Produits actifs"
-              >
-                <i className="fas fa-eye"></i>
-              </button>
-              <button
-                onClick={() => setStatusFilter('draft')}
-                className="px-2 py-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded text-xs transition-colors"
-                title="Brouillons"
-              >
-                <i className="fas fa-edit"></i>
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -343,6 +416,9 @@ export default function AdminProductsPage() {
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Catégorie
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Sous-catégorie
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Prix
@@ -399,8 +475,17 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="px-3 py-3">
                         <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                          {getCategoryName(product.category_id)}
+                          {getParentCategoryName(product.category_id)}
                         </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        {isSubcategory(product.category_id) ? (
+                          <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-indigo-100 text-indigo-800">
+                            {getCategoryName(product.category_id)}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">-</span>
+                        )}
                       </td>
                       <td className="px-3 py-3">
                         <div className="text-sm font-bold text-gray-900">
