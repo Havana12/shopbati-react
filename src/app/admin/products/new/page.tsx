@@ -9,12 +9,8 @@ interface Category {
   $id: string
   name: string
   slug: string
-  subcategories?: string[]
-}
-
-interface Subcategory {
-  id: string
-  name: string
+  parent_id?: string
+  level?: number
 }
 
 export default function NewProductPage() {
@@ -22,7 +18,8 @@ export default function NewProductPage() {
   const [loading, setLoading] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
-  const [subcategories, setSubcategories] = useState<Subcategory[]>([])
+  const [subcategories, setSubcategories] = useState<Category[]>([])
+  const [subcategoriesLoading, setSubcategoriesLoading] = useState(false)
   const [uploadedImageUrl, setUploadedImageUrl] = useState('')
   const [imageUploading, setImageUploading] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -75,66 +72,6 @@ export default function NewProductPage() {
     return `REF${Date.now().toString().slice(-6)}`
   }
 
-  // Predefined subcategories for common construction categories
-  const categorySubcategories: { [key: string]: Subcategory[] } = {
-    'macon': [
-      { id: 'ciment', name: 'Ciment' },
-      { id: 'beton', name: 'Béton' },
-      { id: 'mortier', name: 'Mortier' },
-      { id: 'briques', name: 'Briques' },
-      { id: 'parpaings', name: 'Parpaings' },
-      { id: 'enduits', name: 'Enduits' }
-    ],
-    'menuisier-serrurerie': [
-      { id: 'visserie', name: 'Visserie' },
-      { id: 'quincaillerie', name: 'Quincaillerie' },
-      { id: 'serrures', name: 'Serrures' },
-      { id: 'poignees', name: 'Poignées' },
-      { id: 'ferrures', name: 'Ferrures' },
-      { id: 'charnières', name: 'Charnières' }
-    ],
-    'peintre': [
-      { id: 'peintures-murales', name: 'Peintures murales' },
-      { id: 'peintures-bois', name: 'Peintures bois' },
-      { id: 'vernis-lasures', name: 'Vernis et lasures' },
-      { id: 'pinceaux-rouleaux', name: 'Pinceaux et rouleaux' },
-      { id: 'enduits-preparation', name: 'Enduits de préparation' },
-      { id: 'produits-nettoyage', name: 'Produits de nettoyage' }
-    ],
-    'carreleur': [
-      { id: 'carrelage-sol', name: 'Carrelage sol' },
-      { id: 'carrelage-mural', name: 'Carrelage mural' },
-      { id: 'colles-joints', name: 'Colles et joints' },
-      { id: 'profiles-finition', name: 'Profils de finition' },
-      { id: 'outils-pose', name: 'Outils de pose' },
-      { id: 'produits-entretien', name: 'Produits d\'entretien' }
-    ],
-    'plomberie': [
-      { id: 'tuyauterie', name: 'Tuyauterie' },
-      { id: 'raccords', name: 'Raccords' },
-      { id: 'robinetterie', name: 'Robinetterie' },
-      { id: 'evacuation', name: 'Évacuation' },
-      { id: 'outillage-plomberie', name: 'Outillage plomberie' },
-      { id: 'produits-etancheite', name: 'Produits d\'étanchéité' }
-    ],
-    'electricien': [
-      { id: 'cables-fils', name: 'Câbles et fils' },
-      { id: 'appareillage', name: 'Appareillage' },
-      { id: 'tableaux-protection', name: 'Tableaux et protection' },
-      { id: 'eclairage', name: 'Éclairage' },
-      { id: 'gaines-conduits', name: 'Gaines et conduits' },
-      { id: 'outillage-electrique', name: 'Outillage électrique' }
-    ],
-    'outillage-protection': [
-      { id: 'outils-main', name: 'Outils à main' },
-      { id: 'outils-electroportatifs', name: 'Outils électroportatifs' },
-      { id: 'equipements-protection', name: 'Équipements de protection' },
-      { id: 'echafaudages-echelles', name: 'Échafaudages et échelles' },
-      { id: 'consommables', name: 'Consommables' },
-      { id: 'stockage-transport', name: 'Stockage et transport' }
-    ]
-  }
-
   useEffect(() => {
     fetchCategories()
     // Generate initial reference
@@ -143,18 +80,17 @@ export default function NewProductPage() {
     })
   }, [])
 
-  // Update subcategories when category changes
+  // Fetch subcategories when category changes
   useEffect(() => {
-    const selectedCategory = categories.find(cat => cat.$id === formData.category_id)
-    if (selectedCategory && categorySubcategories[selectedCategory.slug]) {
-      setSubcategories(categorySubcategories[selectedCategory.slug])
+    if (formData.category_id) {
+      fetchSubcategories(formData.category_id)
       // Reset subcategory selection when category changes
       setFormData(prev => ({ ...prev, subcategory: '' }))
     } else {
       setSubcategories([])
       setFormData(prev => ({ ...prev, subcategory: '' }))
     }
-  }, [formData.category_id, categories])
+  }, [formData.category_id])
 
   const fetchCategories = async () => {
     try {
@@ -171,6 +107,20 @@ export default function NewProductPage() {
     }
   }
 
+  const fetchSubcategories = async (parentId: string) => {
+    setSubcategoriesLoading(true)
+    try {
+      const appwrite = AppwriteService.getInstance()
+      const result = await appwrite.getSubcategories(parentId)
+      setSubcategories(result.documents as unknown as Category[])
+    } catch (error) {
+      console.error('Error fetching subcategories:', error)
+      setSubcategories([])
+    } finally {
+      setSubcategoriesLoading(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -184,8 +134,7 @@ export default function NewProductPage() {
         price: parseFloat(formData.price),
         image_url: formData.image_url || null,
         status: formData.status,
-        category_id: formData.category_id || null,
-        subcategory: formData.subcategory || null,
+        category_id: formData.subcategory || formData.category_id || null, // Use subcategory if selected, otherwise use category
         brand: formData.brand,
         stock_quantity: parseInt(formData.stock_quantity) || 0,
         technical_specs: formData.technical_specs || null,
@@ -564,19 +513,21 @@ export default function NewProductPage() {
                     name="subcategory"
                     value={formData.subcategory}
                     onChange={handleInputChange}
-                    disabled={!formData.category_id || subcategories.length === 0}
+                    disabled={!formData.category_id || subcategoriesLoading}
                     className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     <option value="">
                       {!formData.category_id 
                         ? "Sélectionnez d'abord une catégorie" 
-                        : subcategories.length === 0 
-                          ? "Aucune sous-catégorie disponible"
-                          : "Sélectionner une sous-catégorie"
+                        : subcategoriesLoading
+                          ? "Chargement..."
+                          : subcategories.length === 0 
+                            ? "Aucune sous-catégorie disponible"
+                            : "Sélectionner une sous-catégorie"
                       }
                     </option>
                     {subcategories.map((subcategory) => (
-                      <option key={subcategory.id} value={subcategory.id}>
+                      <option key={subcategory.$id} value={subcategory.$id}>
                         {subcategory.name}
                       </option>
                     ))}
@@ -584,7 +535,13 @@ export default function NewProductPage() {
                   {formData.category_id && subcategories.length > 0 && (
                     <p className="text-xs text-gray-500 mt-1">
                       <i className="fas fa-info-circle mr-1"></i>
-                      {subcategories.length} sous-catégories disponibles
+                      {subcategories.length} sous-catégorie{subcategories.length > 1 ? 's' : ''} disponible{subcategories.length > 1 ? 's' : ''}
+                    </p>
+                  )}
+                  {formData.category_id && !subcategoriesLoading && subcategories.length === 0 && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      <i className="fas fa-info-circle mr-1"></i>
+                      Aucune sous-catégorie pour cette catégorie
                     </p>
                   )}
                 </div>
