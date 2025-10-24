@@ -334,6 +334,7 @@ export default function AdminCategoriesPage() {
         description: formData.description,
         slug: slug,
         image_url: formData.image_url || null,
+        parent_id: formData.parent_id || null,
         status: formData.status,
         sort_order: formData.sort_order,
         updated_at: new Date().toISOString()
