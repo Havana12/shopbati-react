@@ -17,6 +17,14 @@ interface Product {
   status: string
 }
 
+interface Category {
+  $id: string
+  name: string
+  slug: string
+  parent_id?: string
+  status: string
+}
+
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
@@ -26,12 +34,40 @@ export default function Header() {
   const [searchResults, setSearchResults] = useState<Product[]>([])
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [openCategoryDropdown, setOpenCategoryDropdown] = useState<string | null>(null)
   const userDropdownRef = useRef<HTMLDivElement>(null)
   const searchDropdownRef = useRef<HTMLDivElement>(null)
   const { state: cartState, toggleCart } = useCart()
   const { user, isAuthenticated, logout } = useAuth()
 
   const cartItemsCount = cartState.itemCount
+
+  // Fetch categories on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const appwrite = AppwriteService.getInstance()
+        const result = await appwrite.getCategories([
+          appwrite.Query.equal('status', 'active'),
+          appwrite.Query.orderAsc('name'),
+          appwrite.Query.limit(100)
+        ])
+        setCategories(result.documents as unknown as Category[])
+      } catch (error) {
+        console.error('Error fetching categories:', error)
+      }
+    }
+    fetchCategories()
+  }, [])
+
+  // Get parent categories (no parent_id)
+  const parentCategories = categories.filter(cat => !cat.parent_id)
+  
+  // Get subcategories for a parent category
+  const getSubcategories = (parentId: string) => {
+    return categories.filter(cat => cat.parent_id === parentId)
+  }
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -395,78 +431,59 @@ export default function Header() {
         </div>
 
         {/* Navigation Menu */}
-        <nav className="bg-white">
-          <div className="hidden md:flex items-center justify-center py-4">
-            <div className="flex items-center space-x-2">
-              <Link
-                href="/"
-                className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-base font-medium transition-all duration-200 px-6 py-4 rounded-md"
-              >
-                ACCUEIL
-              </Link>
-              <Link
-                href="/categories/macon"
-                className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-base font-medium transition-all duration-200 px-6 py-4 rounded-md"
-              >
-                MAÇON
-              </Link>
-              <Link
-                href="/categories/menuisier-serrurerie"
-                className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-base font-medium transition-all duration-200 px-6 py-4 rounded-md"
-              >
-                <div className="text-center leading-tight">
-                  <div>MENUISIER</div>
-                  <div>SERRURERIE</div>
-                </div>
-              </Link>
-              <Link
-                href="/categories/peintre"
-                className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-base font-medium transition-all duration-200 px-6 py-4 rounded-md"
-              >
-                PEINTRE
-              </Link>
-              <Link
-                href="/categories/carreleur"
-                className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-base font-medium transition-all duration-200 px-6 py-4 rounded-md"
-              >
-                CARRELEUR
-              </Link>
-              <Link
-                href="/categories/plomberie"
-                className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-base font-medium transition-all duration-200 px-6 py-4 rounded-md"
-              >
-                PLOMBERIE
-              </Link>
-              <Link
-                href="/categories/chauffage-eau-chaude"
-                className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-base font-medium transition-all duration-200 px-6 py-4 rounded-md"
-              >
-                <div className="text-center leading-tight">
-                  <div>CHAUFFAGE EAU</div>
-                  <div>CHAUDE</div>
-                </div>
-              </Link>
-              <Link
-                href="/categories/sanitaire"
-                className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-base font-medium transition-all duration-200 px-6 py-4 rounded-md"
-              >
-                SANITAIRE
-              </Link>
-              <Link
-                href="/categories/electricien"
-                className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-base font-medium transition-all duration-200 px-6 py-4 rounded-md"
-              >
-                ÉLECTRICIEN
-              </Link>
-              <Link
-                href="/categories/outillage-protection"
-                className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-base font-medium transition-all duration-200 px-6 py-4 rounded-md"
-              >
-                <div className="text-center leading-tight">
-                  <div>OUTILLAGE &</div>
-                  <div>PROTECTION</div>
-                </div>
-              </Link>
+        <nav className="bg-gray-50 border-t border-gray-200 relative z-50">
+          <div className="hidden md:block">
+            <div className="container mx-auto px-4">
+              <div className="flex items-center justify-start space-x-1 py-2 overflow-visible">
+                <Link
+                  href="/"
+                  className="text-gray-700 hover:text-orange-500 hover:bg-white text-sm font-semibold transition-all duration-200 px-4 py-2 rounded whitespace-nowrap"
+                >
+                  ACCUEIL
+                </Link>
+                
+                {/* Dynamic Categories with Subcategory Dropdowns */}
+                {parentCategories.map((category) => {
+                  const subcategories = getSubcategories(category.$id)
+                  const hasSubcategories = subcategories.length > 0
+                  
+                  return (
+                    <div
+                      key={category.$id}
+                      className="relative z-50"
+                      onMouseEnter={() => hasSubcategories && setOpenCategoryDropdown(category.$id)}
+                      onMouseLeave={() => setOpenCategoryDropdown(null)}
+                    >
+                      <Link
+                        href={`/categories/${category.slug}`}
+                        className="text-gray-700 hover:text-orange-500 hover:bg-white text-sm font-semibold transition-all duration-200 px-4 py-2 rounded flex items-center whitespace-nowrap"
+                      >
+                        <span>{category.name.toUpperCase()}</span>
+                        {hasSubcategories && (
+                          <i className="fas fa-chevron-down ml-1.5 text-xs"></i>
+                        )}
+                      </Link>
+                      
+                      {/* Subcategories Dropdown */}
+                      {hasSubcategories && openCategoryDropdown === category.$id && (
+                        <div className="absolute top-full left-0 pt-2 z-[9999]" style={{ position: 'absolute' }}>
+                          <div className="bg-white rounded-md shadow-2xl border-2 border-orange-400 min-w-[240px] py-2">
+                            {subcategories.map((subcategory) => (
+                              <Link
+                                key={subcategory.$id}
+                                href={`/categories/${subcategory.slug}`}
+                                className="block px-5 py-3 text-sm text-gray-700 hover:bg-orange-500 hover:text-white transition-colors font-medium border-b border-gray-100 last:border-b-0"
+                              >
+                                {subcategory.name}
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </nav>
@@ -578,33 +595,43 @@ export default function Header() {
                 <Link href="/" className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-sm font-medium py-3 px-4 rounded-lg transition-all">
                   ACCUEIL
                 </Link>
-                <Link href="/categories/macon" className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-sm font-medium py-3 px-4 rounded-lg transition-all">
-                  MAÇON
-                </Link>
-                <Link href="/categories/menuisier-serrurerie" className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-sm font-medium py-3 px-4 rounded-lg transition-all">
-                  MENUISIER SERRURERIE
-                </Link>
-                <Link href="/categories/peintre" className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-sm font-medium py-3 px-4 rounded-lg transition-all">
-                  PEINTRE
-                </Link>
-                <Link href="/categories/carreleur" className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-sm font-medium py-3 px-4 rounded-lg transition-all">
-                  CARRELEUR
-                </Link>
-                <Link href="/categories/plomberie" className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-sm font-medium py-3 px-4 rounded-lg transition-all">
-                  PLOMBERIE
-                </Link>
-                <Link href="/categories/chauffage-eau-chaude" className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-sm font-medium py-3 px-4 rounded-lg transition-all">
-                  CHAUFFAGE EAU CHAUDE
-                </Link>
-                <Link href="/categories/sanitaire" className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-sm font-medium py-3 px-4 rounded-lg transition-all">
-                  SANITAIRE
-                </Link>
-                <Link href="/categories/electricien" className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-sm font-medium py-3 px-4 rounded-lg transition-all">
-                  ÉLECTRICIEN
-                </Link>
-                <Link href="/categories/outillage-protection" className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-sm font-medium py-3 px-4 rounded-lg transition-all">
-                  OUTILLAGE & PROTECTION
-                </Link>
+                
+                {/* Dynamic Mobile Menu Categories */}
+                {parentCategories.map((category) => {
+                  const subcategories = getSubcategories(category.$id)
+                  const hasSubcategories = subcategories.length > 0
+                  
+                  return (
+                    <div key={category.$id}>
+                      <Link 
+                        href={`/categories/${category.slug}`} 
+                        className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-sm font-medium py-3 px-4 rounded-lg transition-all flex items-center justify-between"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <span>{category.name.toUpperCase()}</span>
+                        {hasSubcategories && (
+                          <i className="fas fa-chevron-down text-xs"></i>
+                        )}
+                      </Link>
+                      
+                      {/* Mobile Subcategories */}
+                      {hasSubcategories && (
+                        <div className="pl-4 mt-1 space-y-1">
+                          {subcategories.map((subcategory) => (
+                            <Link
+                              key={subcategory.$id}
+                              href={`/categories/${subcategory.slug}`}
+                              className="block text-gray-500 hover:text-orange-500 hover:bg-orange-50 text-xs font-medium py-2 px-4 rounded-lg transition-all"
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              → {subcategory.name}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           </div>

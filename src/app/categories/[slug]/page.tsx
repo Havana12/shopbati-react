@@ -60,123 +60,141 @@ export default function CategoryPage() {
   const fetchCategoryAndProducts = async () => {
     setLoading(true)
     try {
-      // Debug: Check if environment variables are available
-      console.log('🌍 Environment check:', {
-        endpoint: process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT,
-        projectId: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID,
-        databaseId: process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID,
-        hasApiKey: !!process.env.APPWRITE_API_KEY
-      })
-      
       const appwrite = AppwriteService.getInstance()
       
-      // Debug: Log the slug we're searching for
-      console.log('🔍 Searching for category slug:', categorySlug)
+      // Decode the URL-encoded slug
+      const decodedSlug = decodeURIComponent(categorySlug)
+      console.log('🔍 Original slug:', categorySlug)
+      console.log('🔍 Decoded slug:', decodedSlug)
       
-      // Find category by slug
-      const categoriesResult = await appwrite.getCategories([
-        appwrite.Query.equal('slug', categorySlug)
+      // Get all categories to handle hierarchy
+      const allCategoriesResult = await appwrite.getCategories([
+        appwrite.Query.limit(200)
       ])
       
-      console.log('📁 Categories found:', categoriesResult.documents.length)
-      console.log('📁 Categories data:', categoriesResult.documents)
+      const allCategories = allCategoriesResult.documents as any[]
+      console.log('📁 Total categories loaded:', allCategories.length)
       
-      if (categoriesResult.documents.length > 0) {
-        const foundCategory = categoriesResult.documents[0] as any
+      // Find category by slug or name with multiple matching strategies
+      let foundCategory = allCategories.find(cat => {
+        const catSlugLower = cat.slug?.toLowerCase() || ''
+        const catNameLower = cat.name?.toLowerCase() || ''
+        const searchSlug = decodedSlug.toLowerCase()
+        const originalSlug = categorySlug.toLowerCase()
+        
+        return catSlugLower === searchSlug || 
+               catSlugLower === originalSlug ||
+               catNameLower === searchSlug ||
+               catNameLower === originalSlug ||
+               catNameLower.replace(/\s+/g, '-') === searchSlug ||
+               catNameLower.replace(/\s+/g, '-') === originalSlug ||
+               catSlugLower.replace(/œ/g, 'oe') === searchSlug.replace(/œ/g, 'oe') ||
+               catSlugLower.replace(/œ/g, 'oe') === originalSlug.replace(/œ/g, 'oe')
+      })
+      
+      if (!foundCategory) {
+        // Try partial match
+        foundCategory = allCategories.find(cat => {
+          const catNameLower = cat.name?.toLowerCase() || ''
+          const searchSlug = decodedSlug.toLowerCase()
+          
+          return catNameLower.includes(searchSlug) ||
+                 searchSlug.includes(catNameLower) ||
+                 catNameLower.replace(/\s+/g, '-').includes(searchSlug) ||
+                 searchSlug.includes(catNameLower.replace(/\s+/g, '-'))
+        })
+      }
+      
+      if (foundCategory) {
         setCategory(foundCategory)
+        console.log('✅ Found category:', foundCategory.name, 'ID:', foundCategory.$id)
         
-        console.log('✅ Found category:', foundCategory)
-        console.log('🆔 Category ID:', foundCategory.$id)
+        // Find all subcategories of this category
+        const subcategoryIds = allCategories
+          .filter(cat => cat.parent_id === foundCategory.$id)
+          .map(cat => cat.$id)
         
-        // Get products for this category
-        const productsResult = await appwrite.getProducts([
-          appwrite.Query.equal('category_id', foundCategory.$id),
-          appwrite.Query.equal('status', 'active'),
-          appwrite.Query.limit(500) // Increased limit for categories with many products
-        ])
+        console.log('📂 Found', subcategoryIds.length, 'subcategories')
         
-        console.log('🛍️ Products found for category:', productsResult.documents.length)
-        console.log('🛍️ Products data:', productsResult.documents)
+        // Get products that match either the parent category OR any of its subcategories
+        let allProducts: Product[] = []
         
-        const categoryProducts = productsResult.documents as unknown as Product[]
-        setProducts(categoryProducts)
-        
-        if (categoryProducts.length > 0) {
-          const maxPrice = Math.max(...categoryProducts.map(p => p.price))
-          setPriceRange(prev => ({ ...prev, max: Math.ceil(maxPrice / 100) * 100 }))
-        }
-      } else {
-        console.log('❌ No category found by slug, trying by name...')
-        
-        // Fallback: try to find category by name (case-insensitive)
-        const categoryName = categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1)
-        const categoriesResultByName = await appwrite.getCategories([
-          appwrite.Query.equal('name', categoryName)
-        ])
-        
-        console.log('📁 Categories found by name:', categoriesResultByName.documents.length)
-        
-        if (categoriesResultByName.documents.length > 0) {
-          const foundCategory = categoriesResultByName.documents[0] as any
-          setCategory(foundCategory)
-          
-          console.log('✅ Found category by name:', foundCategory)
-          
-          // Get products for this category
-          const productsResult = await appwrite.getProducts([
+        // Get products with parent category directly
+        try {
+          const parentProducts = await appwrite.getProducts([
             appwrite.Query.equal('category_id', foundCategory.$id),
             appwrite.Query.equal('status', 'active'),
-            appwrite.Query.limit(500) // Increased limit for categories with many products
+            appwrite.Query.limit(200)
           ])
           
-          console.log('🛍️ Products found for category (by name):', productsResult.documents.length)
-          
-          const categoryProducts = productsResult.documents as unknown as Product[]
-          setProducts(categoryProducts)
-          
-          if (categoryProducts.length > 0) {
-            const maxPrice = Math.max(...categoryProducts.map(p => p.price))
-            setPriceRange(prev => ({ ...prev, max: Math.ceil(maxPrice / 100) * 100 }))
+          if (parentProducts.documents && parentProducts.documents.length > 0) {
+            allProducts = [...parentProducts.documents as unknown as Product[]]
+            console.log('📦 Found', allProducts.length, 'products in parent category')
           }
-        } else {
-          console.log('❌ No category found by name either. Let\'s try to find products by category_name field...')
-          
-          // Last fallback: search products directly by category_name field
-          const productsResult = await appwrite.getProducts([
-            appwrite.Query.contains('category_name', categorySlug),
-            appwrite.Query.equal('status', 'active'),
-            appwrite.Query.limit(100)
-          ])
-          
-          console.log('🛍️ Products found by category_name:', productsResult.documents.length)
-          
-          if (productsResult.documents.length > 0) {
-            const categoryProducts = productsResult.documents as unknown as Product[]
-            setProducts(categoryProducts)
-            
-            if (categoryProducts.length > 0) {
-              const maxPrice = Math.max(...categoryProducts.map(p => p.price))
-              setPriceRange(prev => ({ ...prev, max: Math.ceil(maxPrice / 100) * 100 }))
-            }
-          }
-          
-          // Set fallback category info
-          setCategory({ 
-            name: categoryName, 
-            description: `Produits de ${categoryName}`,
-            $id: '',
-            slug: categorySlug,
-            status: 'active'
-          })
+        } catch (error) {
+          console.log('No products in parent category')
         }
+        
+        // Get products from each subcategory
+        for (const subCatId of subcategoryIds) {
+          try {
+            const subProducts = await appwrite.getProducts([
+              appwrite.Query.equal('category_id', subCatId),
+              appwrite.Query.equal('status', 'active'),
+              appwrite.Query.limit(200)
+            ])
+            
+            if (subProducts.documents && subProducts.documents.length > 0) {
+              const subCatName = allCategories.find(c => c.$id === subCatId)?.name || ''
+              console.log('� Found', subProducts.documents.length, 'products in subcategory:', subCatName)
+              allProducts = [...allProducts, ...subProducts.documents as unknown as Product[]]
+            }
+          } catch (error) {
+            console.log('Error fetching products for subcategory:', subCatId)
+          }
+        }
+        
+        console.log('✅ Total products found:', allProducts.length, 'in category and all subcategories')
+        
+        if (allProducts.length > 0) {
+          // Enrich products with category name
+          const enrichedProducts = allProducts.map(product => {
+            const productCategory = allCategories.find(cat => cat.$id === product.category_id)
+            return {
+              ...product,
+              category_name: productCategory?.name || foundCategory.name
+            }
+          })
+          setProducts(enrichedProducts)
+          
+          const maxPrice = Math.max(...enrichedProducts.map(p => p.price))
+          setPriceRange(prev => ({ ...prev, max: Math.ceil(maxPrice / 100) * 100 }))
+        } else {
+          console.log('⚠️ No products found in this category or its subcategories')
+          setProducts([])
+        }
+      } else {
+        console.log('❌ Category not found:', categorySlug)
+        
+        // Set fallback category info
+        const categoryName = categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1)
+        setCategory({ 
+          name: categoryName, 
+          description: `Produits de ${categoryName}`,
+          $id: '',
+          slug: categorySlug,
+          status: 'active'
+        })
+        setProducts([])
       }
     } catch (error) {
       console.error('❌ Error fetching category and products:', error)
       
       // Final fallback
+      const categoryName = categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1)
       setCategory({ 
-        name: categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1), 
-        description: `Produits de ${categorySlug}`,
+        name: categoryName, 
+        description: `Produits de ${categoryName}`,
         $id: '',
         slug: categorySlug,
         status: 'active'

@@ -121,14 +121,18 @@ export default function CategoryPage() {
     try {
       const appwrite = AppwriteService.getInstance()
       
+      // First, get all categories to handle hierarchy
       const categoriesResult = await appwrite.getCategories([
         appwrite.Query.equal('status', 'active'),
-        appwrite.Query.limit(100)
+        appwrite.Query.limit(200)
       ])
       
       let foundCategory: Category | null = null
+      let allCategories: any[] = []
+      
       if (categoriesResult.documents && categoriesResult.documents.length > 0) {
-        foundCategory = (categoriesResult.documents as unknown as Category[]).find(cat => 
+        allCategories = categoriesResult.documents as any[]
+        foundCategory = allCategories.find(cat => 
           cat.slug === categorySlug || 
           cat.name.toLowerCase().replace(/\s+/g, '-') === categorySlug
         ) || null
@@ -137,14 +141,52 @@ export default function CategoryPage() {
       if (foundCategory) {
         setCategory(foundCategory)
         
-        const productsResult = await appwrite.getProducts([
+        // Find all subcategories of this category
+        const subcategoryIds = allCategories
+          .filter(cat => cat.parent_id === foundCategory.$id)
+          .map(cat => cat.$id)
+        
+        console.log('🔍 Found category:', foundCategory.name, 'with', subcategoryIds.length, 'subcategories')
+        
+        // Get products that match either the parent category OR any of its subcategories
+        let allProducts: Product[] = []
+        
+        // Get products with parent category
+        const parentProducts = await appwrite.getProducts([
           appwrite.Query.equal('status', 'active'),
           appwrite.Query.equal('category_id', foundCategory.$id),
           appwrite.Query.limit(100)
         ])
         
-        if (productsResult.documents && productsResult.documents.length > 0) {
-          setProducts(productsResult.documents as unknown as Product[])
+        if (parentProducts.documents && parentProducts.documents.length > 0) {
+          allProducts = [...parentProducts.documents as unknown as Product[]]
+        }
+        
+        // Get products from each subcategory
+        for (const subCatId of subcategoryIds) {
+          const subProducts = await appwrite.getProducts([
+            appwrite.Query.equal('status', 'active'),
+            appwrite.Query.equal('category_id', subCatId),
+            appwrite.Query.limit(100)
+          ])
+          
+          if (subProducts.documents && subProducts.documents.length > 0) {
+            allProducts = [...allProducts, ...subProducts.documents as unknown as Product[]]
+          }
+        }
+        
+        console.log('✅ Found', allProducts.length, 'products in category and subcategories')
+        
+        if (allProducts.length > 0) {
+          // Enrich products with category name
+          const enrichedProducts = allProducts.map(product => {
+            const productCategory = allCategories.find(cat => cat.$id === product.category_id)
+            return {
+              ...product,
+              category_name: productCategory?.name || foundCategory.name
+            }
+          })
+          setProducts(enrichedProducts)
           setIsFromDatabase(true)
         } else {
           const categoryFallbackProducts = fallbackProducts.filter(product => 

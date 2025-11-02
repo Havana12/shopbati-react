@@ -66,36 +66,62 @@ function ProduitsPageContent() {
       setLoading(true)
       try {
         const appwrite = AppwriteService.getInstance()
+        
+        // Load categories first
+        let allCategories: Category[] = []
+        try {
+          const categoriesResult = await appwrite.getCategories([
+            appwrite.Query.limit(200)
+          ])
+          if (categoriesResult?.documents) {
+            allCategories = categoriesResult.documents as unknown as Category[]
+            setCategories(allCategories)
+            console.log('✅ Categories loaded:', allCategories.length)
+          }
+        } catch (catError) {
+          console.error('Failed to load categories:', catError)
+        }
+        
+        // Load products
         const result = await appwrite.getAllProducts()
         
         console.log('🔍 Produits récupérés:', result?.total || 0, 'sur', result?.documents?.length || 0)
         
         if (result && result.documents && result.documents.length > 0) {
           const realProducts = (result.documents as unknown as Product[]) || []
-          setProducts(realProducts)
+          
+          // Enrich products with category information
+          const enrichedProducts = realProducts.map(product => {
+            if (product.category_id) {
+              const category = allCategories.find(cat => cat.$id === product.category_id)
+              if (category) {
+                // If this is a subcategory, get the parent category too
+                const parentCategory = (category as any).parent_id 
+                  ? allCategories.find(cat => cat.$id === (category as any).parent_id)
+                  : null
+                
+                return {
+                  ...product,
+                  category_name: category.name,
+                  parent_category_id: (category as any).parent_id || null,
+                  parent_category_name: parentCategory?.name || null
+                }
+              }
+            }
+            return product
+          })
+          
+          setProducts(enrichedProducts)
           setTotalProductsInDb(result.total)
           
-          const maxPrice = Math.max(...realProducts.map(p => p.price))
+          const maxPrice = Math.max(...enrichedProducts.map(p => p.price))
           setPriceRange(prev => ({ ...prev, max: Math.ceil(maxPrice / 100) * 100 }))
           
-          console.log('✅ Produits chargés:', realProducts.length, '/', result.total)
+          console.log('✅ Produits chargés et enrichis:', enrichedProducts.length, '/', result.total)
         } else {
           console.log('No products found in database')
           setProducts([])
           setTotalProductsInDb(0)
-        }
-
-        try {
-          const categoriesResult = await appwrite.getCategories()
-          if (categoriesResult?.documents) {
-            setCategories(categoriesResult.documents as unknown as Category[])
-          } else {
-            console.log('No categories found in database')
-            setCategories([])
-          }
-        } catch (catError) {
-          console.error('Failed to load categories:', catError)
-          setCategories([])
         }
       } catch (error) {
         console.error('Initial data load failed:', error)
@@ -138,7 +164,23 @@ function ProduitsPageContent() {
     }
 
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter(product => product.category_name === selectedCategory)
+      // Find the selected category
+      const selectedCat = categories.find(cat => cat.$id === selectedCategory)
+      
+      if (selectedCat) {
+        // Check if selected category has subcategories
+        const subcategoryIds = categories
+          .filter(cat => (cat as any).parent_id === selectedCategory)
+          .map(cat => cat.$id)
+        
+        // Filter products that match either:
+        // 1. The selected parent category directly
+        // 2. Any subcategory of the selected parent
+        filtered = filtered.filter(product => 
+          product.category_id === selectedCategory || 
+          subcategoryIds.includes(product.category_id || '')
+        )
+      }
     }
 
     filtered = filtered.filter(product => 
@@ -233,11 +275,13 @@ function ProduitsPageContent() {
                   className="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-6 py-4 pr-12 focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 text-gray-700 min-w-[200px]"
                 >
                   <option value="all">Toutes les catégories</option>
-                  {categories.map((category) => (
-                    <option key={category.$id} value={category.name}>
-                      {category.name}
-                    </option>
-                  ))}
+                  {categories
+                    .filter(cat => !(cat as any).parent_id)
+                    .map((category) => (
+                      <option key={category.$id} value={category.$id}>
+                        {category.name}
+                      </option>
+                    ))}
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
                   <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
