@@ -380,6 +380,16 @@ function ProduitsPageContent() {
                   
                   {/* Contenu sous l'image */}
                   <div className="p-3">
+                    {/* Prix */}
+                    <div className="flex items-baseline justify-between mb-3">
+                      <span className="text-xl font-bold text-orange-600">
+                        {(product.price || 0).toFixed(2)}€
+                      </span>
+                      <span className="text-xs text-gray-500 uppercase tracking-wide">
+                        TTC
+                      </span>
+                    </div>
+                    
                     {/* Contrôles de quantité - centrés */}
                     <div className="flex items-center justify-center mb-3">
                       <div className="flex items-center border border-gray-300 rounded">
