@@ -210,19 +210,14 @@ export default function Header() {
       <div className="bg-orange-600 text-white text-center py-2 text-sm font-medium">
         <div className="container mx-auto px-4">
           <span className="font-bold">100% PRO</span> RÉSERVÉ EXCLUSIVEMENT AUX PROFESSIONNELS DU BÂTIMENT
-          <div className="float-right">
-            <button className="bg-black text-white px-3 py-1 text-xs rounded">
-              🇫🇷 SÉLECTIONNER UNE LANGUE ▼
-            </button>
-          </div>
         </div>
       </div>
 
       {/* Main Header */}
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between py-4">
+        <div className="flex items-center py-4">
           {/* Logo */}
-          <div className="flex items-center flex-shrink-0">
+          <div className="flex items-center flex-shrink-0 mr-auto">
             <Link href="/" className="flex items-center">
               <img 
                 src="/images/logo_shopbat.jpg" 
@@ -305,7 +300,7 @@ export default function Header() {
           </div>
 
           {/* User Actions */}
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-4 md:space-x-6 ml-auto">
             <div className="hidden md:flex flex-col items-center text-gray-700 hover:text-orange-500 cursor-pointer">
               <i className="fas fa-warehouse text-xl mb-1"></i>
               <div className="text-xs text-center">
