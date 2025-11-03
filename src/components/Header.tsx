@@ -334,7 +334,7 @@ export default function Header() {
 
               {/* Dropdown Menu */}
               {isUserDropdownOpen && (
-                <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
+                <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-[9999]">
                   {isAuthenticated ? (
                     <>
                       <div className="px-4 py-3 border-b border-gray-100">
@@ -392,13 +392,6 @@ export default function Header() {
                         <i className="fas fa-user-plus mr-3 text-blue-500"></i>
                         Créer un compte
                       </button>
-                      <div className="border-t border-gray-100 my-1"></div>
-                      <div className="px-4 py-2">
-                        <p className="text-xs text-gray-500 text-center">
-                          <i className="fas fa-info-circle mr-1"></i>
-                          Accédez à vos commandes et profitez d'avantages exclusifs
-                        </p>
-                      </div>
                     </div>
                   )}
                 </div>
@@ -490,7 +483,7 @@ export default function Header() {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden py-4 bg-white">
+          <div className="md:hidden py-4 bg-white border-t border-gray-200 max-h-[80vh] overflow-y-auto">
             <div className="container mx-auto px-4">
               <div className="flex flex-col space-y-2">
                 <div className="relative mb-4">
