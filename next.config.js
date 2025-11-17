@@ -21,6 +21,16 @@ const nextConfig = {
     NEXT_PUBLIC_APPWRITE_PROJECT_ID: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID,
     NEXT_PUBLIC_APPWRITE_DATABASE_ID: process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID,
   },
+  webpack: (config, { isServer }) => {
+    // Exclude scripts folder from webpack processing
+    config.module.rules.push({
+      test: /\.ts$/,
+      include: /scripts/,
+      use: 'ignore-loader',
+    })
+    
+    return config
+  },
 }
 
 module.exports = nextConfig
