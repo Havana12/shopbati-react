@@ -307,13 +307,6 @@ export default function Header() {
 
           {/* User Actions */}
           <div className="flex items-center space-x-4 md:space-x-6 ml-auto">
-            <div className="hidden md:flex flex-col items-center text-gray-700 hover:text-orange-500 cursor-pointer">
-              <i className="fas fa-warehouse text-xl mb-1"></i>
-              <div className="text-xs text-center">
-                <div className="font-medium">MON DÉPÔT</div>
-                <div className="text-orange-500">Se connecter</div>
-              </div>
-            </div>
             <div className="hidden md:flex flex-col items-center text-gray-700 hover:text-orange-500 cursor-pointer relative" ref={userDropdownRef}>
               <div 
                 onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
