@@ -1,4 +1,6 @@
 import jsPDF from 'jspdf'
+import QRCode from 'qrcode'
+import { Client, Databases, Storage, ID } from 'node-appwrite'
 
 interface OrderData {
   orderId: string
@@ -35,7 +37,428 @@ interface OrderData {
   }
 }
 
+interface InvoiceWithQR {
+  pdfBuffer: Buffer
+  invoiceUrl: string
+  fileId: string
+  qrCodeDataUrl: string
+}
+
 export class InvoiceGenerator {
+  // Bucket ID for invoices storage
+  private static readonly INVOICES_BUCKET_ID = '691b2d0200137a0256b7'
+  
+  // Create server-side Appwrite client with API key
+  private static getServerClient() {
+    const client = new Client()
+    client
+      .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1')
+      .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '')
+      .setKey(process.env.APPWRITE_API_KEY || '')
+    
+    return client
+  }
+  
+  private static getStorage() {
+    return new Storage(this.getServerClient())
+  }
+  
+  /**
+   * Generate invoice with QR code and upload to Appwrite Storage
+   * The QR code on the invoice links to the stored invoice URL
+   */
+  static async generateInvoiceWithQR(orderData: OrderData): Promise<InvoiceWithQR> {
+    try {
+      console.log('🔧 Génération facture avec QR code...')
+      
+      // 1. Generate invoice PDF first (without QR)
+      const tempInvoiceBuffer = await this.generatePDFFromOrder(orderData)
+      console.log('✅ PDF temporaire généré')
+      
+      // 2. Upload to Appwrite Storage
+      const invoiceNumber = this.generateInvoiceNumber()
+      const fileName = `facture-${invoiceNumber}-${Date.now()}.pdf`
+      
+      // Convert Buffer to Blob for upload
+      const blob = new Blob([tempInvoiceBuffer], { type: 'application/pdf' })
+      const file = new File([blob], fileName, { type: 'application/pdf' })
+      
+      console.log('📤 Upload facture vers Appwrite...')
+      
+      // Upload file to Appwrite using server-side SDK
+      const storage = this.getStorage()
+      const uploadedFile = await storage.createFile(
+        this.INVOICES_BUCKET_ID,
+        ID.unique(),
+        file
+      )
+      
+      console.log('✅ Facture uploadée avec ID:', uploadedFile.$id)
+      
+      // 3. Get the file URL
+      const client = this.getServerClient()
+      const invoiceUrl = `${client.config.endpoint}/storage/buckets/${this.INVOICES_BUCKET_ID}/files/${uploadedFile.$id}/view?project=${client.config.project}`
+      
+      console.log('🔗 URL facture:', invoiceUrl)
+      
+      // 4. Generate QR code with the invoice URL
+      const qrCodeDataUrl = await QRCode.toDataURL(invoiceUrl, {
+        width: 150,
+        margin: 1,
+        color: {
+          dark: '#212121',
+          light: '#FFFFFF'
+        }
+      })
+      
+      console.log('✅ QR code généré')
+      
+      // 5. Generate final invoice PDF with QR code
+      const finalInvoiceBuffer = await this.generatePDFFromOrderWithQR(
+        orderData,
+        qrCodeDataUrl,
+        invoiceNumber
+      )
+      
+      console.log('✅ PDF final avec QR code généré')
+      
+      // 6. Update the file in storage with the final version (with QR)
+      await storage.deleteFile(this.INVOICES_BUCKET_ID, uploadedFile.$id)
+      
+      const finalBlob = new Blob([finalInvoiceBuffer], { type: 'application/pdf' })
+      const finalFile = new File([finalBlob], fileName, { type: 'application/pdf' })
+      
+      const finalUploadedFile = await storage.createFile(
+        this.INVOICES_BUCKET_ID,
+        uploadedFile.$id, // Use same ID
+        finalFile
+      )
+      
+      console.log('✅ Facture finale avec QR code uploadée')
+      
+      return {
+        pdfBuffer: finalInvoiceBuffer,
+        invoiceUrl,
+        fileId: finalUploadedFile.$id,
+        qrCodeDataUrl
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur génération facture avec QR:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Generate PDF with QR code embedded
+   */
+  private static async generatePDFFromOrderWithQR(
+    orderData: OrderData,
+    qrCodeDataUrl: string,
+    invoiceNumber: string
+  ): Promise<Buffer> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const doc = new jsPDF('p', 'mm', 'a4')
+        const pageWidth = 210
+        const pageHeight = 297
+        const margin = 10
+        const contentWidth = pageWidth - 2 * margin
+        
+        let yPosition = margin
+
+        // Couleurs SHOPBATI
+        const yellowColor: [number, number, number] = [255, 215, 0]
+        const darkGray: [number, number, number] = [33, 33, 33]
+        const lightGray: [number, number, number] = [245, 245, 245]
+
+        // 1. BANNIÈRE SUPÉRIEURE JAUNE
+        doc.setFillColor(yellowColor[0], yellowColor[1], yellowColor[2])
+        doc.rect(0, 0, pageWidth, 12, 'F')
+        
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
+        doc.text('BRICOLAGE • CONSTRUCTION • DÉCORATION • JARDINAGE', pageWidth/2, 7, { align: 'center' })
+
+        yPosition = 18
+
+        // 2. SECTION LOGO ET QR CODE (QR en haut à droite)
+        // Logo à gauche
+        try {
+          let logoBase64: string | null = null
+          
+          if (typeof window === 'undefined') {
+            try {
+              const fs = require('fs')
+              const path = require('path')
+              const logoPath = path.join(process.cwd(), 'public', 'images', 'logo_shopbat.jpg')
+              
+              if (fs.existsSync(logoPath)) {
+                const imageBuffer = fs.readFileSync(logoPath)
+                logoBase64 = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`
+              }
+            } catch (fsError) {
+              console.log('Erreur lecture fichier logo:', fsError)
+            }
+          } else {
+            try {
+              const response = await fetch('/images/logo_shopbat.jpg')
+              if (response.ok) {
+                const blob = await response.blob()
+                logoBase64 = await new Promise((resolve) => {
+                  const reader = new FileReader()
+                  reader.onload = () => resolve(reader.result as string)
+                  reader.readAsDataURL(blob)
+                })
+              }
+            } catch (fetchError) {
+              console.log('Erreur fetch logo:', fetchError)
+            }
+          }
+          
+          if (logoBase64) {
+            doc.addImage(logoBase64, 'JPEG', 5, yPosition - 15, 45, 14)
+          } else {
+            doc.setFontSize(12)
+            doc.setFont('helvetica', 'bold')
+            doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
+            doc.text('SHOPBATI', margin, yPosition + 15)
+          }
+        } catch (error) {
+          console.log('Erreur logo générale:', error)
+          doc.setFontSize(12)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
+          doc.text('SHOPBATI', margin, yPosition + 15)
+        }
+
+        // QR CODE EN HAUT À DROITE avec encadré
+        const qrSize = 25
+        const qrX = pageWidth - margin - qrSize - 5
+        const qrY = yPosition - 15
+        
+        // Encadré pour le QR code
+        doc.setDrawColor(yellowColor[0], yellowColor[1], yellowColor[2])
+        doc.setLineWidth(0.5)
+        doc.rect(qrX - 2, qrY - 2, qrSize + 4, qrSize + 4)
+        
+        // QR Code
+        doc.addImage(qrCodeDataUrl, 'PNG', qrX, qrY, qrSize, qrSize)
+        
+        // Texte sous le QR code
+        doc.setFontSize(6)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
+        doc.text('Scanner pour', qrX + qrSize/2, qrY + qrSize + 3, { align: 'center' })
+        doc.text('voir la facture', qrX + qrSize/2, qrY + qrSize + 6, { align: 'center' })
+
+        // Titre facture au centre
+        const ticketNumber = this.generateTicketNumber(orderData)
+        
+        doc.setFontSize(18)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
+        doc.text(`FACTURE N° ${invoiceNumber.replace('SB-', '')} DUPLICATA`, pageWidth/2, yPosition + 8, { align: 'center' })
+        
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        doc.text(`Ticket ${ticketNumber} / Date de vente : ${this.formatDate(orderData.timestamp)}`, pageWidth/2, yPosition + 15, { align: 'center' })
+        doc.text(`Exemplaire client / Date d'émission : ${this.formatDate(orderData.timestamp)}`, pageWidth/2, yPosition + 19, { align: 'center' })
+
+        yPosition += 28
+        yPosition += 10
+
+        // 4. SECTION INFORMATIONS (2 colonnes)
+        const infoHeight = 35
+        const leftColWidth = contentWidth * 0.48
+        const rightColWidth = contentWidth * 0.48
+        const spacing = contentWidth * 0.04
+
+        // Colonne gauche - SHOPBATI
+        doc.setFillColor(lightGray[0], lightGray[1], lightGray[2])
+        doc.rect(margin, yPosition, leftColWidth, infoHeight, 'F')
+        doc.setDrawColor(100, 100, 100)
+        doc.rect(margin, yPosition, leftColWidth, infoHeight)
+
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
+        doc.text('SHOPBATI', margin + 3, yPosition + 8)
+
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        doc.text('6 Rue des Bateliers - Bureau 3', margin + 3, yPosition + 15)
+        doc.text('92110 CLICHY FRANCE', margin + 3, yPosition + 20)
+        doc.text('Tél : +33 6 52 35 40 15', margin + 3, yPosition + 25)
+        doc.text('Email: contact@shopbati.fr', margin + 3, yPosition + 30)
+
+        // Colonne droite - Client
+        const rightColX = margin + leftColWidth + spacing
+        doc.setDrawColor(100, 100, 100)
+        doc.rect(rightColX, yPosition, rightColWidth, infoHeight)
+
+        const customerName = orderData.customerName || 'Client'
+        doc.setFontSize(12)
+        doc.setFont('helvetica', 'bold')
+        doc.text(customerName, rightColX + 3, yPosition + 8)
+        
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        
+        if (orderData.shippingAddress && orderData.shippingAddress.street) {
+          doc.text(orderData.shippingAddress.street, rightColX + 3, yPosition + 15)
+          doc.text(`${orderData.shippingAddress.postalCode} ${orderData.shippingAddress.city}`, rightColX + 3, yPosition + 20)
+          doc.text(orderData.shippingAddress.country || 'France', rightColX + 3, yPosition + 25)
+        } else {
+          doc.text('9 Rue Parrot', rightColX + 3, yPosition + 15)
+          doc.text('75012 Paris', rightColX + 3, yPosition + 20)
+        }
+        
+        const isProfessional = orderData.isProfessional || orderData.customerInfo?.accountType === 'professional'
+        if (isProfessional) {
+          doc.text('SIRET : 123 456 789 00012', rightColX + 3, yPosition + 30)
+        }
+
+        yPosition += infoHeight + 10
+
+        // 6. TABLEAU
+        const tableStartY = yPosition
+        const headerHeight = 15
+        const rowHeight = 12
+
+        // En-tête tableau
+        doc.setFillColor(yellowColor[0], yellowColor[1], yellowColor[2])
+        doc.rect(margin, yPosition, contentWidth, headerHeight, 'F')
+        doc.setDrawColor(darkGray[0], darkGray[1], darkGray[2])
+        doc.rect(margin, yPosition, contentWidth, headerHeight)
+
+        const colN = margin + 2
+        const colRef = margin + 15
+        const colDesignation = margin + 42
+        const colQuantite = margin + 115
+        const colPrixUnit = margin + 135
+        const colTotal = margin + 160
+
+        doc.setFontSize(7)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
+        
+        doc.text('N°', colN + 5, yPosition + 8, { align: 'center' })
+        doc.text('Réf', colRef + 12, yPosition + 4, { align: 'center' })
+        doc.text('article', colRef + 12, yPosition + 9, { align: 'center' })
+        doc.text('Désignation article', colDesignation + 35, yPosition + 8, { align: 'center' })
+        doc.text('Quantité', colQuantite + 9, yPosition + 8, { align: 'center' })
+        doc.text('Prix unit.', colPrixUnit + 11, yPosition + 4, { align: 'center' })
+        doc.text('TTC', colPrixUnit + 11, yPosition + 9, { align: 'center' })
+        doc.text('Total TTC', colTotal + 11, yPosition + 8, { align: 'center' })
+
+        yPosition += headerHeight
+
+        // Lignes des articles
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(7)
+        
+        orderData.items.forEach((item, index) => {
+          doc.setDrawColor(150, 150, 150)
+          doc.rect(margin, yPosition, contentWidth, rowHeight)
+
+          doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
+          
+          doc.setFontSize(7)
+          doc.text((index + 1).toString(), colN + 5, yPosition + 8, { align: 'center' })
+          
+          const productRef = item.reference || `SB${(index + 1).toString().padStart(6, '0')}`
+          doc.text(productRef, colRef + 12, yPosition + 8, { align: 'center' })
+          
+          let productName = item.name.toUpperCase()
+          if (productName.length > 35) {
+            productName = productName.substring(0, 32) + '...'
+          }
+          doc.text(productName, colDesignation + 2, yPosition + 8)
+          
+          doc.text(item.quantity.toString(), colQuantite + 9, yPosition + 8, { align: 'center' })
+          doc.text(this.formatCurrency(item.price), colPrixUnit + 11, yPosition + 8, { align: 'center' })
+          doc.text(this.formatCurrency(item.price * item.quantity), colTotal + 11, yPosition + 8, { align: 'center' })
+          
+          yPosition += rowHeight
+        })
+
+        // Lignes verticales
+        const verticalLines = [colRef - 1, colDesignation - 1, colQuantite - 1, colPrixUnit - 1, colTotal - 1]
+        verticalLines.forEach(x => {
+          doc.line(x, tableStartY, x, yPosition)
+        })
+
+        doc.setDrawColor(darkGray[0], darkGray[1], darkGray[2])
+        doc.rect(margin, tableStartY, contentWidth, yPosition - tableStartY)
+
+        yPosition += 10
+
+        // Section totaux
+        const rightSectionX = pageWidth - margin - 80
+        
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        
+        const sousTotal = orderData.total / 1.20
+        const tauxTVA = 20.00
+        const montantTVA = orderData.total - sousTotal
+        
+        doc.text('Sous total :', rightSectionX, yPosition + 8)
+        doc.text(this.formatNumber(sousTotal) + ' €', rightSectionX + 60, yPosition + 8, { align: 'right' })
+        
+        doc.text(`Taux de TVA : ${tauxTVA.toLocaleString('fr-FR')}%`, rightSectionX, yPosition + 15)
+        doc.text(this.formatNumber(montantTVA) + ' €', rightSectionX + 60, yPosition + 15, { align: 'right' })
+        
+        doc.text('Total TTC :', rightSectionX, yPosition + 22)
+        doc.text(this.formatNumber(orderData.total) + ' €', rightSectionX + 60, yPosition + 22, { align: 'right' })
+        
+        // SOMME FINALE
+        doc.setFillColor(yellowColor[0], yellowColor[1], yellowColor[2])
+        doc.rect(rightSectionX - 5, yPosition + 30, 85, 12, 'F')
+        doc.setDrawColor(darkGray[0], darkGray[1], darkGray[2])
+        doc.rect(rightSectionX - 5, yPosition + 30, 85, 12)
+        
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
+        doc.text('Somme finale à payer :', rightSectionX, yPosition + 38)
+        doc.text(this.formatNumber(orderData.total) + ' €', rightSectionX + 60, yPosition + 38, { align: 'right' })
+
+        yPosition += 60
+
+        // FOOTER
+        const footerY = pageHeight - 5
+        
+        doc.setDrawColor(yellowColor[0], yellowColor[1], yellowColor[2])
+        doc.setLineWidth(1)
+        doc.line(margin, footerY - 20, pageWidth - margin, footerY - 20)
+        
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
+        
+        const footerLine1 = 'SHOPBATI.FR - SAS au capital de 50 000€ - RCS Paris B 123 456 789'
+        doc.text(footerLine1, pageWidth/2, footerY - 14, { align: 'center' })
+        
+        const footerLine2 = 'contact@shopbati.fr • www.shopbati.fr • Tél: +33 6 52 35 40 15'
+        doc.text(footerLine2, pageWidth/2, footerY - 8, { align: 'center' })
+        
+        doc.setTextColor(100, 100, 100)
+        const footerLine3 = 'Spécialiste en matériaux de construction, bricolage, décoration et jardinage'
+        doc.text(footerLine3, pageWidth/2, footerY - 2, { align: 'center' })
+
+        // Convertir en Buffer
+        const pdfBuffer = Buffer.from(doc.output('arraybuffer'))
+        resolve(pdfBuffer)
+
+      } catch (error) {
+        reject(error)
+      }
+    })
+  }
+
   private static generateInvoiceNumber(): string {
     const date = new Date()
     const year = date.getFullYear()
@@ -421,3 +844,11 @@ export class InvoiceGenerator {
 export async function generatePDFFromOrder(orderData: OrderData): Promise<Buffer> {
   return InvoiceGenerator.generatePDFFromOrder(orderData)
 }
+
+// Nouvelle fonction pour générer facture avec QR code
+export async function generateInvoiceWithQRCode(orderData: OrderData): Promise<InvoiceWithQR> {
+  return InvoiceGenerator.generateInvoiceWithQR(orderData)
+}
+
+// Export des types
+export type { OrderData, InvoiceWithQR }

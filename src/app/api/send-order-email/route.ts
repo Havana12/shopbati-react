@@ -1,26 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { OrderData } from '@/lib/orderService'
 import { Resend } from 'resend'
-import { InvoiceGenerator } from '@/lib/invoiceGenerator'
+import { generateInvoiceWithQRCode } from '@/lib/invoiceGenerator'
 import { AppwriteService } from '@/lib/appwrite'
 
 export async function POST(request: NextRequest) {
   try {
     const orderData: OrderData = await request.json()
 
-    let pdfBuffer = null
+    // Generate invoice with QR code and upload to Appwrite
+    let invoiceResult = null
     try {
-      pdfBuffer = await InvoiceGenerator.generatePDFFromOrder(orderData)
+      console.log('🔧 Generating invoice with QR code for order:', orderData.orderId)
+      invoiceResult = await generateInvoiceWithQRCode(orderData)
+      console.log('✅ Invoice generated and uploaded to Appwrite:', {
+        fileId: invoiceResult.fileId,
+        invoiceUrl: invoiceResult.invoiceUrl
+      })
     } catch (err) {
+      console.error('❌ Error generating invoice with QR:', err)
       return NextResponse.json({ 
         success: false, 
-        message: 'Erreur génération de la facture', 
+        message: 'Erreur génération de la facture avec QR code', 
         error: String(err) 
       }, { status: 500 })
     }
 
-    // Générer le contenu de l'email
-    const emailContent = generateEmailContent(orderData)
+    const pdfBuffer = invoiceResult.pdfBuffer
+
+    // Générer le contenu de l'email avec lien vers la facture
+    const emailContent = generateEmailContent(orderData, invoiceResult.invoiceUrl, invoiceResult.qrCodeDataUrl)
 
     // Envoi avec Resend
     const resend = new Resend(process.env.RESEND_API_KEY)
@@ -178,7 +187,7 @@ async function updateOrderStatusAfterInvoice(orderId: string) {
   }
 }
 
-function generateEmailContent(orderData: OrderData): string {
+function generateEmailContent(orderData: OrderData, invoiceUrl?: string, qrCodeDataUrl?: string): string {
   const itemsHtml = orderData.items.map(item => `
     <tr style="border-bottom: 1px solid #eee;">
       <td style="padding: 12px; text-align: left;">
@@ -263,6 +272,29 @@ function generateEmailContent(orderData: OrderData): string {
               <p style="margin: 4px 0;"><strong>🧾 Facture :</strong> Voir pièce jointe PDF</p>
             </div>
           </div>
+          
+          ${invoiceUrl && qrCodeDataUrl ? `
+          <!-- Section QR Code -->
+          <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 3px solid #0ea5e9; border-radius: 12px; padding: 25px; margin-bottom: 30px; text-align: center;">
+            <h4 style="margin: 0 0 15px 0; color: #0c4a6e; font-size: 18px; font-weight: 700;">
+              📱 Accédez à votre facture depuis votre mobile !
+            </h4>
+            <div style="background: white; padding: 20px; border-radius: 10px; display: inline-block; border: 2px solid #0ea5e9; margin-bottom: 15px;">
+              <img src="${qrCodeDataUrl}" alt="QR Code Facture" style="width: 150px; height: 150px; display: block;" />
+            </div>
+            <p style="margin: 0 0 10px 0; color: #0c4a6e; font-size: 14px; font-weight: 600;">
+              Scannez ce QR code avec votre téléphone
+            </p>
+            <p style="margin: 0; color: #075985; font-size: 13px;">
+              ou <a href="${invoiceUrl}" style="color: #0ea5e9; text-decoration: none; font-weight: 700;">cliquez ici pour télécharger votre facture</a>
+            </p>
+            <div style="margin-top: 15px; padding: 12px; background: rgba(14, 165, 233, 0.1); border-radius: 8px;">
+              <p style="margin: 0; color: #0c4a6e; font-size: 12px;">
+                💡 <strong>Astuce :</strong> Gardez votre facture accessible à tout moment en scannant le QR code présent sur le PDF !
+              </p>
+            </div>
+          </div>
+          ` : ''}
           
           <!-- Prochaines étapes -->
           <div style="background: #f0fdf4; border: 2px solid #22c55e; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
