@@ -102,17 +102,6 @@ export default function ContactPage() {
                       <p className="text-sm text-gray-500">Réponse sous 24h</p>
                     </div>
                   </div>
-
-                  <div className="flex items-start space-x-4">
-                    <div className="bg-yellow-100 p-3 rounded-lg">
-                      <i className="fas fa-headset text-yellow-600"></i>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-800">Support technique</h4>
-                      <p className="text-gray-600">support@shopbati.fr</p>
-                      <p className="text-sm text-gray-500">Conseils d'experts 7j/7</p>
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -296,25 +285,6 @@ export default function ContactPage() {
                     )}
                   </button>
                 </form>
-              </div>
-            </div>
-          </div>
-
-          {/* Map Section */}
-          <div className="mt-12">
-            <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-              <div className="p-6 border-b">
-                <h3 className="text-xl font-bold text-gray-800">
-                  <i className="fas fa-map-marked-alt mr-2 text-red-600"></i>
-                  Notre emplacement
-                </h3>
-              </div>
-              <div className="h-96 bg-gray-200 flex items-center justify-center">
-                <div className="text-center text-gray-500">
-                  <i className="fas fa-map-marker-alt text-4xl mb-4"></i>
-                  <p>Carte interactive disponible</p>
-                  <p className="text-sm">123 Avenue du Bâtiment, 75001 Paris</p>
-                </div>
               </div>
             </div>
           </div>
