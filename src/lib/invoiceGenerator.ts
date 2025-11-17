@@ -435,19 +435,23 @@ export class InvoiceGenerator {
         doc.setLineWidth(1)
         doc.line(margin, footerY - 20, pageWidth - margin, footerY - 20)
         
-        doc.setFontSize(8)
+        doc.setFontSize(7)
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
         
-        const footerLine1 = 'SHOPBATI.FR - SAS au capital de 50 000€ - RCS Paris B 123 456 789'
-        doc.text(footerLine1, pageWidth/2, footerY - 14, { align: 'center' })
+        const footerLine1 = 'SHOPBATI.FR – SASU au capital de 2 000€ – RCS Nanterre 993 797 075'
+        doc.text(footerLine1, pageWidth/2, footerY - 15, { align: 'center' })
         
-        const footerLine2 = 'contact@shopbati.fr • www.shopbati.fr • Tél: +33 6 52 35 40 15'
-        doc.text(footerLine2, pageWidth/2, footerY - 8, { align: 'center' })
+        const footerLine2 = 'SIREN : 993 797 075 • TVA : FR13993797075'
+        doc.text(footerLine2, pageWidth/2, footerY - 11, { align: 'center' })
+        
+        const footerLine3 = 'contact@shopbati.fr • www.shopbati.fr • Tél : +33 6 52 35 40 15'
+        doc.text(footerLine3, pageWidth/2, footerY - 7, { align: 'center' })
         
         doc.setTextColor(100, 100, 100)
-        const footerLine3 = 'Spécialiste en matériaux de construction, bricolage, décoration et jardinage'
-        doc.text(footerLine3, pageWidth/2, footerY - 2, { align: 'center' })
+        doc.setFontSize(6.5)
+        const footerLine4 = 'Achat & vente de matériels de bâtiment – Intermédiaire en matériaux de construction'
+        doc.text(footerLine4, pageWidth/2, footerY - 2, { align: 'center' })
 
         // Convertir en Buffer
         const pdfBuffer = Buffer.from(doc.output('arraybuffer'))
@@ -812,22 +816,27 @@ export class InvoiceGenerator {
         doc.line(margin, footerY - 20, pageWidth - margin, footerY - 20)
         
         // Informations entreprise en footer
-        doc.setFontSize(8)
+        doc.setFontSize(7)
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
         
         // Première ligne - Informations légales
-        const footerLine1 = 'SHOPBATI.FR - SAS au capital de 50 000€ - RCS Paris B 123 456 789'
-        doc.text(footerLine1, pageWidth/2, footerY - 14, { align: 'center' })
+        const footerLine1 = 'SHOPBATI.FR – SASU au capital de 2 000€ – RCS Nanterre 993 797 075'
+        doc.text(footerLine1, pageWidth/2, footerY - 15, { align: 'center' })
         
-        // Deuxième ligne - Contact et website
-        const footerLine2 = 'contact@shopbati.fr • www.shopbati.fr • Tél: +33 6 52 35 40 15'
-        doc.text(footerLine2, pageWidth/2, footerY - 8, { align: 'center' })
+        // Deuxième ligne - SIREN et TVA
+        const footerLine2 = 'SIREN : 993 797 075 • TVA : FR13993797075'
+        doc.text(footerLine2, pageWidth/2, footerY - 11, { align: 'center' })
         
-        // Troisième ligne - Spécialités
+        // Troisième ligne - Contact et website
+        const footerLine3 = 'contact@shopbati.fr • www.shopbati.fr • Tél : +33 6 52 35 40 15'
+        doc.text(footerLine3, pageWidth/2, footerY - 7, { align: 'center' })
+        
+        // Quatrième ligne - Activité
         doc.setTextColor(100, 100, 100)
-        const footerLine3 = 'Spécialiste en matériaux de construction, bricolage, décoration et jardinage'
-        doc.text(footerLine3, pageWidth/2, footerY - 2, { align: 'center' })
+        doc.setFontSize(6.5)
+        const footerLine4 = 'Achat & vente de matériels de bâtiment – Intermédiaire en matériaux de construction'
+        doc.text(footerLine4, pageWidth/2, footerY - 2, { align: 'center' })
 
         // Convertir en Buffer
         const pdfBuffer = Buffer.from(doc.output('arraybuffer'))
