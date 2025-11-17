@@ -236,7 +236,7 @@ function generateEmailContent(orderData: OrderData): string {
             </p>
             <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
               <span>📧 <a href="mailto:shopbati@gmail.com" style="color: #FFD700; text-decoration: none; font-weight: 600;">shopbati@gmail.com</a></span>
-              <span>📞 <strong style="color: #FFD700;">+33 1 23 45 67 89</strong></span>
+              <span>📞 <strong style="color: #FFD700;">+33 6 52 35 40 15</strong></span>
             </div>
           </div>
         </div>

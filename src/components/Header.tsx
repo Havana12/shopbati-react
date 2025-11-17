@@ -36,8 +36,11 @@ export default function Header() {
   const [isSearching, setIsSearching] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [openCategoryDropdown, setOpenCategoryDropdown] = useState<string | null>(null)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const [visibleCategories, setVisibleCategories] = useState<number>(7)
   const userDropdownRef = useRef<HTMLDivElement>(null)
   const searchDropdownRef = useRef<HTMLDivElement>(null)
+  const moreMenuRef = useRef<HTMLDivElement>(null)
   const { state: cartState, toggleCart } = useCart()
   const { user, isAuthenticated, logout } = useAuth()
 
@@ -77,6 +80,9 @@ export default function Header() {
       }
       if (searchDropdownRef.current && !searchDropdownRef.current.contains(event.target as Node)) {
         setShowSearchResults(false)
+      }
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+        setShowMoreMenu(false)
       }
     }
 
@@ -430,8 +436,8 @@ export default function Header() {
                   ACCUEIL
                 </Link>
                 
-                {/* Dynamic Categories with Subcategory Dropdowns */}
-                {parentCategories.map((category) => {
+                {/* Dynamic Categories with Subcategory Dropdowns - Show first categories */}
+                {parentCategories.slice(0, visibleCategories).map((category) => {
                   const subcategories = getSubcategories(category.$id)
                   const hasSubcategories = subcategories.length > 0
                   
@@ -471,6 +477,57 @@ export default function Header() {
                     </div>
                   )
                 })}
+                
+                {/* More Button - Show if there are more categories */}
+                {parentCategories.length > visibleCategories && (
+                  <div className="relative" ref={moreMenuRef}>
+                    <button
+                      onClick={() => setShowMoreMenu(!showMoreMenu)}
+                      className="text-gray-700 hover:text-orange-500 hover:bg-white text-sm font-semibold transition-all duration-200 px-4 py-2 rounded flex items-center whitespace-nowrap"
+                    >
+                      <span>PLUS</span>
+                      <i className={`fas fa-chevron-${showMoreMenu ? 'up' : 'down'} ml-1.5 text-xs`}></i>
+                    </button>
+                    
+                    {/* More Categories Dropdown */}
+                    {showMoreMenu && (
+                      <div className="absolute top-full right-0 pt-2 z-[9999]">
+                        <div className="bg-white rounded-md shadow-2xl border-2 border-orange-400 min-w-[240px] py-2 max-h-[400px] overflow-y-auto">
+                          {parentCategories.slice(visibleCategories).map((category) => {
+                            const subcategories = getSubcategories(category.$id)
+                            const hasSubcategories = subcategories.length > 0
+                            
+                            return (
+                              <div key={category.$id}>
+                                <Link
+                                  href={`/categories/${category.slug}`}
+                                  className="block px-5 py-3 text-sm text-gray-700 hover:bg-orange-500 hover:text-white transition-colors font-medium border-b border-gray-100"
+                                  onClick={() => setShowMoreMenu(false)}
+                                >
+                                  {category.name.toUpperCase()}
+                                </Link>
+                                {hasSubcategories && (
+                                  <div className="pl-4 bg-gray-50">
+                                    {subcategories.map((subcategory) => (
+                                      <Link
+                                        key={subcategory.$id}
+                                        href={`/categories/${subcategory.slug}`}
+                                        className="block px-5 py-2 text-xs text-gray-600 hover:bg-orange-100 hover:text-orange-700 transition-colors border-b border-gray-100 last:border-b-0"
+                                        onClick={() => setShowMoreMenu(false)}
+                                      >
+                                        → {subcategory.name}
+                                      </Link>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

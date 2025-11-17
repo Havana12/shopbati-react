@@ -15,6 +15,7 @@ interface Category {
   status: string
   sort_order?: number
   product_count?: number
+  parent_id?: string
 }
 
 const fallbackCategories: Category[] = [
@@ -50,9 +51,54 @@ export default function CategoriesPage() {
       ])
       
       if (result.documents && result.documents.length > 0) {
-        setCategories(result.documents as unknown as Category[])
+        // Filter to show only parent categories (no parent_id or parent_id is null)
+        const allCategories = result.documents as unknown as Category[]
+        const parentCategories = allCategories.filter(cat => !cat.parent_id)
+        
+        // Count products for each parent category (including subcategories)
+        const categoriesWithCount = await Promise.all(
+          parentCategories.map(async (category) => {
+            try {
+              // Get subcategories of this parent
+              const subcategories = allCategories.filter(cat => cat.parent_id === category.$id)
+              const subcategoryIds = subcategories.map(sub => sub.$id)
+              
+              // Count products in parent category
+              const parentProducts = await appwrite.getProducts([
+                appwrite.Query.equal('category_id', category.$id),
+                appwrite.Query.equal('status', 'active'),
+                appwrite.Query.limit(1)
+              ])
+              
+              let totalCount = parentProducts.total || 0
+              
+              // Count products in each subcategory
+              for (const subId of subcategoryIds) {
+                const subProducts = await appwrite.getProducts([
+                  appwrite.Query.equal('category_id', subId),
+                  appwrite.Query.equal('status', 'active'),
+                  appwrite.Query.limit(1)
+                ])
+                totalCount += subProducts.total || 0
+              }
+              
+              return {
+                ...category,
+                product_count: totalCount
+              }
+            } catch (error) {
+              console.error(`Error counting products for category ${category.name}:`, error)
+              return {
+                ...category,
+                product_count: 0
+              }
+            }
+          })
+        )
+        
+        setCategories(categoriesWithCount)
         setIsFromDatabase(true)
-        console.log('✅ Categories loaded from Appwrite database:', result.documents.length)
+        console.log('✅ Parent categories loaded from Appwrite database:', categoriesWithCount.length)
       } else {
         setCategories(fallbackCategories)
         setIsFromDatabase(false)

@@ -222,9 +222,9 @@ export class InvoiceGenerator {
 
         doc.setFontSize(9)
         doc.setFont('helvetica', 'normal')
-        doc.text('123 Rue du Bâtiment', margin + 3, yPosition + 15)
-        doc.text('75001 PARIS FRANCE', margin + 3, yPosition + 20)
-        doc.text('Tél : 01 23 45 67 89', margin + 3, yPosition + 25)
+        doc.text('6 Rue des Bateliers - Bureau 3', margin + 3, yPosition + 15)
+        doc.text('92110 CLICHY FRANCE', margin + 3, yPosition + 20)
+        doc.text('Tél : +33 6 52 35 40 15', margin + 3, yPosition + 25)
         doc.text('Email: contact@shopbati.fr', margin + 3, yPosition + 30)
 
         // Colonne droite - Client
@@ -398,7 +398,7 @@ export class InvoiceGenerator {
         doc.text(footerLine1, pageWidth/2, footerY - 14, { align: 'center' })
         
         // Deuxième ligne - Contact et website
-        const footerLine2 = 'contact@shopbati.fr • www.shopbati.fr • Tél: 01 23 45 67 89'
+        const footerLine2 = 'contact@shopbati.fr • www.shopbati.fr • Tél: +33 6 52 35 40 15'
         doc.text(footerLine2, pageWidth/2, footerY - 8, { align: 'center' })
         
         // Troisième ligne - Spécialités

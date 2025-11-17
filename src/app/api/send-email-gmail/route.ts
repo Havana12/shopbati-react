@@ -249,7 +249,7 @@ function generateEmailContent(orderData: OrderData): string {
             </p>
             <p style="margin: 0;">
               📧 <a href="mailto:contact@shopbati.com" style="color: #f97316; text-decoration: none;">contact@shopbati.com</a>
-              | 📞 <span style="color: #f97316;">01 23 45 67 89</span>
+              | 📞 <span style="color: #f97316;">+33 6 52 35 40 15</span>
             </p>
           </div>
         </div>

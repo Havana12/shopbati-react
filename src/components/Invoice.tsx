@@ -64,7 +64,7 @@ const Invoice = forwardRef<HTMLDivElement, InvoiceProps>(({ data, className = ''
           <div className="text-sm text-gray-600 space-y-1">
             <p>123 Rue du Bâtiment</p>
             <p>75001 Paris, France</p>
-            <p>📞 +33 1 23 45 67 89</p>
+            <p>📞 +33 6 52 35 40 15</p>
             <p>✉️ shopbati@gmail.com</p>
           </div>
         </div>
@@ -202,7 +202,7 @@ const Invoice = forwardRef<HTMLDivElement, InvoiceProps>(({ data, className = ''
         
         <div className="text-center mt-4 pt-2 border-t border-gray-200">
           <p className="text-xs text-gray-500">
-            SHOPBATI - Plateforme du bâtiment | shopbati@gmail.com | +33 1 23 45 67 89
+            SHOPBATI - Plateforme du bâtiment | shopbati@gmail.com | +33 6 52 35 40 15
           </p>
         </div>
       </div>

@@ -627,7 +627,7 @@ export default function CheckoutPage() {
                           value={orderData.customerInfo.phone}
                           onChange={(e) => handleInputChange('customerInfo', 'phone', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                          placeholder="+33 1 23 45 67 89"
+                          placeholder="+33 6 52 35 40 15"
                         />
                       </div>
                     </div>

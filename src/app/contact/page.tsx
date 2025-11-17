@@ -76,8 +76,8 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-gray-800">Adresse</h4>
-                      <p className="text-gray-600">123 Avenue du Bâtiment</p>
-                      <p className="text-gray-600">75001 Paris, France</p>
+                      <p className="text-gray-600">6 Rue des Bateliers - Bureau 3</p>
+                      <p className="text-gray-600">92110 Clichy, France</p>
                     </div>
                   </div>
 
@@ -87,7 +87,7 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <h4 className="font-semibold text-gray-800">Téléphone</h4>
-                      <p className="text-gray-600">+33 1 23 45 67 89</p>
+                      <p className="text-gray-600">+33 6 52 35 40 15</p>
                       <p className="text-sm text-gray-500">Lun-Ven: 8h-18h, Sam: 9h-17h</p>
                     </div>
                   </div>
@@ -222,7 +222,7 @@ export default function ContactPage() {
                         value={formData.phone}
                         onChange={handleInputChange}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-                        placeholder="+33 1 23 45 67 89"
+                        placeholder="+33 6 52 35 40 15"
                       />
                     </div>
                     

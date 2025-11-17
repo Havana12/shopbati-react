@@ -606,15 +606,8 @@ export default function HomePage() {
           
           <div className="flex flex-col sm:flex-row gap-6 justify-center">
             <Link 
-              href="/register" 
-              className="inline-flex items-center px-8 py-4 rounded-xl bg-white text-brand-600 font-semibold hover:bg-neutral-100 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
-            >
-              <span className="mr-2">🎉</span>
-              Inscription Gratuite
-            </Link>
-            <Link 
               href="/contact" 
-              className="inline-flex items-center px-8 py-4 rounded-xl bg-transparent text-white font-semibold border-2 border-white/30 hover:bg-white/10 backdrop-blur-sm transition-all duration-200"
+              className="inline-flex items-center px-8 py-4 rounded-xl bg-white text-brand-600 font-semibold hover:bg-neutral-100 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
             >
               <span className="mr-2">📋</span>
               Demander un Devis
@@ -622,7 +615,7 @@ export default function HomePage() {
           </div>
           
           {/* Statistiques */}
-          <div className="grid md:grid-cols-3 gap-8 mt-16 pt-12 border-t border-white/20">
+          <div className="grid md:grid-cols-2 gap-8 mt-16 pt-12 border-t border-white/20">
             <div className="text-center">
               <div className="text-3xl lg:text-4xl font-bold text-white mb-2">10,000+</div>
               <div className="text-white/80">Clients Satisfaits</div>
@@ -630,10 +623,6 @@ export default function HomePage() {
             <div className="text-center">
               <div className="text-3xl lg:text-4xl font-bold text-white mb-2">50,000+</div>
               <div className="text-white/80">Produits Disponibles</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl lg:text-4xl font-bold text-white mb-2">24h</div>
-              <div className="text-white/80">Livraison Express</div>
             </div>
           </div>
         </div>
