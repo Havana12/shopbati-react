@@ -299,6 +299,11 @@ export class InvoiceGenerator {
         doc.setFont('helvetica', 'normal')
         
         // Get customer address - prioritize customerInfo, then shippingAddress
+        console.log('📍 Address data in invoice:', {
+          customerInfo: orderData.customerInfo,
+          shippingAddress: orderData.shippingAddress
+        })
+        
         if (orderData.customerInfo?.address && orderData.customerInfo?.city) {
           doc.text(orderData.customerInfo.address, rightColX + 3, yPosition + 15)
           doc.text(`${orderData.customerInfo.postalCode} ${orderData.customerInfo.city}`, rightColX + 3, yPosition + 20)
@@ -507,10 +512,13 @@ export class InvoiceGenerator {
   }
 
   private static formatNumber(amount: number): string {
-    return new Intl.NumberFormat('fr-FR', {
+    // Format number with French locale, replacing non-breaking spaces with regular spaces
+    const formatted = new Intl.NumberFormat('fr-FR', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(amount)
+    // Replace non-breaking space (U+00A0) with regular space for PDF rendering
+    return formatted.replace(/\u00A0/g, ' ')
   }
 
   private static formatDate(dateString: string): string {

@@ -214,6 +214,12 @@ export default function AdminOrdersPage() {
       // Try to fetch customer info from users collection if user_id exists
       let customerInfo = null
       const orderDoc = order as any
+      
+      console.log('📋 Order data:', { 
+        user_id: orderDoc.user_id, 
+        shipping_address: order.shipping_address 
+      })
+      
       if (orderDoc.user_id) {
         try {
           const appwrite = AppwriteService.getInstance()
@@ -222,6 +228,7 @@ export default function AdminOrdersPage() {
             'users',
             orderDoc.user_id
           )
+          console.log('👤 User doc fetched:', userDoc)
           customerInfo = {
             accountType: userDoc.account_type || 'individual',
             firstName: userDoc.first_name || '',
@@ -235,8 +242,9 @@ export default function AdminOrdersPage() {
             postalCode: userDoc.postalCode || '',
             country: userDoc.country || 'France'
           }
+          console.log('✅ Customer info built:', customerInfo)
         } catch (err) {
-          console.log('Could not fetch user details, using order data only')
+          console.log('⚠️ Could not fetch user details:', err)
         }
       }
       
