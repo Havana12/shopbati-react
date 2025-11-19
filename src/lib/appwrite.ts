@@ -662,6 +662,22 @@ export class AppwriteService {
         code: error.code,
         type: error.type
       })
+      // If a session already exists on the client, remove it and retry once.
+      // This can happen when cookies persist across domains or during SPA flows.
+      if (error.message && error.message.includes('user_session_already_exists')) {
+        try {
+          await this.account.deleteSession('current')
+        } catch (deleteErr) {
+          console.warn('⚠️ Failed to delete existing session before retry:', deleteErr)
+        }
+        try {
+          const retrySession = await this.account.createEmailPasswordSession(email, password)
+          return retrySession
+        } catch (retryErr: any) {
+          console.error('❌ Retry login failed:', retryErr)
+          // fall through to standard error handling below
+        }
+      }
       
       // Check for rate limiting first
       if (error.code === 429 || error.message?.includes('Too many requests') || error.message?.includes('Rate limit')) {
