@@ -271,7 +271,7 @@ export class InvoiceGenerator {
 
         doc.setFontSize(9)
         doc.setFont('helvetica', 'normal')
-        doc.text('6 Rue des Bateliers - Bureau 3', margin + 3, yPosition + 15)
+        doc.text('6 Rue des Bateliers', margin + 3, yPosition + 15)
         doc.text('92110 CLICHY FRANCE', margin + 3, yPosition + 20)
         doc.text('Tél : +33 6 52 35 40 15', margin + 3, yPosition + 25)
         doc.text('Email: contact@shopbati.fr', margin + 3, yPosition + 30)
@@ -281,7 +281,16 @@ export class InvoiceGenerator {
         doc.setDrawColor(100, 100, 100)
         doc.rect(rightColX, yPosition, rightColWidth, infoHeight)
 
-        const customerName = orderData.customerName || 'Client'
+        // Get customer name - prioritize customerInfo fields, then customerName
+        let customerName = 'Client'
+        if (orderData.customerInfo?.accountType === 'professional' && orderData.customerInfo.raisonSociale) {
+          customerName = orderData.customerInfo.raisonSociale
+        } else if (orderData.customerInfo?.firstName && orderData.customerInfo?.lastName) {
+          customerName = `${orderData.customerInfo.firstName} ${orderData.customerInfo.lastName}`
+        } else if (orderData.customerName) {
+          customerName = orderData.customerName
+        }
+        
         doc.setFontSize(12)
         doc.setFont('helvetica', 'bold')
         doc.text(customerName, rightColX + 3, yPosition + 8)
@@ -289,13 +298,17 @@ export class InvoiceGenerator {
         doc.setFontSize(9)
         doc.setFont('helvetica', 'normal')
         
-        if (orderData.shippingAddress && orderData.shippingAddress.street) {
+        // Get customer address - prioritize customerInfo, then shippingAddress
+        if (orderData.customerInfo?.address && orderData.customerInfo?.city) {
+          doc.text(orderData.customerInfo.address, rightColX + 3, yPosition + 15)
+          doc.text(`${orderData.customerInfo.postalCode} ${orderData.customerInfo.city}`, rightColX + 3, yPosition + 20)
+          doc.text(orderData.customerInfo.country || 'France', rightColX + 3, yPosition + 25)
+        } else if (orderData.shippingAddress && orderData.shippingAddress.street) {
           doc.text(orderData.shippingAddress.street, rightColX + 3, yPosition + 15)
           doc.text(`${orderData.shippingAddress.postalCode} ${orderData.shippingAddress.city}`, rightColX + 3, yPosition + 20)
           doc.text(orderData.shippingAddress.country || 'France', rightColX + 3, yPosition + 25)
         } else {
-          doc.text('9 Rue Parrot', rightColX + 3, yPosition + 15)
-          doc.text('75012 Paris', rightColX + 3, yPosition + 20)
+          doc.text('Adresse non fournie', rightColX + 3, yPosition + 15)
         }
         
         const isProfessional = orderData.isProfessional || orderData.customerInfo?.accountType === 'professional'
@@ -629,7 +642,7 @@ export class InvoiceGenerator {
 
         doc.setFontSize(9)
         doc.setFont('helvetica', 'normal')
-        doc.text('6 Rue des Bateliers - Bureau 3', margin + 3, yPosition + 15)
+        doc.text('6 Rue des Bateliers', margin + 3, yPosition + 15)
         doc.text('92110 CLICHY FRANCE', margin + 3, yPosition + 20)
         doc.text('Tél : +33 6 52 35 40 15', margin + 3, yPosition + 25)
         doc.text('Email: contact@shopbati.fr', margin + 3, yPosition + 30)
@@ -639,7 +652,16 @@ export class InvoiceGenerator {
         doc.setDrawColor(100, 100, 100)
         doc.rect(rightColX, yPosition, rightColWidth, infoHeight)
 
-        const customerName = orderData.customerName || 'Client'
+        // Get customer name - prioritize customerInfo fields, then customerName
+        let customerName = 'Client'
+        if (orderData.customerInfo?.accountType === 'professional' && orderData.customerInfo.raisonSociale) {
+          customerName = orderData.customerInfo.raisonSociale
+        } else if (orderData.customerInfo?.firstName && orderData.customerInfo?.lastName) {
+          customerName = `${orderData.customerInfo.firstName} ${orderData.customerInfo.lastName}`
+        } else if (orderData.customerName) {
+          customerName = orderData.customerName
+        }
+        
         doc.setFontSize(12)
         doc.setFont('helvetica', 'bold')
         doc.text(customerName, rightColX + 3, yPosition + 8)
@@ -647,13 +669,17 @@ export class InvoiceGenerator {
         doc.setFontSize(9)
         doc.setFont('helvetica', 'normal')
         
-        if (orderData.shippingAddress && orderData.shippingAddress.street) {
+        // Get customer address - prioritize customerInfo, then shippingAddress
+        if (orderData.customerInfo?.address && orderData.customerInfo?.city) {
+          doc.text(orderData.customerInfo.address, rightColX + 3, yPosition + 15)
+          doc.text(`${orderData.customerInfo.postalCode} ${orderData.customerInfo.city}`, rightColX + 3, yPosition + 20)
+          doc.text(orderData.customerInfo.country || 'France', rightColX + 3, yPosition + 25)
+        } else if (orderData.shippingAddress && orderData.shippingAddress.street) {
           doc.text(orderData.shippingAddress.street, rightColX + 3, yPosition + 15)
           doc.text(`${orderData.shippingAddress.postalCode} ${orderData.shippingAddress.city}`, rightColX + 3, yPosition + 20)
           doc.text(orderData.shippingAddress.country || 'France', rightColX + 3, yPosition + 25)
         } else {
-          doc.text('9 Rue Parrot', rightColX + 3, yPosition + 15)
-          doc.text('75012 Paris', rightColX + 3, yPosition + 20)
+          doc.text('Adresse non fournie', rightColX + 3, yPosition + 15)
         }
         
         // SIRET uniquement pour les factures professionnelles

@@ -211,6 +211,35 @@ export default function AdminOrdersPage() {
     }
     
     try {
+      // Try to fetch customer info from users collection if user_id exists
+      let customerInfo = null
+      const orderDoc = order as any
+      if (orderDoc.user_id) {
+        try {
+          const appwrite = AppwriteService.getInstance()
+          const userDoc = await appwrite.databases.getDocument(
+            process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+            'users',
+            orderDoc.user_id
+          )
+          customerInfo = {
+            accountType: userDoc.account_type || 'individual',
+            firstName: userDoc.first_name || '',
+            lastName: userDoc.last_name || '',
+            raisonSociale: userDoc.raison_sociale || '',
+            siret: userDoc.siret || '',
+            tvaNumber: userDoc.tva_number || '',
+            phone: userDoc.phone || '',
+            address: userDoc.address || '',
+            city: userDoc.city || '',
+            postalCode: userDoc.postalCode || '',
+            country: userDoc.country || 'France'
+          }
+        } catch (err) {
+          console.log('Could not fetch user details, using order data only')
+        }
+      }
+      
       const response = await fetch('/api/send-invoice-after-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -223,7 +252,8 @@ export default function AdminOrdersPage() {
           total: order.total_amount,
           shippingAddress: typeof order.shipping_address === 'string' 
             ? (order.shipping_address.startsWith('{') ? JSON.parse(order.shipping_address) : { street: order.shipping_address })
-            : order.shipping_address
+            : order.shipping_address,
+          customerInfo: customerInfo
         })
       })
       
