@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { AppwriteService } from '@/lib/appwrite'
 import { Resend } from 'resend'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * API Cron Job pour envoyer automatiquement les emails d'expédition
  * Après 3 jours pour les commandes payées

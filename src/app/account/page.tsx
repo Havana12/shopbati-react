@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { AppwriteService } from '@/lib/appwrite'
@@ -16,7 +16,7 @@ interface Order {
   shipping_address: any
 }
 
-export default function AccountPage() {
+function AccountContent() {
   const { user, loading, logout, isAuthenticated } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -340,5 +340,17 @@ export default function AccountPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function AccountPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-500"></div>
+      </div>
+    }>
+      <AccountContent />
+    </Suspense>
   )
 }
