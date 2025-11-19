@@ -26,18 +26,35 @@ export default function ContactPage() {
     e.preventDefault()
     setIsSubmitting(true)
 
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    alert('Merci pour votre message ! Nous vous répondrons dans les plus brefs délais.')
-    setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      subject: '',
-      message: ''
-    })
-    setIsSubmitting(false)
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        alert('✅ Merci pour votre message ! Nous vous répondrons dans les plus brefs délais.\n\nUn email de confirmation vous a été envoyé.')
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          subject: '',
+          message: ''
+        })
+      } else {
+        alert('❌ Erreur lors de l\'envoi : ' + (result.message || 'Veuillez réessayer'))
+      }
+    } catch (error) {
+      console.error('Error sending message:', error)
+      alert('❌ Erreur lors de l\'envoi du message. Veuillez réessayer.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (

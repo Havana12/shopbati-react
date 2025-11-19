@@ -11,12 +11,7 @@ export async function POST(request: NextRequest) {
     // Generate invoice with QR code and upload to Appwrite
     let invoiceResult = null
     try {
-      console.log('🔧 Generating invoice with QR code for order:', orderData.orderId)
       invoiceResult = await generateInvoiceWithQRCode(orderData)
-      console.log('✅ Invoice generated and uploaded to Appwrite:', {
-        fileId: invoiceResult.fileId,
-        invoiceUrl: invoiceResult.invoiceUrl
-      })
     } catch (err) {
       console.error('❌ Error generating invoice with QR:', err)
       return NextResponse.json({ 
@@ -37,19 +32,39 @@ export async function POST(request: NextRequest) {
     let emailToSend = orderData.customerEmail // Utiliser l'email du client
     let emailSubject = `🧾 Facture SHOPBATI - Commande ${orderData.orderId}`
     
+    // Convert QR code data URL to buffer for email attachment
+    let qrCodeBuffer: Buffer | undefined
+    if (invoiceResult.qrCodeDataUrl) {
+      const base64Data = invoiceResult.qrCodeDataUrl.replace(/^data:image\/png;base64,/, '')
+      qrCodeBuffer = Buffer.from(base64Data, 'base64')
+    }
+    
     try {
+      const attachments: any[] = [
+        {
+          filename: `Facture-SHOPBATI-${orderData.orderId}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf',
+        }
+      ]
+      
+      // Add QR code as inline attachment with CID
+      if (qrCodeBuffer) {
+        attachments.push({
+          filename: 'qrcode.png',
+          content: qrCodeBuffer,
+          contentType: 'image/png',
+          disposition: 'inline',
+          content_id: 'qrcode'
+        })
+      }
+      
       const { error, data } = await resend.emails.send({
-        from: 'onboarding@resend.dev',
+        from: 'SHOPBATI <contact@shopbati.fr>',
         to: [emailToSend],
         subject: emailSubject,
         html: emailContent,
-        attachments: [
-          {
-            filename: `Facture-SHOPBATI-${orderData.orderId}.pdf`,
-            content: pdfBuffer,
-            contentType: 'application/pdf',
-          },
-        ],
+        attachments: attachments,
       })
       
       if (error) {
@@ -58,7 +73,7 @@ export async function POST(request: NextRequest) {
         const errorStr = JSON.stringify(error)
         if (errorStr.includes('403') || errorStr.includes('You can only send testing emails')) {
           
-          const testEmail = orderData.customerEmail // Utiliser l'email du client même en mode test
+          const testEmail = orderData.customerEmail // Email du client
           const testContent = emailContent + `
             <div style="margin-top: 30px; padding: 20px; background-color: #fef3c7; border: 2px solid #fbbf24; border-radius: 8px;">
               <h4 style="margin: 0 0 10px 0; color: #92400e;">🧪 MODE TEST RESEND</h4>
@@ -72,17 +87,11 @@ export async function POST(request: NextRequest) {
           `
           
           const { error: testError, data: testData } = await resend.emails.send({
-            from: 'SHOPBATI <onboarding@resend.dev>',
+            from: 'SHOPBATI <contact@shopbati.fr>',
             to: [testEmail],
             subject: `🧪 [TEST] Facture pour ${orderData.customerEmail} - ${orderData.orderId}`,
             html: testContent,
-            attachments: [
-              {
-                filename: `Facture-SHOPBATI-${orderData.orderId}.pdf`,
-                content: pdfBuffer,
-                contentType: 'application/pdf',
-              },
-            ],
+            attachments: attachments,
           })
           
           if (testError) {
@@ -94,7 +103,6 @@ export async function POST(request: NextRequest) {
           }
           
           // Mettre à jour le statut de la commande après envoi réussi de la facture
-          console.log(`📧 Test email sent successfully to ${testEmail}, updating order status...`)
           await updateOrderStatusAfterInvoice(orderData.orderId)
           
           return NextResponse.json({ 
@@ -114,7 +122,6 @@ export async function POST(request: NextRequest) {
       }
       
       // Mettre à jour le statut de la commande après envoi réussi de la facture
-      console.log(`📧 Email sent successfully to ${orderData.customerEmail}, updating order status...`)
       await updateOrderStatusAfterInvoice(orderData.orderId)
       
       return NextResponse.json({ 
@@ -142,7 +149,6 @@ export async function POST(request: NextRequest) {
 // Fonction pour mettre à jour le statut de la commande après envoi de la facture
 async function updateOrderStatusAfterInvoice(orderId: string) {
   try {
-    console.log(`🔍 Searching for order with ID: ${orderId}`)
     const appwrite = AppwriteService.getInstance()
     
     // Chercher la commande par order_number
@@ -152,11 +158,8 @@ async function updateOrderStatusAfterInvoice(orderId: string) {
       [appwrite.Query.equal('order_number', orderId)]
     )
     
-    console.log(`📊 Found ${result.documents.length} orders matching ID: ${orderId}`)
-    
     if (result.documents.length > 0) {
       const order = result.documents[0]
-      console.log(`📋 Order found: ${order.$id}, current status: ${order.status}, payment_status: ${order.payment_status}`)
       
       // Mettre à jour: status = "livré" et payment_status = "payé"
       const updateData = {
@@ -166,8 +169,6 @@ async function updateOrderStatusAfterInvoice(orderId: string) {
         invoice_sent_at: new Date().toISOString()
       }
       
-      console.log('🔄 Updating order with data:', updateData)
-      
       await appwrite.databases.updateDocument(
         process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
         'orders',
@@ -175,10 +176,8 @@ async function updateOrderStatusAfterInvoice(orderId: string) {
         updateData
       )
       
-      console.log(`✅ Commande ${orderId} mise à jour: status=livré, payment_status=payé`)
       return { success: true }
     } else {
-      console.warn(`⚠️ Commande ${orderId} non trouvée pour mise à jour du statut`)
       return { success: false, error: 'Order not found' }
     }
   } catch (error) {
@@ -280,7 +279,7 @@ function generateEmailContent(orderData: OrderData, invoiceUrl?: string, qrCodeD
               📱 Accédez à votre facture depuis votre mobile !
             </h4>
             <div style="background: white; padding: 20px; border-radius: 10px; display: inline-block; border: 2px solid #0ea5e9; margin-bottom: 15px;">
-              <img src="${qrCodeDataUrl}" alt="QR Code Facture" style="width: 150px; height: 150px; display: block;" />
+              <img src="cid:qrcode" alt="QR Code Facture" style="width: 150px; height: 150px; display: block;" />
             </div>
             <p style="margin: 0 0 10px 0; color: #0c4a6e; font-size: 14px; font-weight: 600;">
               Scannez ce QR code avec votre téléphone

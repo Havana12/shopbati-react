@@ -506,7 +506,6 @@ export class AppwriteService {
 
   async createCustomer(customerData: any) {
     try {
-      console.log('Creating customer in database with data:', customerData)
       return await this.databases.createDocument(
         process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
         'users',
@@ -582,14 +581,23 @@ export class AppwriteService {
 
   async createOrder(orderData: any) {
     try {
+      console.log('📝 Attempting to create order with data:', JSON.stringify(orderData, null, 2))
       // Try "orders" first
-      return await this.databases.createDocument(
+      const result = await this.databases.createDocument(
         process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
         'orders',
         'unique()',
         orderData
       )
-    } catch (error) {
+      console.log('✅ Order created successfully:', result.$id)
+      return result
+    } catch (error: any) {
+      console.error('❌ Error creating order in "orders" collection:', {
+        message: error.message,
+        code: error.code,
+        type: error.type,
+        response: error.response
+      })
       // Fallback to "ordres" collection
       try {
         return await this.databases.createDocument(
@@ -598,8 +606,13 @@ export class AppwriteService {
           'unique()',
           orderData
         )
-      } catch (ordresError) {
-        console.error('Error creating order/ordre:', ordresError)
+      } catch (ordresError: any) {
+        console.error('❌ Error creating order in "ordres" collection:', {
+          message: ordresError.message,
+          code: ordresError.code,
+          type: ordresError.type,
+          response: ordresError.response
+        })
         throw ordresError
       }
     }
@@ -641,71 +654,57 @@ export class AppwriteService {
 
   async login(email: string, password: string) {
     try {
-      console.log(`🔑 Tentative de connexion pour: ${email}`)
-      
-      // First, check if there might be rate limiting issues
-      const connectivityTest = await this.testConnectivity()
-      if (!connectivityTest.success && connectivityTest.isRateLimit) {
-        throw new Error('Trop de tentatives de connexion. Veuillez attendre quelques minutes avant de réessayer.')
-      }
-      
       const session = await this.account.createEmailPasswordSession(email, password)
-      console.log('✅ Connexion réussie')
       return session
     } catch (error: any) {
       console.error('❌ Erreur de connexion:', {
         message: error.message,
         code: error.code,
-        type: error.type,
-        response: error.response
+        type: error.type
       })
       
-      // Debug the user status to provide better error messages
-      try {
-        const userStatus = await this.debugUserStatus(email)
-        console.log('🔍 Statut utilisateur lors de l\'erreur de connexion:', userStatus)
-        
-        if (!userStatus.authExists && userStatus.dbExists) {
-          // User exists in DB but not in Auth - this is the common issue
-          console.log('🚨 PROBLÈME IDENTIFIÉ: Utilisateur existe en DB mais pas en Auth')
-          throw new Error('Votre compte existe dans notre base de données mais n\'est pas configuré pour l\'authentification. Veuillez contacter le support ou essayer de créer un nouveau compte.')
-        } else if (!userStatus.authExists && !userStatus.dbExists) {
-          // User doesn't exist anywhere
-          console.log('🚨 PROBLÈME IDENTIFIÉ: Utilisateur n\'existe nulle part')
-          throw new Error('Aucun compte trouvé avec cette adresse email. Veuillez créer un compte.')
-        } else if (userStatus.authExists && userStatus.dbExists) {
-          // User exists in both systems but password mismatch - likely Auth has no password set
-          console.log('🚨 PROBLÈME IDENTIFIÉ: Utilisateur existe dans les deux systèmes, Auth sans mot de passe')
-          throw new Error('SYNC_PASSWORD_REQUIRED:' + email + ':' + password)
-        } else if (userStatus.authExists) {
-          // User exists in Auth only, standard password issue
-          console.log('🚨 PROBLÈME IDENTIFIÉ: Utilisateur existe en Auth uniquement, problème de mot de passe')
-          throw new Error('Mot de passe incorrect. Vérifiez votre mot de passe.')
-        }
-      } catch (debugError) {
-        console.error('❌ Erreur lors du debug:', debugError)
+      // Check for rate limiting first
+      if (error.code === 429 || error.message?.includes('Too many requests') || error.message?.includes('Rate limit')) {
+        throw new Error('Trop de tentatives de connexion. Veuillez attendre 5-10 minutes avant de réessayer.')
       }
       
-      // Provide more specific error messages based on the original error
-      if (error.message && (
-        error.message.includes('Invalid credentials') ||
-        error.message.includes('Invalid email or password') ||
-        error.message.includes('user_invalid_credentials')
-      )) {
+      // Standard error message for invalid credentials
+      if (error.code === 401) {
         throw new Error('Email ou mot de passe incorrect. Vérifiez vos identifiants.')
-      } else if (error.message && error.message.includes('user_not_found')) {
-        throw new Error('Aucun compte trouvé avec cette adresse email.')
-      } else if (error.message && error.message.includes('user_blocked')) {
-        throw new Error('Ce compte a été bloqué.')
-      } else if (error.message && (
-        error.message.includes('Rate limit') ||
-        error.message.includes('rate limit') ||
-        error.message.includes('Too many requests')
-      )) {
-        throw new Error('Trop de tentatives de connexion. Veuillez attendre quelques minutes avant de réessayer.')
-      } else {
-        throw new Error(`Erreur de connexion: ${error.message}`)
       }
+      
+      // Other error types
+      if (error.message?.includes('user_not_found')) {
+        throw new Error('Aucun compte trouvé avec cette adresse email.')
+      } else if (error.message?.includes('user_blocked')) {
+        throw new Error('Ce compte a été bloqué.')
+      } else {
+        throw new Error('Erreur de connexion. Veuillez réessayer.')
+      }
+    }
+  }
+
+  // Send verification email
+  async sendVerificationEmail() {
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+      const verificationUrl = `${baseUrl}/verify-email`
+      await this.account.createVerification(verificationUrl)
+      return true
+    } catch (error) {
+      console.error('❌ Erreur envoi email vérification:', error)
+      throw error
+    }
+  }
+
+  // Verify email with token
+  async verifyEmail(userId: string, secret: string) {
+    try {
+      await this.account.updateVerification(userId, secret)
+      return true
+    } catch (error) {
+      console.error('❌ Erreur vérification email:', error)
+      throw error
     }
   }
 
@@ -719,9 +718,7 @@ export class AppwriteService {
   // Password recovery helper
   async initiatePasswordRecovery(email: string, resetUrl: string = 'http://localhost:3000/reset-password') {
     try {
-      console.log(`🔧 Initiation récupération mot de passe pour: ${email}`)
       const recovery = await this.account.createRecovery(email, resetUrl)
-      console.log('✅ Email de récupération envoyé')
       return recovery
     } catch (error) {
       console.error('❌ Erreur récupération mot de passe:', error)
@@ -732,7 +729,6 @@ export class AppwriteService {
   // Sync database user password to Auth system
   async syncDbPasswordToAuth(email: string, newPassword: string) {
     try {
-      console.log(`🔧 Synchronisation mot de passe DB vers Auth pour: ${email}`)
       
       // First get the DB user
       const dbUsers = await this.databases.listDocuments(
@@ -752,11 +748,9 @@ export class AppwriteService {
       try {
         const userId = this.generateUserId()
         const authUser = await this.account.create(userId, email, newPassword, fullName)
-        console.log('✅ Nouvel utilisateur Auth créé avec mot de passe:', authUser.$id)
         
         // Try to login immediately
         await this.account.createEmailPasswordSession(email, newPassword)
-        console.log('✅ Connexion automatique réussie')
         
         return {
           success: true,
@@ -764,16 +758,13 @@ export class AppwriteService {
           authUser
         }
       } catch (authError: any) {
-        console.log('⚠️ Erreur création Auth user:', authError)
         
         if (authError.message && authError.message.includes('user with the same id, email, or phone already exists')) {
           // User exists in Auth but might not have password set, let's try password recovery approach
-          console.log('🔧 Utilisateur Auth existe, tentative de mise à jour du mot de passe...')
           
           try {
             // Use password recovery to set a new password
             const recovery = await this.account.createRecovery(email, 'http://localhost:3000/password-updated')
-            console.log('✅ Email de récupération initié pour mise à jour du mot de passe')
             
             return {
               success: false,
@@ -799,7 +790,6 @@ export class AppwriteService {
   // Direct password sync without rate limit issues
   async directPasswordSync(email: string, password: string) {
     try {
-      console.log(`🔧 Synchronisation directe du mot de passe pour: ${email}`)
       
       // Get DB user details first
       const dbUsers = await this.databases.listDocuments(
@@ -820,7 +810,6 @@ export class AppwriteService {
       
       try {
         const authUser = await this.account.create(userId, email, password, fullName)
-        console.log('✅ Utilisateur Auth créé avec succès:', authUser.$id)
         return {
           success: true,
           authUser,
@@ -828,7 +817,6 @@ export class AppwriteService {
         }
       } catch (createError: any) {
         if (createError.message && createError.message.includes('user with the same id, email, or phone already exists')) {
-          console.log('⚠️ Utilisateur Auth existe déjà, cela devrait résoudre le problème de connexion')
           return {
             success: true,
             message: 'Utilisateur Auth existe déjà, le mot de passe devrait maintenant fonctionner'
@@ -850,7 +838,6 @@ export class AppwriteService {
       await this.account.createEmailPasswordSession(email, 'invalid_password_test_123456789')
       return false // This shouldn't succeed
     } catch (error: any) {
-      console.log(`🔍 Vérification email ${email} dans Auth:`, error.message)
       
       if (error.message && (
         error.message.includes('Invalid credentials') ||
@@ -858,15 +845,12 @@ export class AppwriteService {
         error.message.includes('user_invalid_credentials')
       )) {
         // User exists but password is wrong - this is what we expect
-        console.log('✅ Utilisateur trouvé dans Auth (mot de passe incorrect attendu)')
         return true
       } else if (error.message && error.message.includes('user_not_found')) {
         // User doesn't exist in Auth
-        console.log('❌ Utilisateur NON trouvé dans Auth')
         return false
       } else {
         // Unknown error, assume user exists
-        console.log('⚠️ Erreur inconnue, assume que l\'utilisateur existe')
         return true
       }
     }
@@ -874,7 +858,6 @@ export class AppwriteService {
 
   // Debug method to check user status
   async debugUserStatus(email: string) {
-    console.log(`🔍 === DEBUG: Statut utilisateur pour ${email} ===`)
     
     // Check in database
     let dbUser = null
@@ -884,32 +867,21 @@ export class AppwriteService {
         'users',
         [this.Query.equal('email', email)]
       )
-      console.log(`📊 Utilisateurs DB trouvés: ${dbUsers.total}`)
       if (dbUsers.total > 0) {
         dbUser = dbUsers.documents[0]
-        console.log('✅ Utilisateur existe dans la DB:', {
-          id: dbUser.$id,
-          email: dbUser.email,
-          first_name: dbUser.first_name,
-          last_name: dbUser.last_name
-        })
       }
     } catch (dbError) {
-      console.log('❌ Erreur vérification DB:', dbError)
     }
     
     // Check in Auth
     const authExists = await this.checkEmailInAuth(email)
-    console.log(`🔑 Existe dans Auth: ${authExists}`)
     
-    console.log('🔍 === FIN DEBUG ===')
     return { dbExists: !!dbUser, authExists, dbUser }
   }
 
   // Test connectivity and rate limit status
   async testConnectivity() {
     try {
-      console.log('🔧 Test de connectivité Appwrite...')
       
       // Try a simple read operation (less likely to hit rate limit)
       await this.databases.listDocuments(
@@ -918,10 +890,8 @@ export class AppwriteService {
         [] // queries
       )
       
-      console.log('✅ Connectivité OK')
       return { success: true, message: 'Connectivité OK' }
     } catch (error: any) {
-      console.log('❌ Erreur de connectivité:', error.message)
       
       if (error.message && (
         error.message.includes('Rate limit') ||
@@ -946,7 +916,6 @@ export class AppwriteService {
   // Create Auth user from existing DB user
   async createAuthFromDbUser(email: string, password: string) {
     try {
-      console.log(`🔧 Création utilisateur Auth pour: ${email}`)
       
       // First get the DB user
       const dbUsers = await this.databases.listDocuments(
@@ -965,7 +934,6 @@ export class AppwriteService {
       
       // Create Auth user
       const authUser = await this.account.create(userId, email, password, fullName)
-      console.log('✅ Utilisateur Auth créé:', authUser.$id)
       
       return authUser
     } catch (error) {
@@ -977,7 +945,6 @@ export class AppwriteService {
   // Create DB user from existing Auth user
   async createDbFromAuthUser(email: string, firstName: string, lastName: string, phone: string = '', accountType: string = 'individual') {
     try {
-      console.log(`🔧 Création profil DB pour: ${email}`)
       
       // Check if DB user already exists
       const existingDbUsers = await this.databases.listDocuments(
@@ -1028,7 +995,6 @@ export class AppwriteService {
         userProfileData
       )
 
-      console.log(`✅ Profil DB créé avec ID: ${dbUser.$id}`)
       return dbUser
     } catch (error) {
       console.error('❌ Erreur création profil DB:', error)
@@ -1038,7 +1004,6 @@ export class AppwriteService {
 
   async register(email: string, password: string, name: string) {
     try {
-      console.log('Attempting to register with:', { email, name, passwordLength: password.length })
       
       // Extract first and last name from full name
       const nameParts = name.trim().split(' ')
@@ -1070,19 +1035,10 @@ export class AppwriteService {
     tvaNumber: string = ''
   ) {
     try {
-      console.log('Attempting detailed registration with:', { 
-        email, 
-        firstName, 
-        lastName, 
-        phone, 
-        accountType, 
-        passwordLength: password.length 
-      })
       
       // First check if user already exists by trying to get current user
       const existingUser = await this.getCurrentUser()
       if (existingUser) {
-        console.log('User already logged in:', existingUser)
         await this.logout() // Logout first
       }
 
@@ -1125,11 +1081,6 @@ export class AppwriteService {
         updated_at: new Date().toISOString()
       }
 
-      console.log('🔍 Données à envoyer à Appwrite:', {
-        ...userProfileData,
-        password_hash: '[MASQUÉ]'
-      })
-
       // Create database profile first
       const dbUser = await this.databases.createDocument(
         process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
@@ -1138,8 +1089,6 @@ export class AppwriteService {
         userProfileData
       )
 
-      console.log(`✅ Profil utilisateur créé dans la base de données avec ID: ${dbUser.$id}`)
-
       // Then try to create in Appwrite Auth (optional, like in admin setup)
       const fullName = `${firstName} ${lastName}`
       
@@ -1147,27 +1096,34 @@ export class AppwriteService {
         const userId = this.generateUserId()
         
         const authUser = await this.account.create(userId, email, password, fullName)
-        console.log('✅ Utilisateur d\'authentification créé avec ID:', authUser.$id)
         
-        // Login after creation
-        await this.account.createEmailPasswordSession(email, password)
-        console.log('✅ Utilisateur connecté avec succès')
-        
-        return authUser
+        // Try to login immediately after creation
+        try {
+          await this.account.createEmailPasswordSession(email, password)
+          return authUser
+        } catch (loginError: any) {
+          // If login fails due to unverified email, return success but indicate manual login needed
+          console.log('⚠️ Auth account created but login requires email verification')
+          return {
+            success: true,
+            accountCreated: true,
+            requiresManualLogin: false, // Changed to false - account is created successfully
+            dbUserId: dbUser.$id,
+            authUserId: userId,
+            email: email,
+            message: 'Compte créé avec succès'
+          }
+        }
       } catch (authError: any) {
-        console.log('⚠️ Erreur d\'authentification:', authError)
         
         // Check if user already exists
         if (authError.message && authError.message.includes('user with the same id, email, or phone already exists')) {
-          console.log('✅ Utilisateur Auth existe déjà, tentative de connexion...')
           
           // Try to login with existing credentials
           try {
             await this.account.createEmailPasswordSession(email, password)
-            console.log('✅ Connexion réussie avec les identifiants existants')
             return await this.getCurrentUser()
           } catch (loginError) {
-            console.log('❌ Impossible de se connecter avec les identifiants existants:', loginError)
             // The Auth user exists but password might be different, require manual login
             return {
               success: true,
@@ -1180,19 +1136,15 @@ export class AppwriteService {
           }
         } else {
           // Auth user doesn't exist, try to create with different ID
-          console.log('✅ Tentative de création avec un nouvel ID utilisateur...')
           try {
             const newUserId = this.generateUserId() // Generate a new ID
             const authUser = await this.account.create(newUserId, email, password, fullName)
-            console.log('✅ Utilisateur d\'authentification créé avec nouvel ID:', authUser.$id)
             
             // Login after creation
             await this.account.createEmailPasswordSession(email, password)
-            console.log('✅ Utilisateur connecté avec succès')
             
             return authUser
           } catch (secondAuthError) {
-            console.log('❌ Impossible de créer l\'utilisateur Auth même avec un nouvel ID:', secondAuthError)
             // If we still can't create the Auth user, require manual login
             return {
               success: true,

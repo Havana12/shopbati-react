@@ -64,8 +64,6 @@ export default function CategoryPage() {
       
       // Decode the URL-encoded slug
       const decodedSlug = decodeURIComponent(categorySlug)
-      console.log('🔍 Original slug:', categorySlug)
-      console.log('🔍 Decoded slug:', decodedSlug)
       
       // Get all categories to handle hierarchy
       const allCategoriesResult = await appwrite.getCategories([
@@ -73,7 +71,6 @@ export default function CategoryPage() {
       ])
       
       const allCategories = allCategoriesResult.documents as any[]
-      console.log('📁 Total categories loaded:', allCategories.length)
       
       // Find category by slug or name with multiple matching strategies
       let foundCategory = allCategories.find(cat => {
@@ -107,14 +104,11 @@ export default function CategoryPage() {
       
       if (foundCategory) {
         setCategory(foundCategory)
-        console.log('✅ Found category:', foundCategory.name, 'ID:', foundCategory.$id)
         
         // Find all subcategories of this category
         const subcategoryIds = allCategories
           .filter(cat => cat.parent_id === foundCategory.$id)
           .map(cat => cat.$id)
-        
-        console.log('📂 Found', subcategoryIds.length, 'subcategories')
         
         // Get products that match either the parent category OR any of its subcategories
         let allProducts: Product[] = []
@@ -129,10 +123,9 @@ export default function CategoryPage() {
           
           if (parentProducts.documents && parentProducts.documents.length > 0) {
             allProducts = [...parentProducts.documents as unknown as Product[]]
-            console.log('📦 Found', allProducts.length, 'products in parent category')
           }
         } catch (error) {
-          console.log('No products in parent category')
+          // No products in parent category
         }
         
         // Get products from each subcategory
@@ -145,16 +138,12 @@ export default function CategoryPage() {
             ])
             
             if (subProducts.documents && subProducts.documents.length > 0) {
-              const subCatName = allCategories.find(c => c.$id === subCatId)?.name || ''
-              console.log('� Found', subProducts.documents.length, 'products in subcategory:', subCatName)
               allProducts = [...allProducts, ...subProducts.documents as unknown as Product[]]
             }
           } catch (error) {
-            console.log('Error fetching products for subcategory:', subCatId)
+            // Error fetching subcategory products
           }
         }
-        
-        console.log('✅ Total products found:', allProducts.length, 'in category and all subcategories')
         
         if (allProducts.length > 0) {
           // Enrich products with category name
@@ -170,11 +159,9 @@ export default function CategoryPage() {
           const maxPrice = Math.max(...enrichedProducts.map(p => p.price))
           setPriceRange(prev => ({ ...prev, max: Math.ceil(maxPrice / 100) * 100 }))
         } else {
-          console.log('⚠️ No products found in this category or its subcategories')
           setProducts([])
         }
       } else {
-        console.log('❌ Category not found:', categorySlug)
         
         // Set fallback category info
         const categoryName = categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1)

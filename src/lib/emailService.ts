@@ -65,12 +65,9 @@ export class EmailService {
   // Send order confirmation email
   async sendOrderConfirmation(orderData: any): Promise<{ success: boolean; message: string }> {
     try {
-      console.log('📧 Sending order confirmation to:', orderData.customerEmail)
       
       // Simulate email sending
       await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      console.log('📧 Order confirmation sent for order:', orderData.orderNumber)
       
       return {
         success: true,
@@ -115,15 +112,6 @@ export class EmailService {
       
       const result = await appwrite.createOrder(orderDocument)
       
-      console.log('✅ Order created in database:', {
-        orderId: result.$id,
-        order_number: orderDocument.order_number,
-        total_amount: orderDocument.total_amount,
-        status: orderDocument.status,
-        payment_status: orderDocument.payment_status,
-        customer_email: orderDocument.customer_email
-      })
-      
       return {
         success: true,
         orderId: result.$id
@@ -152,8 +140,6 @@ export class EmailService {
       }
       
       await appwrite.updateOrder(orderId, updateData)
-      
-      console.log('✅ Order status updated to delivered/paid after email sent:', orderId)
       
       return { success: true }
       

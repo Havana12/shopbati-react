@@ -29,6 +29,7 @@ interface AuthContextType {
     tvaNumber?: string
   }) => Promise<void>
   logout: () => Promise<void>
+  resendVerificationEmail: () => Promise<boolean>
   isAuthenticated: boolean
 }
 
@@ -64,6 +65,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentUser as User)
     } catch (error) {
       console.error('Login error:', error)
+      throw error
+    }
+  }
+
+  const resendVerificationEmail = async () => {
+    try {
+      const appwrite = AppwriteService.getInstance()
+      await appwrite.sendVerificationEmail()
+      return true
+    } catch (error) {
+      console.error('Resend verification error:', error)
       throw error
     }
   }
@@ -179,6 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login,
     register,
     logout,
+    resendVerificationEmail,
     isAuthenticated: !!user
   }
 

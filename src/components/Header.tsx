@@ -328,7 +328,7 @@ export default function Header() {
 
               {/* Dropdown Menu */}
               {isUserDropdownOpen && (
-                <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-[9999]">
+                <div className="absolute top-full right-[40px] mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-[9999]">
                   {isAuthenticated ? (
                     <>
                       <div className="px-4 py-3 border-b border-gray-100">
@@ -337,24 +337,16 @@ export default function Header() {
                       </div>
                       <div className="py-1">
                         <Link 
-                          href="/admin"
-                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                          onClick={() => setIsUserDropdownOpen(false)}
-                        >
-                          <i className="fas fa-tachometer-alt mr-3 text-blue-500"></i>
-                          Tableau de bord
-                        </Link>
-                        <Link 
-                          href="/admin/orders"
-                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                          href="/account"
+                          className="flex items-center px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                           onClick={() => setIsUserDropdownOpen(false)}
                         >
                           <i className="fas fa-shopping-bag mr-3 text-green-500"></i>
                           Mes commandes
                         </Link>
                         <Link 
-                          href="/profile"
-                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                          href="/account"
+                          className="flex items-center px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                           onClick={() => setIsUserDropdownOpen(false)}
                         >
                           <i className="fas fa-user-edit mr-3 text-purple-500"></i>
@@ -363,7 +355,7 @@ export default function Header() {
                         <div className="border-t border-gray-100 my-1"></div>
                         <button 
                           onClick={handleLogout}
-                          className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                          className="flex items-center w-full px-2 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                         >
                           <i className="fas fa-sign-out-alt mr-3"></i>
                           Déconnexion
@@ -374,14 +366,14 @@ export default function Header() {
                     <div className="py-1">
                       <button 
                         onClick={() => handleAuthClick('login')}
-                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                        className="flex items-center w-full px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                       >
                         <i className="fas fa-sign-in-alt mr-3 text-orange-500"></i>
                         Se connecter
                       </button>
                       <button 
                         onClick={() => handleAuthClick('register')}
-                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                        className="flex items-center w-full px-2 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                       >
                         <i className="fas fa-user-plus mr-3 text-blue-500"></i>
                         Créer un compte
@@ -453,7 +445,7 @@ export default function Header() {
                       
                       {/* Subcategories Dropdown */}
                       {hasSubcategories && openCategoryDropdown === category.$id && (
-                        <div className="absolute top-full left-0 pt-2 z-[9999]" style={{ position: 'absolute' }}>
+                        <div className="absolute top-full left-[-80px] pt-2 z-[9999]" style={{ position: 'absolute' }}>
                           <div className="bg-white rounded-md shadow-2xl border-2 border-orange-400 min-w-[240px] py-2">
                             {subcategories.map((subcategory) => (
                               <Link
@@ -484,7 +476,7 @@ export default function Header() {
                     
                     {/* More Categories Dropdown */}
                     {showMoreMenu && (
-                      <div className="absolute top-full right-0 pt-2 z-[9999]">
+                      <div className="absolute top-full right-[40px] pt-2 z-[9999]">
                         <div className="bg-white rounded-md shadow-2xl border-2 border-orange-400 min-w-[240px] py-2 max-h-[400px] overflow-y-auto">
                           {parentCategories.slice(visibleCategories).map((category) => {
                             const subcategories = getSubcategories(category.$id)

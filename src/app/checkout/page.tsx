@@ -253,11 +253,39 @@ export default function CheckoutPage() {
       
       // Create order in database using Appwrite
       const appwrite = AppwriteService.getInstance()
+      let createdOrder
       try {
-        // You can implement order creation in Appwrite here if needed
-        // For now, we'll proceed with the invoice sending
+        const orderDataForDB = {
+          order_number: orderNumber,
+          customer_email: orderData.customerInfo.email,
+          customer_name: `${orderData.customerInfo.firstName} ${orderData.customerInfo.lastName}`,
+          customer_phone: orderData.customerInfo.phone || '',
+          customer_type: orderData.customerType,
+          items: cartItems.map(item => ({
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            image: item.image || ''
+          })),
+          subtotal: getTotalPrice(),
+          shipping_cost: getShippingCost(),
+          total_amount: getFinalTotal(),
+          shipping_address: orderData.shippingAddress,
+          billing_address: orderData.billingAddress.sameAsShipping ? orderData.shippingAddress : orderData.billingAddress,
+          payment_method: orderData.paymentMethod,
+          special_instructions: orderData.specialInstructions || '',
+          status: 'en_attente',
+          invoice_sent: false,
+          shipping_sent: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+        
+        createdOrder = await appwrite.createOrder(orderDataForDB)
+        console.log('✅ Order saved in database:', createdOrder.$id)
       } catch (error) {
-        // Don't fail the whole process for this
+        console.error('❌ Error saving order to database:', error)
+        // Don't fail the whole process, continue with email
       }
       
       // For authenticated users, automatically send invoice
@@ -303,8 +331,8 @@ export default function CheckoutPage() {
             shippingAddress: invoiceOrderData.shippingAddress
           })
           
-          // Utiliser la nouvelle API de facture PDF
-          const response = await fetch('/api/send-order-email', {
+          // Utiliser la nouvelle API de confirmation de commande (SANS facture)
+          const response = await fetch('/api/send-order-confirmation', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -312,16 +340,15 @@ export default function CheckoutPage() {
             body: JSON.stringify(invoiceOrderData)
           })
           
-          const invoiceResult = await response.json()
+          const confirmationResult = await response.json()
           
-          if (invoiceResult.success) {
+          if (confirmationResult.success) {
             setInvoiceStatus('sent')
-            localStorage.setItem('invoice_sent', 'true')
-            localStorage.setItem('invoice_email', user.email)
-            console.log('✅ Invoice sent successfully!')
+            localStorage.setItem('order_confirmation_sent', 'true')
+            localStorage.setItem('order_email', user.email)
           } else {
             setInvoiceStatus('error')
-            console.error('❌ Invoice sending failed:', invoiceResult.message)
+            console.error('❌ Order confirmation failed:', confirmationResult.message)
           }
         } catch (error) {
           setInvoiceStatus('error')

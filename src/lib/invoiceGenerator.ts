@@ -69,11 +69,9 @@ export class InvoiceGenerator {
    */
   static async generateInvoiceWithQR(orderData: OrderData): Promise<InvoiceWithQR> {
     try {
-      console.log('🔧 Génération facture avec QR code...')
       
       // 1. Generate invoice PDF first (without QR)
       const tempInvoiceBuffer = await this.generatePDFFromOrder(orderData)
-      console.log('✅ PDF temporaire généré')
       
       // 2. Upload to Appwrite Storage
       const invoiceNumber = this.generateInvoiceNumber()
@@ -83,8 +81,6 @@ export class InvoiceGenerator {
       const blob = new Blob([tempInvoiceBuffer], { type: 'application/pdf' })
       const file = new File([blob], fileName, { type: 'application/pdf' })
       
-      console.log('📤 Upload facture vers Appwrite...')
-      
       // Upload file to Appwrite using server-side SDK
       const storage = this.getStorage()
       const uploadedFile = await storage.createFile(
@@ -93,13 +89,9 @@ export class InvoiceGenerator {
         file
       )
       
-      console.log('✅ Facture uploadée avec ID:', uploadedFile.$id)
-      
       // 3. Get the file URL
       const client = this.getServerClient()
       const invoiceUrl = `${client.config.endpoint}/storage/buckets/${this.INVOICES_BUCKET_ID}/files/${uploadedFile.$id}/view?project=${client.config.project}`
-      
-      console.log('🔗 URL facture:', invoiceUrl)
       
       // 4. Generate QR code with the invoice URL
       const qrCodeDataUrl = await QRCode.toDataURL(invoiceUrl, {
@@ -111,16 +103,12 @@ export class InvoiceGenerator {
         }
       })
       
-      console.log('✅ QR code généré')
-      
       // 5. Generate final invoice PDF with QR code
       const finalInvoiceBuffer = await this.generatePDFFromOrderWithQR(
         orderData,
         qrCodeDataUrl,
         invoiceNumber
       )
-      
-      console.log('✅ PDF final avec QR code généré')
       
       // 6. Update the file in storage with the final version (with QR)
       await storage.deleteFile(this.INVOICES_BUCKET_ID, uploadedFile.$id)
@@ -133,8 +121,6 @@ export class InvoiceGenerator {
         uploadedFile.$id, // Use same ID
         finalFile
       )
-      
-      console.log('✅ Facture finale avec QR code uploadée')
       
       return {
         pdfBuffer: finalInvoiceBuffer,
@@ -199,7 +185,6 @@ export class InvoiceGenerator {
                 logoBase64 = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`
               }
             } catch (fsError) {
-              console.log('Erreur lecture fichier logo:', fsError)
             }
           } else {
             try {
@@ -213,7 +198,6 @@ export class InvoiceGenerator {
                 })
               }
             } catch (fetchError) {
-              console.log('Erreur fetch logo:', fetchError)
             }
           }
           
@@ -226,7 +210,6 @@ export class InvoiceGenerator {
             doc.text('SHOPBATI', margin, yPosition + 15)
           }
         } catch (error) {
-          console.log('Erreur logo générale:', error)
           doc.setFontSize(12)
           doc.setFont('helvetica', 'bold')
           doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
@@ -572,7 +555,6 @@ export class InvoiceGenerator {
                 logoBase64 = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`
               }
             } catch (fsError) {
-              console.log('Erreur lecture fichier logo:', fsError)
             }
           } else {
             // Client side - essayer de charger via fetch
@@ -587,7 +569,6 @@ export class InvoiceGenerator {
                 })
               }
             } catch (fetchError) {
-              console.log('Erreur fetch logo:', fetchError)
             }
           }
           
@@ -604,7 +585,6 @@ export class InvoiceGenerator {
             doc.text('SHOPBATI', margin, yPosition + 15)
           }
         } catch (error) {
-          console.log('Erreur logo générale:', error)
           // Fallback simple
           doc.setFontSize(12)
           doc.setFont('helvetica', 'bold')

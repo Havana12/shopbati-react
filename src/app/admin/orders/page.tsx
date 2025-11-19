@@ -61,10 +61,13 @@ export default function AdminOrdersPage() {
   // Helper function for status labels
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
+      'en_attente': '⏳ En attente',
       'pending': '⏳ En attente',
+      'payé': '💰 Payé',
       'processing': '⚙️ En cours', 
       'delivered': '📦 Livré',
-      'livré': '📦 Livré', // Add French version
+      'livré': '📦 Livré',
+      'expédié': '🚚 Expédié',
       'cancelled': '❌ Annulé'
     }
     return labels[status] || status
@@ -201,15 +204,94 @@ export default function AdminOrdersPage() {
     }
   }
 
+  // Envoyer la facture après confirmation du paiement
+  const sendInvoiceAfterPayment = async (order: Order) => {
+    if (!confirm('Êtes-vous sûr de vouloir confirmer le paiement et envoyer la facture ?')) {
+      return
+    }
+    
+    try {
+      const response = await fetch('/api/send-invoice-after-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order.order_number,
+          customerEmail: order.customer_email,
+          customerName: order.customer_name,
+          timestamp: order.created_at,
+          items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items,
+          total: order.total_amount,
+          shippingAddress: typeof order.shipping_address === 'string' 
+            ? (order.shipping_address.startsWith('{') ? JSON.parse(order.shipping_address) : { street: order.shipping_address })
+            : order.shipping_address
+        })
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        alert('✅ Facture envoyée avec succès ! Le statut a été mis à jour.')
+        fetchOrders()
+      } else {
+        alert('❌ Erreur lors de l\'envoi de la facture: ' + result.message)
+      }
+    } catch (error) {
+      console.error('Error sending invoice:', error)
+      alert('❌ Erreur lors de l\'envoi de la facture')
+    }
+  }
+
+  // Envoyer la notification d'expédition
+  const sendShippingNotification = async (order: Order) => {
+    if (!confirm('Êtes-vous sûr de vouloir marquer cette commande comme expédiée ?')) {
+      return
+    }
+    
+    try {
+      const response = await fetch('/api/send-shipping-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order.order_number,
+          customerEmail: order.customer_email,
+          customerName: order.customer_name,
+          timestamp: order.created_at,
+          items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items,
+          total: order.total_amount,
+          shippingAddress: typeof order.shipping_address === 'string'
+            ? (order.shipping_address.startsWith('{') ? JSON.parse(order.shipping_address) : { street: order.shipping_address })
+            : order.shipping_address
+        })
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        alert('✅ Email d\'expédition envoyé avec succès !')
+        fetchOrders()
+      } else {
+        alert('❌ Erreur lors de l\'envoi: ' + result.message)
+      }
+    } catch (error) {
+      console.error('Error sending shipping notification:', error)
+      alert('❌ Erreur lors de l\'envoi de la notification')
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'en_attente':
       case 'pending':
         return 'bg-yellow-100 text-yellow-800'
+      case 'payé':
+        return 'bg-green-100 text-green-800'
       case 'processing':
         return 'bg-blue-100 text-blue-800'
       case 'delivered':
-      case 'livré': // Add French version
+      case 'livré':
         return 'bg-green-100 text-green-800'
+      case 'expédié':
+        return 'bg-blue-100 text-blue-800'
       case 'cancelled':
         return 'bg-red-100 text-red-800'
       default:
@@ -362,6 +444,8 @@ export default function AdminOrdersPage() {
                 className="appearance-none bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 text-gray-700 w-full"
               >
                 <option value="all">Tous</option>
+                <option value="en_attente">⏳ En attente</option>
+                <option value="payé">💰 Payé</option>
                 <option value="livré">📦 Livré</option>
                 <option value="cancelled">❌ Annulé</option>
               </select>
@@ -422,6 +506,20 @@ export default function AdminOrdersPage() {
         {/* Quick Actions */}
         <div className="mt-4 flex flex-wrap gap-2">
           <button
+            onClick={() => setStatusFilter('en_attente')}
+            className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-yellow-200"
+          >
+            <i className="fas fa-clock mr-1"></i>
+            En attente
+          </button>
+          <button
+            onClick={() => setStatusFilter('payé')}
+            className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-green-200"
+          >
+            <i className="fas fa-money-bill mr-1"></i>
+            Payées
+          </button>
+          <button
             onClick={() => setStatusFilter('livré')}
             className="bg-green-50 hover:bg-green-100 text-green-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-green-200"
           >
@@ -478,7 +576,7 @@ export default function AdminOrdersPage() {
           )}
           {paymentFilter !== 'all' && (
             <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-800">
-              Paiement: {paymentFilter === 'paid' ? 'Payé' : paymentFilter === 'pending' ? 'En attente' : 'Échoué'}
+              Paiement: {paymentFilter === 'paid' || paymentFilter === 'payé' ? 'Payé' : paymentFilter === 'pending' ? 'En attente' : paymentFilter === 'failed' ? 'Échoué' : 'Annulé'}
               <button onClick={() => setPaymentFilter('all')} className="ml-2 text-purple-600 hover:text-purple-800">
                 <i className="fas fa-times"></i>
               </button>
@@ -519,7 +617,7 @@ export default function AdminOrdersPage() {
       </div>
 
       {/* Orders Table */}
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+      <div className="bg-white rounded-lg shadow-lg overflow-hidden overflow-x-auto">
         {loading ? (
           <div className="flex items-center justify-center p-12">
             <div className="text-center">
@@ -535,29 +633,29 @@ export default function AdminOrdersPage() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+            <div className="overflow-x-scroll">
+              <table className="min-w-[1200px] w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                       Commande
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                       Client
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                       Montant
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                       Statut
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                       Paiement
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                       Date
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                       Actions
                     </th>
                   </tr>
@@ -565,55 +663,83 @@ export default function AdminOrdersPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {orders.map((order) => (
                     <tr key={order.$id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
                           #{order.order_number}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-xs text-gray-500">
                           {order.items?.length || 0} article(s)
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900 max-w-[150px] truncate">
                           {order.customer_name}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-xs text-gray-500 max-w-[150px] truncate">
                           {order.customer_email}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
                           €{(order.total_amount || 0).toFixed(2)}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
                           {getStatusLabel(order.status)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPaymentStatusColor(order.payment_status)}`}>
                           {order.payment_status === 'paid' || order.payment_status === 'payé' ? 'Payé' : 
                            order.payment_status === 'pending' ? 'En attente' : 
                            order.payment_status === 'cancelled' ? 'Annulé' : 'Échoué'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                         {new Date(order.created_at).toLocaleDateString('fr-FR')}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end space-x-2">
                           <button
                             onClick={() => setSelectedOrder(order)}
-                            className="text-blue-600 hover:text-blue-900"
+                            className="text-blue-600 hover:text-blue-900 p-2"
+                            title="Voir les détails"
                           >
                             <i className="fas fa-eye"></i>
                           </button>
+                          
+                          {/* Bouton Confirmer Paiement (pour commandes en_attente) */}
+                          {order.status === 'en_attente' && (
+                            <button
+                              onClick={() => sendInvoiceAfterPayment(order)}
+                              className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs font-medium"
+                              title="Confirmer paiement et envoyer facture"
+                            >
+                              <i className="fas fa-check mr-1"></i>
+                              Confirmer Paiement
+                            </button>
+                          )}
+                          
+                          {/* Bouton Marquer comme Expédié (pour commandes payées) */}
+                          {order.status === 'payé' && (
+                            <button
+                              onClick={() => sendShippingNotification(order)}
+                              className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs font-medium"
+                              title="Marquer comme expédié"
+                            >
+                              <i className="fas fa-truck mr-1"></i>
+                              Expédier
+                            </button>
+                          )}
+                          
                           <select
                             value={order.status}
                             onChange={(e) => updateOrderStatus(order.$id, e.target.value)}
                             className="text-sm border border-gray-300 rounded px-2 py-1"
                           >
+                            <option value="en_attente">En attente</option>
+                            <option value="payé">Payé</option>
                             <option value="livré">Livré</option>
                             <option value="cancelled">Annulé</option>
                           </select>

@@ -27,9 +27,10 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [verificationRequired, setVerificationRequired] = useState(false)
   const [mode, setMode] = useState<'login' | 'register'>(defaultMode)
   const [showPassword, setShowPassword] = useState(false)
-  const { login, register } = useAuth()
+  const { login, register, resendVerificationEmail } = useAuth()
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -49,6 +50,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
       setCity('')
       setError('')
       setSuccessMessage('')
+      setVerificationRequired(false)
       setShowPassword(false)
       setAccountType('individual')
     }
@@ -135,6 +137,25 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
       }
       onClose()
     } catch (error: any) {
+      // Check for account not verified error
+      if (error.message && error.message.includes('ACCOUNT_NOT_VERIFIED')) {
+        const errorParts = error.message.split('|')
+        const message = errorParts.length > 1 ? errorParts[1] : 'Votre compte nécessite une activation.'
+        setError(message)
+        setLoading(false)
+        return
+      }
+
+      // Check for verification required error
+      if (error.message && error.message.includes('VERIFICATION_REQUIRED')) {
+        const errorParts = error.message.split('|')
+        const message = errorParts.length > 1 ? errorParts[1] : 'Votre compte nécessite une vérification par email.'
+        setError(message)
+        setVerificationRequired(true)
+        setLoading(false)
+        return
+      }
+
       // Handle the special case where account was created but login failed
       if (error.message === 'ACCOUNT_CREATED_LOGIN_REQUIRED') {
         setError('') // Clear any existing error immediately
@@ -175,6 +196,24 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
   const switchMode = () => {
     setMode(mode === 'login' ? 'register' : 'login')
     setError('')
+    setSuccessMessage('')
+    setVerificationRequired(false)
+  }
+
+  const handleResendVerification = async () => {
+    setLoading(true)
+    setError('')
+    setSuccessMessage('')
+    
+    try {
+      await resendVerificationEmail()
+      setSuccessMessage('✅ Email de vérification renvoyé ! Vérifiez votre boîte mail.')
+      setVerificationRequired(false)
+    } catch (error: any) {
+      setError('Erreur lors de l\'envoi de l\'email. Veuillez réessayer.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (!isOpen) return null
@@ -216,9 +255,22 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
           {/* Form */}
           <form onSubmit={handleSubmit} className="px-6 py-6">
             {error && (
-              <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg flex items-center">
-                <i className="fas fa-exclamation-triangle mr-2"></i>
-                {error}
+              <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
+                <div className="flex items-center mb-2">
+                  <i className="fas fa-exclamation-triangle mr-2"></i>
+                  <span>{error}</span>
+                </div>
+                {verificationRequired && (
+                  <button
+                    type="button"
+                    onClick={handleResendVerification}
+                    disabled={loading}
+                    className="mt-2 text-sm bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    <i className="fas fa-envelope mr-2"></i>
+                    Renvoyer l'email de vérification
+                  </button>
+                )}
               </div>
             )}
 
