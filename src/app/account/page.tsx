@@ -16,6 +16,21 @@ interface Order {
   shipping_address: any
 }
 
+interface UserProfile {
+  first_name: string
+  last_name: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  postalCode: string
+  country: string
+  account_type: string
+  raison_sociale?: string
+  siret?: string
+  tva_number?: string
+}
+
 function AccountContent() {
   const { user, loading, logout, isAuthenticated } = useAuth()
   const router = useRouter()
@@ -23,6 +38,8 @@ function AccountContent() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loadingOrders, setLoadingOrders] = useState(false)
   const [activeTab, setActiveTab] = useState('commandes')
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+  const [loadingProfile, setLoadingProfile] = useState(false)
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -43,8 +60,27 @@ function AccountContent() {
   useEffect(() => {
     if (user && activeTab === 'commandes') {
       loadOrders()
+    } else if (user && activeTab === 'profile' && !userProfile) {
+      loadUserProfile()
     }
   }, [user, activeTab])
+
+  const loadUserProfile = async () => {
+    if (!user?.email) return
+    
+    setLoadingProfile(true)
+    try {
+      const appwrite = AppwriteService.getInstance()
+      const dbUser = await appwrite.getCustomerByEmail(user.email)
+      if (dbUser) {
+        setUserProfile(dbUser as any)
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error)
+    } finally {
+      setLoadingProfile(false)
+    }
+  }
 
   const loadOrders = async () => {
     if (!user?.email) return
@@ -303,36 +339,167 @@ function AccountContent() {
               {activeTab === 'profile' && (
                 <div>
                   <h2 className="text-xl font-semibold text-gray-900 mb-6">Mon Profil</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Nom complet
-                      </label>
-                      <input
-                        type="text"
-                        value={user?.name || ''}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                        readOnly
-                      />
+                  
+                  {loadingProfile ? (
+                    <div className="text-center py-12">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
+                      <p className="text-gray-600">Chargement du profil...</p>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Email
-                      </label>
-                      <input
-                        type="email"
-                        value={user?.email || ''}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                        readOnly
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-600">
-                      <i className="fas fa-info-circle mr-2"></i>
-                      Pour modifier vos informations, veuillez contacter notre service client.
-                    </p>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                          {userProfile?.account_type === 'professional' ? 'Informations Professionnelles' : 'Informations Personnelles'}
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {userProfile?.account_type === 'professional' && userProfile?.raison_sociale && (
+                            <div className="md:col-span-2">
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Raison Sociale
+                              </label>
+                              <input
+                                type="text"
+                                value={userProfile.raison_sociale}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                                readOnly
+                              />
+                            </div>
+                          )}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Prénom
+                            </label>
+                            <input
+                              type="text"
+                              value={userProfile?.first_name || ''}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                              readOnly
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Nom
+                            </label>
+                            <input
+                              type="text"
+                              value={userProfile?.last_name || ''}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                              readOnly
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Email
+                            </label>
+                            <input
+                              type="email"
+                              value={userProfile?.email || user?.email || ''}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                              readOnly
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Téléphone
+                            </label>
+                            <input
+                              type="text"
+                              value={userProfile?.phone || ''}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                              readOnly
+                            />
+                          </div>
+                          {userProfile?.account_type === 'professional' && (
+                            <>
+                              {userProfile?.siret && (
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    SIRET
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={userProfile.siret}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                                    readOnly
+                                  />
+                                </div>
+                              )}
+                              {userProfile?.tva_number && (
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Numéro TVA
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={userProfile.tva_number}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                                    readOnly
+                                  />
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="border-t pt-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Adresse</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Adresse
+                            </label>
+                            <input
+                              type="text"
+                              value={userProfile?.address || ''}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                              readOnly
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Code Postal
+                            </label>
+                            <input
+                              type="text"
+                              value={userProfile?.postalCode || ''}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                              readOnly
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Ville
+                            </label>
+                            <input
+                              type="text"
+                              value={userProfile?.city || ''}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                              readOnly
+                            />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Pays
+                            </label>
+                            <input
+                              type="text"
+                              value={userProfile?.country || 'France'}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                              readOnly
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-600">
+                          <i className="fas fa-info-circle mr-2"></i>
+                          Pour modifier vos informations, veuillez contacter notre service client.
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
