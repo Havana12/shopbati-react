@@ -211,23 +211,39 @@ export default function AdminOrdersPage() {
     }
     
     try {
-      // Try to fetch customer info from users collection if user_id exists
+      // Try to fetch customer info from users collection
       let customerInfo = null
       const orderDoc = order as any
       
       console.log('📋 Order data:', { 
         user_id: orderDoc.user_id, 
+        customer_email: order.customer_email,
         shipping_address: order.shipping_address 
       })
       
-      if (orderDoc.user_id) {
-        try {
-          const appwrite = AppwriteService.getInstance()
-          const userDoc = await appwrite.databases.getDocument(
-            process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
-            'users',
-            orderDoc.user_id
-          )
+      try {
+        const appwrite = AppwriteService.getInstance()
+        let userDoc = null
+        
+        // Try to fetch by user_id first if it exists
+        if (orderDoc.user_id && orderDoc.user_id.trim() !== '') {
+          try {
+            userDoc = await appwrite.databases.getDocument(
+              process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+              'users',
+              orderDoc.user_id
+            )
+          } catch (err) {
+            console.log('⚠️ Could not fetch user by ID, trying by email')
+          }
+        }
+        
+        // If no user_id or fetch failed, try by email
+        if (!userDoc && order.customer_email) {
+          userDoc = await appwrite.getCustomerByEmail(order.customer_email)
+        }
+        
+        if (userDoc) {
           console.log('👤 User doc fetched:', userDoc)
           customerInfo = {
             accountType: userDoc.account_type || 'individual',
@@ -243,9 +259,9 @@ export default function AdminOrdersPage() {
             country: userDoc.country || 'France'
           }
           console.log('✅ Customer info built:', customerInfo)
-        } catch (err) {
-          console.log('⚠️ Could not fetch user details:', err)
         }
+      } catch (err) {
+        console.log('⚠️ Could not fetch user details:', err)
       }
       
       const response = await fetch('/api/send-invoice-after-payment', {

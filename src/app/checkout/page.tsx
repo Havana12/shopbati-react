@@ -257,26 +257,25 @@ export default function CheckoutPage() {
       try {
         const orderDataForDB = {
           order_number: orderNumber,
+          user_id: dbUser?.$id || '',  // Add user_id from database user
           customer_email: orderData.customerInfo.email,
           customer_name: `${orderData.customerInfo.firstName} ${orderData.customerInfo.lastName}`,
           customer_phone: orderData.customerInfo.phone || '',
           customer_type: orderData.customerType,
-          items: cartItems.map(item => ({
+          items: JSON.stringify(cartItems.map(item => ({
             name: item.name,
             price: item.price,
             quantity: item.quantity,
             image: item.image_url || ''
-          })),
+          }))),
           subtotal: getTotalPrice(),
           shipping_cost: getShippingCost(),
           total_amount: getFinalTotal(),
-          shipping_address: orderData.shippingAddress,
-          billing_address: orderData.billingAddress.sameAsShipping ? orderData.shippingAddress : orderData.billingAddress,
+          shipping_address: JSON.stringify(orderData.shippingAddress),
+          billing_address: JSON.stringify(orderData.billingAddress.sameAsShipping ? orderData.shippingAddress : orderData.billingAddress),
           payment_method: orderData.paymentMethod,
           special_instructions: orderData.specialInstructions || '',
           status: 'en_attente',
-          invoice_sent: false,
-          shipping_sent: false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }
