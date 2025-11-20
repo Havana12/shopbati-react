@@ -15,6 +15,7 @@ interface Product {
   image_url?: string
   slug?: string
   status: string
+  reference?: string
 }
 
 interface Category {

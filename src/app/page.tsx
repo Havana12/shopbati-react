@@ -27,6 +27,7 @@ interface Product {
   status: string
   featured?: boolean
   created_at?: string
+  reference?: string
 }
 
 export default function HomePage() {

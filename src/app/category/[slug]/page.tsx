@@ -20,6 +20,7 @@ interface Product {
   featured?: boolean
   stock?: number
   brand?: string
+  reference?: string
   $createdAt: string
   $updatedAt: string
 }

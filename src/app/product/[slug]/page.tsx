@@ -26,6 +26,7 @@ interface Product {
   stock?: number
   weight?: number
   dimensions?: string
+  reference?: string
 }
 
 interface RelatedProduct {
