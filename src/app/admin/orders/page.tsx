@@ -215,12 +215,6 @@ export default function AdminOrdersPage() {
       let customerInfo = null
       const orderDoc = order as any
       
-      console.log('📋 Order data:', { 
-        user_id: orderDoc.user_id, 
-        customer_email: order.customer_email,
-        shipping_address: order.shipping_address 
-      })
-      
       try {
         const appwrite = AppwriteService.getInstance()
         let userDoc = null
@@ -234,7 +228,7 @@ export default function AdminOrdersPage() {
               orderDoc.user_id
             )
           } catch (err) {
-            console.log('⚠️ Could not fetch user by ID, trying by email')
+            // Fallback to email lookup
           }
         }
         
@@ -244,7 +238,6 @@ export default function AdminOrdersPage() {
         }
         
         if (userDoc) {
-          console.log('👤 User doc fetched:', userDoc)
           customerInfo = {
             accountType: userDoc.account_type || 'individual',
             firstName: userDoc.first_name || '',
@@ -258,10 +251,9 @@ export default function AdminOrdersPage() {
             postalCode: userDoc.postalCode || '',
             country: userDoc.country || 'France'
           }
-          console.log('✅ Customer info built:', customerInfo)
         }
       } catch (err) {
-        console.log('⚠️ Could not fetch user details:', err)
+        // User lookup failed, will use order data only
       }
       
       const response = await fetch('/api/send-invoice-after-payment', {

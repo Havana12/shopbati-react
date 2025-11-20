@@ -299,11 +299,6 @@ export class InvoiceGenerator {
         doc.setFont('helvetica', 'normal')
         
         // Get customer address - prioritize customerInfo, then shippingAddress
-        console.log('📍 Address data in invoice:', {
-          customerInfo: orderData.customerInfo,
-          shippingAddress: orderData.shippingAddress
-        })
-        
         if (orderData.customerInfo?.address && orderData.customerInfo?.city) {
           doc.text(orderData.customerInfo.address, rightColX + 3, yPosition + 15)
           doc.text(`${orderData.customerInfo.postalCode} ${orderData.customerInfo.city}`, rightColX + 3, yPosition + 20)
@@ -407,13 +402,13 @@ export class InvoiceGenerator {
         const montantTVA = orderData.total - sousTotal
         
         doc.text('Sous total :', rightSectionX, yPosition + 8)
-        doc.text(this.formatNumber(sousTotal) + ' €', rightSectionX + 60, yPosition + 8, { align: 'right' })
+        doc.text(this.formatNumber(sousTotal) + ' €', rightSectionX + 60, yPosition + 8, { align: 'right', charSpace: 0 })
         
         doc.text(`Taux de TVA : ${tauxTVA.toLocaleString('fr-FR')}%`, rightSectionX, yPosition + 15)
-        doc.text(this.formatNumber(montantTVA) + ' €', rightSectionX + 60, yPosition + 15, { align: 'right' })
+        doc.text(this.formatNumber(montantTVA) + ' €', rightSectionX + 60, yPosition + 15, { align: 'right', charSpace: 0 })
         
         doc.text('Total TTC :', rightSectionX, yPosition + 22)
-        doc.text(this.formatNumber(orderData.total) + ' €', rightSectionX + 60, yPosition + 22, { align: 'right' })
+        doc.text(this.formatNumber(orderData.total) + ' €', rightSectionX + 60, yPosition + 22, { align: 'right', charSpace: 0 })
         
         // SOMME FINALE
         doc.setFillColor(yellowColor[0], yellowColor[1], yellowColor[2])
@@ -425,7 +420,7 @@ export class InvoiceGenerator {
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
         doc.text('Somme finale à payer :', rightSectionX, yPosition + 38)
-        doc.text(this.formatNumber(orderData.total) + ' €', rightSectionX + 60, yPosition + 38, { align: 'right' })
+        doc.text(this.formatNumber(orderData.total) + ' €', rightSectionX + 60, yPosition + 38, { align: 'right', charSpace: 0 })
 
         yPosition += 60
 
@@ -799,13 +794,13 @@ export class InvoiceGenerator {
         const montantTVA = orderData.total - sousTotal
         
         doc.text('Sous total :', rightSectionX, yPosition + 8)
-        doc.text(this.formatNumber(sousTotal) + ' €', rightSectionX + 60, yPosition + 8, { align: 'right' })
+        doc.text(this.formatNumber(sousTotal) + ' €', rightSectionX + 60, yPosition + 8, { align: 'right', charSpace: 0 })
         
         doc.text(`Taux de TVA : ${tauxTVA.toLocaleString('fr-FR')}%`, rightSectionX, yPosition + 15)
-        doc.text(this.formatNumber(montantTVA) + ' €', rightSectionX + 60, yPosition + 15, { align: 'right' })
+        doc.text(this.formatNumber(montantTVA) + ' €', rightSectionX + 60, yPosition + 15, { align: 'right', charSpace: 0 })
         
         doc.text('Total TTC :', rightSectionX, yPosition + 22)
-        doc.text(this.formatNumber(orderData.total) + ' €', rightSectionX + 60, yPosition + 22, { align: 'right' })
+        doc.text(this.formatNumber(orderData.total) + ' €', rightSectionX + 60, yPosition + 22, { align: 'right', charSpace: 0 })
         
         // SOMME FINALE avec fond jaune - repositionnée et redimensionnée
         doc.setFillColor(yellowColor[0], yellowColor[1], yellowColor[2])
@@ -817,7 +812,7 @@ export class InvoiceGenerator {
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
         doc.text('Somme finale à payer :', rightSectionX, yPosition + 38)
-        doc.text(this.formatNumber(orderData.total) + ' €', rightSectionX + 60, yPosition + 38, { align: 'right' })
+        doc.text(this.formatNumber(orderData.total) + ' €', rightSectionX + 60, yPosition + 38, { align: 'right', charSpace: 0 })
 
         yPosition += 60
 
