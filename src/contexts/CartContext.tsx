@@ -13,6 +13,7 @@ export interface CartItem {
   brand?: string
   category_name?: string
   description: string
+  reference?: string
 }
 
 interface CartState {

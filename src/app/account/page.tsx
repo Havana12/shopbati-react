@@ -63,7 +63,8 @@ function AccountContent() {
     } else if (user && activeTab === 'profile' && !userProfile) {
       loadUserProfile()
     }
-  }, [user, activeTab])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, activeTab, userProfile])
 
   const loadUserProfile = async () => {
     if (!user?.email) return
@@ -319,15 +320,31 @@ function AccountContent() {
                               </span>
                             </div>
                             
-                            {order.shipping_address && (
-                              <div className="mt-4 text-sm text-gray-600">
-                                <i className="fas fa-map-marker-alt mr-2"></i>
-                                {typeof order.shipping_address === 'string' 
-                                  ? JSON.parse(order.shipping_address).address || order.shipping_address
-                                  : `${order.shipping_address.address || order.shipping_address.street || ''}, ${order.shipping_address.postalCode || order.shipping_address.postal_code || ''} ${order.shipping_address.city || ''}`
-                                }
-                              </div>
-                            )}
+                            {order.shipping_address && (() => {
+                              try {
+                                const addr = typeof order.shipping_address === 'string' 
+                                  ? JSON.parse(order.shipping_address) 
+                                  : order.shipping_address
+                                
+                                const street = addr.street || addr.address || ''
+                                const postalCode = addr.postalCode || addr.postal_code || ''
+                                const city = addr.city || ''
+                                const country = addr.country || ''
+                                
+                                // Only display if we have at least city or street
+                                if (!street && !city) return null
+                                
+                                const parts = [street, `${postalCode} ${city}`.trim(), country].filter(Boolean)
+                                return parts.length > 0 ? (
+                                  <div className="mt-4 text-sm text-gray-600">
+                                    <i className="fas fa-map-marker-alt mr-2"></i>
+                                    {parts.join(', ')}
+                                  </div>
+                                ) : null
+                              } catch {
+                                return null
+                              }
+                            })()}
                           </div>
                         </div>
                       ))}

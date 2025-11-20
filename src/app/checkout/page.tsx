@@ -13,6 +13,7 @@ interface CartItem {
   price: number
   quantity: number
   image_url?: string
+  reference?: string
 }
 
 interface OrderData {
@@ -266,7 +267,8 @@ export default function CheckoutPage() {
             name: item.name,
             price: item.price,
             quantity: item.quantity,
-            image: item.image_url || ''
+            image: item.image_url || '',
+            reference: item.reference || ''
           }))),
           subtotal: getTotalPrice(),
           shipping_cost: getShippingCost(),

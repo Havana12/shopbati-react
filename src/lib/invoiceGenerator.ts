@@ -321,7 +321,7 @@ export class InvoiceGenerator {
         // 6. TABLEAU
         const tableStartY = yPosition
         const headerHeight = 15
-        const rowHeight = 12
+        const baseRowHeight = 12
 
         // En-tête tableau
         doc.setFillColor(yellowColor[0], yellowColor[1], yellowColor[2])
@@ -340,14 +340,14 @@ export class InvoiceGenerator {
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
         
-        doc.text('N°', colN + 5, yPosition + 8, { align: 'center' })
-        doc.text('Réf', colRef + 12, yPosition + 4, { align: 'center' })
-        doc.text('article', colRef + 12, yPosition + 9, { align: 'center' })
-        doc.text('Désignation article', colDesignation + 35, yPosition + 8, { align: 'center' })
-        doc.text('Quantité', colQuantite + 9, yPosition + 8, { align: 'center' })
-        doc.text('Prix unit.', colPrixUnit + 11, yPosition + 4, { align: 'center' })
-        doc.text('TTC', colPrixUnit + 11, yPosition + 9, { align: 'center' })
-        doc.text('Total TTC', colTotal + 11, yPosition + 8, { align: 'center' })
+        doc.text('N°', colN + 5, yPosition + 8, { align: 'center', charSpace: 0 })
+        doc.text('Réf', colRef + 12, yPosition + 4, { align: 'center', charSpace: 0 })
+        doc.text('article', colRef + 12, yPosition + 9, { align: 'center', charSpace: 0 })
+        doc.text('Désignation article', colDesignation + 35, yPosition + 8, { align: 'center', charSpace: 0 })
+        doc.text('Quantité', colQuantite + 9, yPosition + 8, { align: 'center', charSpace: 0 })
+        doc.text('Prix unit.', colPrixUnit + 11, yPosition + 4, { align: 'center', charSpace: 0 })
+        doc.text('TTC', colPrixUnit + 11, yPosition + 9, { align: 'center', charSpace: 0 })
+        doc.text('Total TTC', colTotal + 11, yPosition + 8, { align: 'center', charSpace: 0 })
 
         yPosition += headerHeight
 
@@ -356,26 +356,33 @@ export class InvoiceGenerator {
         doc.setFontSize(7)
         
         orderData.items.forEach((item, index) => {
+          // Calculate dynamic row height based on product name length
+          const productName = item.name.toUpperCase()
+          const maxWidth = 70
+          doc.setFontSize(7)
+          const lines = doc.splitTextToSize(productName, maxWidth)
+          const rowHeight = Math.max(baseRowHeight, lines.length * 4 + 4) // 4mm per line + padding
+          
           doc.setDrawColor(150, 150, 150)
           doc.rect(margin, yPosition, contentWidth, rowHeight)
 
           doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
           
+          // Calculate vertical center for single-line items
+          const vCenter = yPosition + (rowHeight / 2) + 2
+          
           doc.setFontSize(7)
-          doc.text((index + 1).toString(), colN + 5, yPosition + 8, { align: 'center' })
+          doc.text((index + 1).toString(), colN + 5, vCenter, { align: 'center', charSpace: 0 })
           
           const productRef = item.reference || `SB${(index + 1).toString().padStart(6, '0')}`
-          doc.text(productRef, colRef + 12, yPosition + 8, { align: 'center' })
+          doc.text(productRef, colRef + 12, vCenter, { align: 'center', charSpace: 0 })
           
-          let productName = item.name.toUpperCase()
-          if (productName.length > 35) {
-            productName = productName.substring(0, 32) + '...'
-          }
-          doc.text(productName, colDesignation + 2, yPosition + 8)
+          // Product name with wrapping
+          doc.text(lines, colDesignation + 2, yPosition + 6, { charSpace: 0 })
           
-          doc.text(item.quantity.toString(), colQuantite + 9, yPosition + 8, { align: 'center' })
-          doc.text(this.formatCurrency(item.price), colPrixUnit + 11, yPosition + 8, { align: 'center' })
-          doc.text(this.formatCurrency(item.price * item.quantity), colTotal + 11, yPosition + 8, { align: 'center' })
+          doc.text(item.quantity.toString(), colQuantite + 9, vCenter, { align: 'center', charSpace: 0 })
+          doc.text(this.formatNumber(item.price) + ' €', colPrixUnit + 11, vCenter, { align: 'center', charSpace: 0 })
+          doc.text(this.formatNumber(item.price * item.quantity) + ' €', colTotal + 11, vCenter, { align: 'center', charSpace: 0 })
           
           yPosition += rowHeight
         })
@@ -507,13 +514,11 @@ export class InvoiceGenerator {
   }
 
   private static formatNumber(amount: number): string {
-    // Format number with French locale, replacing non-breaking spaces with regular spaces
-    const formatted = new Intl.NumberFormat('fr-FR', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount)
-    // Replace non-breaking space (U+00A0) with regular space for PDF rendering
-    return formatted.replace(/\u00A0/g, ' ')
+    // Manual formatting to avoid jsPDF rendering issues with Intl.NumberFormat
+    const fixed = amount.toFixed(2)
+    const parts = fixed.split('.')
+    const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+    return `${integerPart},${parts[1]}`
   }
 
   private static formatDate(dateString: string): string {
@@ -697,7 +702,7 @@ export class InvoiceGenerator {
         // 6. TABLEAU EXACT STYLE LEROY MERLIN
         const tableStartY = yPosition
         const headerHeight = 15
-        const rowHeight = 12
+        const baseRowHeight = 12
 
         // En-tête tableau avec fond jaune (comme Leroy Merlin mais jaune)
         doc.setFillColor(yellowColor[0], yellowColor[1], yellowColor[2])
@@ -718,14 +723,14 @@ export class InvoiceGenerator {
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
         
-        doc.text('N°', colN + 5, yPosition + 8, { align: 'center' })
-        doc.text('Réf', colRef + 12, yPosition + 4, { align: 'center' })
-        doc.text('article', colRef + 12, yPosition + 9, { align: 'center' })
-        doc.text('Désignation article', colDesignation + 35, yPosition + 8, { align: 'center' })
-        doc.text('Quantité', colQuantite + 9, yPosition + 8, { align: 'center' })
-        doc.text('Prix unit.', colPrixUnit + 11, yPosition + 4, { align: 'center' })
-        doc.text('TTC', colPrixUnit + 11, yPosition + 9, { align: 'center' })
-        doc.text('Total TTC', colTotal + 11, yPosition + 8, { align: 'center' })
+        doc.text('N°', colN + 5, yPosition + 8, { align: 'center', charSpace: 0 })
+        doc.text('Réf', colRef + 12, yPosition + 4, { align: 'center', charSpace: 0 })
+        doc.text('article', colRef + 12, yPosition + 9, { align: 'center', charSpace: 0 })
+        doc.text('Désignation article', colDesignation + 35, yPosition + 8, { align: 'center', charSpace: 0 })
+        doc.text('Quantité', colQuantite + 9, yPosition + 8, { align: 'center', charSpace: 0 })
+        doc.text('Prix unit.', colPrixUnit + 11, yPosition + 4, { align: 'center', charSpace: 0 })
+        doc.text('TTC', colPrixUnit + 11, yPosition + 9, { align: 'center', charSpace: 0 })
+        doc.text('Total TTC', colTotal + 11, yPosition + 8, { align: 'center', charSpace: 0 })
 
         yPosition += headerHeight
 
@@ -734,31 +739,35 @@ export class InvoiceGenerator {
         doc.setFontSize(7)
         
         orderData.items.forEach((item, index) => {
-          // Pas de fond alterné, comme Leroy Merlin
+          // Calculate dynamic row height based on product name length
+          const productName = item.name.toUpperCase()
+          const maxWidth = 70
+          doc.setFontSize(7)
+          const lines = doc.splitTextToSize(productName, maxWidth)
+          const rowHeight = Math.max(baseRowHeight, lines.length * 4 + 4) // 4mm per line + padding
+          
           doc.setDrawColor(150, 150, 150)
           doc.rect(margin, yPosition, contentWidth, rowHeight)
 
           doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
           
-          // Données compactes pour tenir entièrement dans la page
+          // Calculate vertical center for single-line items
+          const vCenter = yPosition + (rowHeight / 2) + 2
+          
           doc.setFontSize(7)
-          doc.text((index + 1).toString(), colN + 5, yPosition + 8, { align: 'center' })
+          doc.text((index + 1).toString(), colN + 5, vCenter, { align: 'center', charSpace: 0 })
           
           // Use product reference from database or fallback to generated reference
           const productRef = item.reference || `SB${(index + 1).toString().padStart(6, '0')}`
-          doc.text(productRef, colRef + 12, yPosition + 8, { align: 'center' })
+          doc.text(productRef, colRef + 12, vCenter, { align: 'center', charSpace: 0 })
           
-          // Nom produit (ajusté pour la largeur compacte)
-          let productName = item.name.toUpperCase()
-          if (productName.length > 35) {
-            productName = productName.substring(0, 32) + '...'
-          }
-          doc.text(productName, colDesignation + 2, yPosition + 8)
+          // Product name with wrapping - display all lines
+          doc.text(lines, colDesignation + 2, yPosition + 6, { charSpace: 0 })
           
-          // Quantité, Prix unitaire, Total - compacts
-          doc.text(item.quantity.toString(), colQuantite + 9, yPosition + 8, { align: 'center' })
-          doc.text(this.formatCurrency(item.price), colPrixUnit + 11, yPosition + 8, { align: 'center' })
-          doc.text(this.formatCurrency(item.price * item.quantity), colTotal + 11, yPosition + 8, { align: 'center' })
+          // Quantité, Prix unitaire, Total - use formatNumber instead of formatCurrency
+          doc.text(item.quantity.toString(), colQuantite + 9, vCenter, { align: 'center', charSpace: 0 })
+          doc.text(this.formatNumber(item.price) + ' €', colPrixUnit + 11, vCenter, { align: 'center', charSpace: 0 })
+          doc.text(this.formatNumber(item.price * item.quantity) + ' €', colTotal + 11, vCenter, { align: 'center', charSpace: 0 })
           
           yPosition += rowHeight
         })

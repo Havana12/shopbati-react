@@ -227,7 +227,8 @@ function ProduitsPageContent() {
       image_url: product.image_url,
       brand: product.brand,
       category_name: product.category_name,
-      description: product.description
+      description: product.description,
+      reference: product.reference
     })
   }
 

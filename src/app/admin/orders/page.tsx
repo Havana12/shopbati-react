@@ -256,6 +256,34 @@ export default function AdminOrdersPage() {
         // User lookup failed, will use order data only
       }
       
+      // Parse items and enrich with product references from database
+      let enrichedItems = typeof order.items === 'string' ? JSON.parse(order.items) : order.items
+      
+      // Try to fetch product references for items that don't have them
+      try {
+        const appwrite = AppwriteService.getInstance()
+        enrichedItems = await Promise.all(enrichedItems.map(async (item: any) => {
+          if (!item.reference) {
+            try {
+              // Try to find product by name
+              const products = await appwrite.databases.listDocuments(
+                process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+                'products',
+                [appwrite.Query.equal('name', item.name), appwrite.Query.limit(1)]
+              )
+              if (products.documents.length > 0) {
+                return { ...item, reference: products.documents[0].reference }
+              }
+            } catch (err) {
+              // Could not fetch product, use item as-is
+            }
+          }
+          return item
+        }))
+      } catch (err) {
+        // Failed to enrich, use original items
+      }
+      
       const response = await fetch('/api/send-invoice-after-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -264,7 +292,7 @@ export default function AdminOrdersPage() {
           customerEmail: order.customer_email,
           customerName: order.customer_name,
           timestamp: order.created_at,
-          items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items,
+          items: enrichedItems,
           total: order.total_amount,
           shippingAddress: typeof order.shipping_address === 'string' 
             ? (order.shipping_address.startsWith('{') ? JSON.parse(order.shipping_address) : { street: order.shipping_address })
