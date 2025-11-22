@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
     // Send email to SHOPBATI
     const { data, error } = await resend.emails.send({
-      from: 'SHOPBATI Contact <onboarding@resend.dev>',
+      from: 'SHOPBATI Contact <contact@shopbati.fr>',
       to: ['contact@shopbati.fr'],
       replyTo: email,
       subject: `[Contact] ${subject}`,
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     // Send confirmation email to customer
     try {
       await resend.emails.send({
-        from: 'SHOPBATI <onboarding@resend.dev>',
+        from: 'SHOPBATI <contact@shopbati.fr>',
         to: [email],
         subject: 'Confirmation de réception - SHOPBATI',
         html: `

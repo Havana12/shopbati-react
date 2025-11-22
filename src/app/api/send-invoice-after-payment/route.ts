@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     
     try {
       const { error } = await resend.emails.send({
-        from: 'SHOPBATI <onboarding@resend.dev>',
+        from: 'SHOPBATI <contact@shopbati.fr>',
         to: [orderData.customerEmail],
         subject: `Confirmation de paiement & préparation de votre commande – ${orderData.orderId}`,
         html: emailContent,

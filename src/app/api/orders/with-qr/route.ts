@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         const emailContent = generateEmailContent(orderData, invoiceUrl)
         
         const { error, data } = await resend.emails.send({
-          from: 'SHOPBATI <onboarding@resend.dev>',
+          from: 'SHOPBATI <contact@shopbati.fr>',
           to: [orderData.customerEmail],
           subject: `🧾 Facture SHOPBATI - Commande ${orderData.orderId}`,
           html: emailContent,

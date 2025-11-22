@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     const emailContent = generateShippingNotificationEmail(orderData)
     
     const { error } = await resend.emails.send({
-      from: 'SHOPBATI <onboarding@resend.dev>',
+      from: 'SHOPBATI <contact@shopbati.fr>',
       to: [orderData.customerEmail],
       subject: `Votre commande ${orderData.orderId} a été expédiée`,
       html: emailContent,
