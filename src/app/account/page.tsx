@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { AppwriteService } from '@/lib/appwrite'
 import Link from 'next/link'
+import Header from '@/components/Header'
 
 interface Order {
   $id: string
@@ -181,32 +182,7 @@ function AccountContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Mon Compte</h1>
-              <p className="text-gray-600">Bienvenue, {user?.name}</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Link
-                href="/"
-                className="text-gray-600 hover:text-orange-500 font-medium"
-              >
-                <i className="fas fa-home mr-2"></i>
-                Retour au site
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-              >
-                <i className="fas fa-sign-out-alt mr-2"></i>
-                Se déconnecter
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <Header />
 
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">

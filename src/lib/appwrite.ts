@@ -30,13 +30,13 @@ export class AppwriteService {
     try {
       // Don't add default limit if queries already contain limit/offset (for pagination)
       const hasLimitOrOffset = queries.some(q => 
-        q.includes('limit(') || q.includes('offset(')
+        q.includes('"method":"limit"') || q.includes('"method":"offset"')
       )
       
       let allQueries = queries
       if (!hasLimitOrOffset) {
         // Only add default limit if no pagination is specified
-        allQueries = [Query.limit(100), ...queries]
+        allQueries = [Query.limit(5000), ...queries]
       }
       
       return await this.databases.listDocuments(

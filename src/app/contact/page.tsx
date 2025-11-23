@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-
+import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 
 export default function ContactPage() {
@@ -59,16 +59,17 @@ export default function ContactPage() {
 
   return (
     <>
+      <Header />
       <div className="min-h-screen bg-gray-50">
         {/* Hero Section */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
+        <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
           <div className="container mx-auto px-4 py-16">
             <div className="max-w-4xl mx-auto text-center">
               <h1 className="text-4xl md:text-5xl font-bold mb-4">
                 <i className="fas fa-envelope mr-3"></i>
                 Contactez-nous
               </h1>
-              <p className="text-xl text-blue-100">
+              <p className="text-xl md:text-2xl text-orange-100">
                 Notre équipe d'experts est là pour vous accompagner dans tous vos projets de construction
               </p>
             </div>

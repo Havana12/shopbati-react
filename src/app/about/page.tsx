@@ -1,22 +1,23 @@
 'use client'
 
 import Link from 'next/link'
-
+import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 
 export default function AboutPage() {
   return (
     <>
+      <Header />
       <div className="min-h-screen bg-gray-50">
         {/* Hero Section */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
+        <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
           <div className="container mx-auto px-4 py-16">
             <div className="max-w-4xl mx-auto text-center">
               <h1 className="text-4xl md:text-5xl font-bold mb-4">
                 <i className="fas fa-building mr-3"></i>
                 À propos de SHOPBATI
               </h1>
-              <p className="text-xl text-blue-100">
+              <p className="text-xl text-orange-100">
                 Votre partenaire de confiance dans l'univers du bâtiment depuis plus de 20 ans
               </p>
             </div>
@@ -220,22 +221,22 @@ export default function AboutPage() {
           </div>
 
           {/* Call to Action */}
-          <div className="bg-blue-600 text-white rounded-lg p-8 text-center">
+          <div className="bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg p-8 text-center">
             <h2 className="text-3xl font-bold mb-4">Rejoignez la famille SHOPBATI</h2>
-            <p className="text-xl text-blue-100 mb-8">
+            <p className="text-xl text-orange-100 mb-8">
               Découvrez pourquoi plus de 15,000 professionnels nous font confiance
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link 
                 href="/produits"
-                className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-3 rounded-lg font-bold transition-colors"
+                className="bg-white text-orange-600 hover:bg-gray-100 px-8 py-3 rounded-lg font-bold transition-colors"
               >
                 <i className="fas fa-store mr-2"></i>
                 Découvrir nos produits
               </Link>
               <Link 
                 href="/contact"
-                className="border-2 border-white text-white hover:bg-white hover:text-blue-600 px-8 py-3 rounded-lg font-bold transition-colors"
+                className="border-2 border-white text-white hover:bg-white hover:text-orange-600 px-8 py-3 rounded-lg font-bold transition-colors"
               >
                 <i className="fas fa-phone mr-2"></i>
                 Nous contacter

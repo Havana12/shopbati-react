@@ -622,7 +622,7 @@ export default function HomePage() {
               <div className="text-white/80">Clients Satisfaits</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl lg:text-4xl font-bold text-white mb-2">50,000+</div>
+              <div className="text-3xl lg:text-4xl font-bold text-white mb-2">5,000+</div>
               <div className="text-white/80">Produits Disponibles</div>
             </div>
           </div>

@@ -1,8 +1,10 @@
 'use client'
 
 import Link from 'next/link'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function Footer() {
+  const { isAuthenticated } = useAuth()
   return (
     <footer className="bg-gray-900 text-white">
       {/* Main Footer */}
@@ -49,11 +51,6 @@ export default function Footer() {
                   <i className="fas fa-chevron-right text-xs mr-2"></i>Contact
                 </Link>
               </li>
-              <li>
-                <Link href="/blog" className="text-gray-300 hover:text-yellow-400 transition-colors">
-                  <i className="fas fa-chevron-right text-xs mr-2"></i>Blog
-                </Link>
-              </li>
             </ul>
           </div>
 
@@ -62,7 +59,7 @@ export default function Footer() {
             <h4 className="text-lg font-semibold mb-6">Service Client</h4>
             <ul className="space-y-3">
               <li>
-                <Link href="/login" className="text-gray-300 hover:text-yellow-400 transition-colors">
+                <Link href={isAuthenticated ? "/account?tab=profile" : "/login"} className="text-gray-300 hover:text-yellow-400 transition-colors">
                   <i className="fas fa-chevron-right text-xs mr-2"></i>Mon Compte
                 </Link>
               </li>
@@ -72,18 +69,13 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/orders" className="text-gray-300 hover:text-yellow-400 transition-colors">
+                <Link href={isAuthenticated ? "/account" : "/login"} className="text-gray-300 hover:text-yellow-400 transition-colors">
                   <i className="fas fa-chevron-right text-xs mr-2"></i>Mes Commandes
                 </Link>
               </li>
               <li>
-                <Link href="/support" className="text-gray-300 hover:text-yellow-400 transition-colors">
+                <Link href="/contact" className="text-gray-300 hover:text-yellow-400 transition-colors">
                   <i className="fas fa-chevron-right text-xs mr-2"></i>Support
-                </Link>
-              </li>
-              <li>
-                <Link href="/faq" className="text-gray-300 hover:text-yellow-400 transition-colors">
-                  <i className="fas fa-chevron-right text-xs mr-2"></i>FAQ
                 </Link>
               </li>
             </ul>

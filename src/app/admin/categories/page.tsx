@@ -118,7 +118,7 @@ export default function AdminCategoriesPage() {
       
       rows.push(
         <tr key={category.$id} className="hover:bg-gray-50">
-          <td className="px-4 py-4 whitespace-nowrap">
+          <td className="px-2 py-3">
             <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
               {category.image_url ? (
                 <img
@@ -131,9 +131,9 @@ export default function AdminCategoriesPage() {
               )}
             </div>
           </td>
-          <td className="px-6 py-4 whitespace-nowrap">
+          <td className="px-3 py-3">
             <div className="flex items-center">
-              <div style={{ paddingLeft: `${level * 20}px` }} className="flex items-center">
+              <div style={{ paddingLeft: `${level * 15}px` }} className="flex items-center">
                 {hasChildren && (
                   <button
                     onClick={() => toggleCategory(category.$id)}
@@ -143,53 +143,48 @@ export default function AdminCategoriesPage() {
                   </button>
                 )}
                 {level > 0 && (
-                  <span className="mr-2 text-gray-300">
-                    {'│ '.repeat(level - 1)}{'├─ '}
+                  <span className="mr-1 text-gray-300 text-xs">
+                    {'└ '}
                   </span>
                 )}
-                <span className="text-sm font-medium text-gray-900">{category.name}</span>
-                {level > 0 && (
-                  <span className="ml-2 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                    Niveau {level}
-                  </span>
-                )}
+                <span className="text-sm font-medium text-gray-900 truncate">{category.name}</span>
               </div>
             </div>
           </td>
-          <td className="px-6 py-4 whitespace-nowrap">
-            <div className="text-sm text-gray-600 font-mono bg-gray-100 px-2 py-1 rounded text-center">
+          <td className="px-3 py-3">
+            <div className="text-xs text-gray-600 font-mono bg-gray-100 px-2 py-1 rounded truncate">
               {category.slug}
             </div>
           </td>
-          <td className="px-6 py-4">
-            <div className="text-sm text-gray-600 max-w-xs">
+          <td className="px-3 py-3">
+            <div className="text-sm text-gray-600 truncate">
               {category.description || 'Aucune description'}
             </div>
           </td>
-          <td className="px-6 py-4 whitespace-nowrap text-center">
+          <td className="px-2 py-3 text-center">
             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
               category.status === 'active' 
                 ? 'bg-green-100 text-green-800' 
                 : 'bg-red-100 text-red-800'
             }`}>
-              {category.status === 'active' ? 'Actif' : 'Inactif'}
+              {category.status === 'active' ? '✓' : '✗'}
             </span>
           </td>
-          <td className="px-6 py-4 whitespace-nowrap text-center">
+          <td className="px-2 py-3 text-center">
             <span className="text-sm text-gray-600 font-medium">
               {category.sort_order}
             </span>
           </td>
-          <td className="px-6 py-4 whitespace-nowrap text-center">
-            <span className="text-sm font-medium text-blue-600">
+          <td className="px-2 py-3 text-center">
+            <span className="text-sm font-medium text-gray-900">
               {category.products_count || 0}
             </span>
           </td>
-          <td className="px-6 py-4 whitespace-nowrap text-center">
-            <div className="flex justify-center space-x-2">
+          <td className="px-2 py-3">
+            <div className="flex justify-center gap-1">
               <button
                 onClick={() => handleEdit(category)}
-                className="text-blue-600 hover:text-blue-900 transition-colors"
+                className="bg-blue-600 hover:bg-blue-700 text-white p-1.5 rounded text-xs transition-colors"
                 title="Modifier"
               >
                 <i className="fas fa-edit"></i>
@@ -208,14 +203,14 @@ export default function AdminCategoriesPage() {
                   setEditingCategory(null)
                   setShowCreateModal(true)
                 }}
-                className="text-green-600 hover:text-green-900 transition-colors"
+                className="bg-green-600 hover:bg-green-700 text-white p-1.5 rounded text-xs transition-colors"
                 title="Ajouter une sous-catégorie"
               >
                 <i className="fas fa-plus"></i>
               </button>
               <button
                 onClick={() => handleDelete(category.$id)}
-                className="text-red-600 hover:text-red-900 transition-colors"
+                className="bg-red-600 hover:bg-red-700 text-white p-1.5 rounded text-xs transition-colors"
                 title="Supprimer"
               >
                 <i className="fas fa-trash"></i>
@@ -640,7 +635,7 @@ export default function AdminCategoriesPage() {
           </div>
         </div>
       </div>
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+      <div className="bg-white rounded-lg shadow-lg overflow-x-auto">
         {loading ? (
           <div className="flex items-center justify-center p-12">
             <div className="text-center">
@@ -683,32 +678,32 @@ export default function AdminCategoriesPage() {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full table-fixed divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="w-16 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
                     Image
                   </th>
-                  <th className="w-48 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">
                     Nom
                   </th>
-                  <th className="w-40 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                     Slug
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Description
                   </th>
-                  <th className="w-24 px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                     Statut
                   </th>
-                  <th className="w-20 px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                     Ordre
                   </th>
-                  <th className="w-24 px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                     Produits
                   </th>
-                  <th className="w-32 px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                     Actions
                   </th>
                 </tr>
@@ -718,7 +713,7 @@ export default function AdminCategoriesPage() {
                   ? renderCategoryRows(categories)
                   : filteredCategories.map((category) => (
                     <tr key={category.$id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 whitespace-nowrap">
+                      <td className="px-2 py-3">
                         <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
                           {category.image_url ? (
                             <img
@@ -731,48 +726,46 @@ export default function AdminCategoriesPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{category.name}</div>
+                      <td className="px-3 py-3">
+                        <div className="text-sm font-medium text-gray-900 truncate">{category.name}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-600 font-mono bg-gray-100 px-2 py-1 rounded text-center">
+                      <td className="px-3 py-3">
+                        <div className="text-xs text-gray-600 font-mono bg-gray-100 px-2 py-1 rounded truncate">
                           {category.slug}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-600 max-w-xs">
+                      <td className="px-3 py-3">
+                        <div className="text-sm text-gray-600 truncate">
                           {category.description || 'Aucune description'}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <td className="px-2 py-3 text-center">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                           category.status === 'active' 
                             ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
                         }`}>
-                          {category.status === 'active' ? 'Actif' : 'Inactif'}
+                          {category.status === 'active' ? '✓' : '✗'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <td className="px-2 py-3 text-center">
                         <div className="text-sm text-gray-900 font-medium">{category.sort_order}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <div className="text-sm text-gray-900 font-bold bg-blue-50 px-2 py-1 rounded">
-                          {category.products_count || 0}
-                        </div>
+                      <td className="px-2 py-3 text-center">
+                        <div className="text-sm text-gray-900 font-bold">{category.products_count || 0}</div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <div className="flex items-center justify-center space-x-1">
+                      <td className="px-2 py-3">
+                        <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => handleEdit(category)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg text-sm transition-colors"
+                            className="bg-blue-600 hover:bg-blue-700 text-white p-1.5 rounded text-xs transition-colors"
                             title="Modifier"
                           >
                             <i className="fas fa-edit"></i>
                           </button>
                           <button
                             onClick={() => toggleStatus(category.$id, category.status)}
-                            className={`p-2 rounded-lg text-sm transition-colors ${
+                            className={`p-1.5 rounded text-xs transition-colors ${
                               category.status === 'active' 
                                 ? 'bg-yellow-600 hover:bg-yellow-700 text-white' 
                                 : 'bg-green-600 hover:bg-green-700 text-white'
@@ -783,7 +776,7 @@ export default function AdminCategoriesPage() {
                           </button>
                           <button
                             onClick={() => handleDelete(category.$id)}
-                            className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-lg text-sm transition-colors"
+                            className="bg-red-600 hover:bg-red-700 text-white p-1.5 rounded text-xs transition-colors"
                             title="Supprimer"
                           >
                             <i className="fas fa-trash"></i>

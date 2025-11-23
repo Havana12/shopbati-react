@@ -54,7 +54,7 @@ export default function Header() {
         const appwrite = AppwriteService.getInstance()
         const result = await appwrite.getCategories([
           appwrite.Query.equal('status', 'active'),
-          appwrite.Query.orderAsc('name'),
+          appwrite.Query.orderAsc('sort_order'),
           appwrite.Query.limit(100)
         ])
         setCategories(result.documents as unknown as Category[])
@@ -122,59 +122,35 @@ export default function Header() {
 
     try {
       const appwrite = AppwriteService.getInstance()
-      let result = null
       
-      console.log('📊 Trying search approach 1: Query.search')
-      // First try: search by name using Query.search
-      try {
-        result = await appwrite.getProducts([
-          appwrite.Query.search('name', query),
-          appwrite.Query.limit(8)
-        ])
-        console.log('✅ Search query successful:', result)
-      } catch (searchError) {
-        console.log('❌ Search query failed, trying contains approach:', searchError)
-        
-        console.log('📊 Trying search approach 2: Query.contains')
-        // Second try: search using contains (more reliable)
-        try {
-          result = await appwrite.getProducts([
-            appwrite.Query.contains('name', query),
-            appwrite.Query.limit(8)
-          ])
-          console.log('✅ Contains query successful:', result)
-        } catch (containsError) {
-          console.log('❌ Contains query failed, trying all products approach:', containsError)
-          
-          console.log('📊 Trying search approach 3: Client-side filtering')
-          // Third try: get all products and filter client-side
-          result = await appwrite.getProducts([
-            appwrite.Query.limit(50)  // Get more products to filter
-          ])
-          
-          console.log('📊 All products fetched:', result?.documents?.length || 0)
-          
-          // Filter client-side
-          if (result && result.documents) {
-            const filteredProducts = result.documents.filter((product: any) => 
-              product.name?.toLowerCase().includes(query.toLowerCase()) ||
-              product.description?.toLowerCase().includes(query.toLowerCase())
-            )
-            console.log('✅ Client-side filtering found:', filteredProducts.length, 'products')
-            result.documents = filteredProducts.slice(0, 8)
-          }
-        }
-      }
-
+      // Get all products and filter client-side (since fulltext index is not configured)
+      const result = await appwrite.getProducts([
+        appwrite.Query.limit(5000)  // Get all products to search through
+      ])
+      
       if (result && result.documents) {
-        setSearchResults(result.documents as unknown as Product[])
-        console.log(`✅ Final result: Found ${result.documents.length} products for query: "${query}"`)
+        // Normalize search query for better matching (handle accents, special chars)
+        const normalizedQuery = query.toLowerCase().trim()
+        
+        // Filter client-side by name, description, or SKU
+        const filteredProducts = result.documents.filter((product: any) => {
+          const name = product.name?.toLowerCase() || ''
+          const description = product.description?.toLowerCase() || ''
+          const sku = product.sku?.toLowerCase() || ''
+          const reference = product.reference?.toLowerCase() || ''
+          
+          return name.includes(normalizedQuery) || 
+                 description.includes(normalizedQuery) ||
+                 sku.includes(normalizedQuery) ||
+                 reference.includes(normalizedQuery)
+        })
+        
+        setSearchResults(filteredProducts.slice(0, 8) as unknown as Product[])
       } else {
         setSearchResults([])
-        console.log(`❌ No products found for query: "${query}"`)
       }
     } catch (error) {
-      console.error('❌ Search error:', error)
+      console.error('Search error:', error)
       setSearchResults([])
     } finally {
       setIsSearching(false)
@@ -274,10 +250,7 @@ export default function Header() {
                           className="block p-4 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
                           onClick={() => setShowSearchResults(false)}
                         >
-                          <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                              <i className="fas fa-cube text-gray-400"></i>
-                            </div>
+                          <div className="flex items-start space-x-3">
                             <div className="flex-1">
                               <h4 className="font-medium text-gray-900">{product.name}</h4>
                               <p className="text-sm text-gray-500 truncate">{product.description}</p>
@@ -411,109 +384,95 @@ export default function Header() {
         </div>
 
         {/* Navigation Menu */}
-        <nav className="bg-gray-50 border-t border-gray-200 relative z-50">
+        <nav className="bg-white border-t border-b border-gray-200 py-3 overflow-visible">
           <div className="hidden md:block">
             <div className="container mx-auto px-4">
-              <div className="flex items-center justify-start space-x-1 py-2 overflow-visible">
-                <Link
-                  href="/"
-                  className="text-gray-700 hover:text-orange-500 hover:bg-white text-sm font-semibold transition-all duration-200 px-4 py-2 rounded whitespace-nowrap"
-                >
-                  ACCUEIL
-                </Link>
-                
-                {/* Dynamic Categories with Subcategory Dropdowns - Show first categories */}
-                {parentCategories.slice(0, visibleCategories).map((category) => {
-                  const subcategories = getSubcategories(category.$id)
-                  const hasSubcategories = subcategories.length > 0
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-6 flex-1 flex-wrap">
+                  {/* Accueil Link */}
+                  <Link
+                    href="/"
+                    className="text-gray-800 hover:text-orange-500 text-xs font-bold uppercase transition-colors text-center leading-tight"
+                  >
+                    ACCUEIL
+                  </Link>
                   
-                  return (
-                    <div
-                      key={category.$id}
-                      className="relative z-50"
-                      onMouseEnter={() => hasSubcategories && setOpenCategoryDropdown(category.$id)}
-                      onMouseLeave={() => setOpenCategoryDropdown(null)}
-                    >
-                      <Link
-                        href={`/categories/${category.slug}`}
-                        className="text-gray-700 hover:text-orange-500 hover:bg-white text-sm font-semibold transition-all duration-200 px-4 py-2 rounded flex items-center whitespace-nowrap"
+                  <span className="text-gray-300">|</span>
+                  
+                  {/* Dynamic Categories - Text Only, Horizontal */}
+                  {parentCategories.slice(0, 9).map((category, index) => {
+                    const subcategories = getSubcategories(category.$id)
+                    const hasSubcategories = subcategories.length > 0
+                    
+                    return (
+                      <div key={category.$id} className="flex items-center space-x-6">
+                        <div
+                          className="relative"
+                          style={{ zIndex: openCategoryDropdown === category.$id ? 9999 : 'auto' }}
+                          onMouseEnter={() => hasSubcategories && setOpenCategoryDropdown(category.$id)}
+                          onMouseLeave={() => setOpenCategoryDropdown(null)}
+                        >
+                          <Link
+                            href={`/categories/${category.slug}`}
+                            className="text-gray-800 hover:text-orange-500 text-xs font-bold uppercase transition-colors text-center leading-tight max-w-[110px] block py-2"
+                          >
+                            {category.name}
+                          </Link>
+                          
+                          {/* Subcategories Dropdown */}
+                          {hasSubcategories && openCategoryDropdown === category.$id && (
+                            <div 
+                              className="absolute top-full left-0 pt-1"
+                              style={{ zIndex: 9999 }}
+                            >
+                              <div className="bg-white rounded-md shadow-2xl border border-gray-200 min-w-[220px] py-2">
+                                {subcategories.map((subcategory) => (
+                                  <Link
+                                    key={subcategory.$id}
+                                    href={`/categories/${subcategory.slug}`}
+                                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                                  >
+                                    {subcategory.name}
+                                  </Link>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        {index < 8 && <span className="text-gray-300">|</span>}
+                      </div>
+                    )
+                  })}
+                  
+                  {/* More Categories if needed */}
+                  {parentCategories.length > 9 && (
+                    <div className="relative" ref={moreMenuRef}>
+                      <button
+                        onClick={() => setShowMoreMenu(!showMoreMenu)}
+                        className="text-gray-800 hover:text-orange-500 text-sm font-bold uppercase transition-colors whitespace-nowrap"
                       >
-                        <span>{category.name.toUpperCase()}</span>
-                        {hasSubcategories && (
-                          <i className="fas fa-chevron-down ml-1.5 text-xs"></i>
-                        )}
-                      </Link>
+                        PLUS...
+                      </button>
                       
-                      {/* Subcategories Dropdown */}
-                      {hasSubcategories && openCategoryDropdown === category.$id && (
-                        <div className="absolute top-full left-[-80px] pt-2 z-[9999]" style={{ position: 'absolute' }}>
-                          <div className="bg-white rounded-md shadow-2xl border-2 border-orange-400 min-w-[240px] py-2">
-                            {subcategories.map((subcategory) => (
+                      {showMoreMenu && (
+                        <div className="absolute top-full right-0 pt-2 z-[9999]">
+                          <div className="bg-white rounded-md shadow-xl border border-gray-200 min-w-[220px] py-2 max-h-[400px] overflow-y-auto">
+                            {parentCategories.slice(9).map((category) => (
                               <Link
-                                key={subcategory.$id}
-                                href={`/categories/${subcategory.slug}`}
-                                className="block px-5 py-3 text-sm text-gray-700 hover:bg-orange-500 hover:text-white transition-colors font-medium border-b border-gray-100 last:border-b-0"
+                                key={category.$id}
+                                href={`/categories/${category.slug}`}
+                                className="block px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                                onClick={() => setShowMoreMenu(false)}
                               >
-                                {subcategory.name}
+                                {category.name}
                               </Link>
                             ))}
                           </div>
                         </div>
                       )}
                     </div>
-                  )
-                })}
-                
-                {/* More Button - Show if there are more categories */}
-                {parentCategories.length > visibleCategories && (
-                  <div className="relative" ref={moreMenuRef}>
-                    <button
-                      onClick={() => setShowMoreMenu(!showMoreMenu)}
-                      className="text-gray-700 hover:text-orange-500 hover:bg-white text-sm font-semibold transition-all duration-200 px-4 py-2 rounded flex items-center whitespace-nowrap"
-                    >
-                      <span>PLUS</span>
-                      <i className={`fas fa-chevron-${showMoreMenu ? 'up' : 'down'} ml-1.5 text-xs`}></i>
-                    </button>
-                    
-                    {/* More Categories Dropdown */}
-                    {showMoreMenu && (
-                      <div className="absolute top-full right-[40px] pt-2 z-[9999]">
-                        <div className="bg-white rounded-md shadow-2xl border-2 border-orange-400 min-w-[240px] py-2 max-h-[400px] overflow-y-auto">
-                          {parentCategories.slice(visibleCategories).map((category) => {
-                            const subcategories = getSubcategories(category.$id)
-                            const hasSubcategories = subcategories.length > 0
-                            
-                            return (
-                              <div key={category.$id}>
-                                <Link
-                                  href={`/categories/${category.slug}`}
-                                  className="block px-5 py-3 text-sm text-gray-700 hover:bg-orange-500 hover:text-white transition-colors font-medium border-b border-gray-100"
-                                  onClick={() => setShowMoreMenu(false)}
-                                >
-                                  {category.name.toUpperCase()}
-                                </Link>
-                                {hasSubcategories && (
-                                  <div className="pl-4 bg-gray-50">
-                                    {subcategories.map((subcategory) => (
-                                      <Link
-                                        key={subcategory.$id}
-                                        href={`/categories/${subcategory.slug}`}
-                                        className="block px-5 py-2 text-xs text-gray-600 hover:bg-orange-100 hover:text-orange-700 transition-colors border-b border-gray-100 last:border-b-0"
-                                        onClick={() => setShowMoreMenu(false)}
-                                      >
-                                        → {subcategory.name}
-                                      </Link>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>

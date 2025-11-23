@@ -8,6 +8,47 @@ export async function POST(request: NextRequest) {
   try {
     const orderData: OrderData = await request.json()
 
+    // Fetch address from users table if shippingAddress is empty
+    if (!orderData.shippingAddress?.street && orderData.customerEmail) {
+      console.log('📍 Fetching address from users table for:', orderData.customerEmail)
+      
+      const { Client, Databases, Query } = await import('node-appwrite')
+      
+      const client = new Client()
+      client
+        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1')
+        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '')
+        .setKey(process.env.APPWRITE_API_KEY || '')
+      
+      const databases = new Databases(client)
+      
+      try {
+        const users = await databases.listDocuments(
+          process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+          'users',
+          [Query.equal('email', orderData.customerEmail)]
+        )
+        
+        if (users.documents.length > 0) {
+          const user = users.documents[0]
+          console.log('✅ User found, address:', user.address, user.city)
+          
+          orderData.shippingAddress = {
+            street: user.address || '',
+            city: user.city || '',
+            postalCode: user.postalCode || user.postal_code || '',
+            country: user.country || 'France'
+          }
+          
+          console.log('✅ ShippingAddress updated:', orderData.shippingAddress)
+        } else {
+          console.log('⚠️ No user found with email:', orderData.customerEmail)
+        }
+      } catch (err) {
+        console.error('❌ Error fetching user address:', err)
+      }
+    }
+
     // Generate invoice with QR code and upload to Appwrite
     let invoiceResult = null
     try {
@@ -76,6 +117,9 @@ export async function POST(request: NextRequest) {
       // Mettre à jour le statut de la commande : status = "payé", invoice_sent = true
       await updateOrderStatusAfterPaymentConfirmation(orderData.orderId)
       
+      // Update user stats: total_orders and total_spent
+      await updateUserStats(orderData.customerEmail, orderData.total)
+      
       return NextResponse.json({ 
         success: true, 
         message: `Facture envoyée avec succès à ${orderData.customerEmail}`
@@ -137,6 +181,68 @@ async function updateOrderStatusAfterPaymentConfirmation(orderId: string) {
   }
 }
 
+// Function to update user statistics after payment confirmation
+async function updateUserStats(customerEmail: string, orderTotal: number) {
+  try {
+    console.log('📊 Updating user stats for:', customerEmail)
+    
+    const { Client, Databases, Query } = await import('node-appwrite')
+    
+    const client = new Client()
+    client
+      .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1')
+      .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '')
+      .setKey(process.env.APPWRITE_API_KEY || '')
+    
+    const databases = new Databases(client)
+    
+    // Find user by email
+    const users = await databases.listDocuments(
+      process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+      'users',
+      [Query.equal('email', customerEmail)]
+    )
+    
+    if (users.documents.length > 0) {
+      const user = users.documents[0] as any
+      
+      // Calculate new stats
+      const currentTotalOrders = user.total_orders || 0
+      const currentTotalSpent = user.total_spent || 0
+      
+      const newTotalOrders = currentTotalOrders + 1
+      const newTotalSpent = currentTotalSpent + orderTotal
+      
+      // Update user document
+      await databases.updateDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        'users',
+        user.$id,
+        {
+          total_orders: newTotalOrders,
+          total_spent: newTotalSpent,
+          last_order_date: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      )
+      
+      console.log('✅ User stats updated:', {
+        email: customerEmail,
+        total_orders: newTotalOrders,
+        total_spent: newTotalSpent
+      })
+      
+      return { success: true }
+    } else {
+      console.error('⚠️ User not found:', customerEmail)
+      return { success: false, error: 'User not found' }
+    }
+  } catch (error) {
+    console.error('❌ Error updating user stats:', error)
+    return { success: false, error: String(error) }
+  }
+}
+
 function generatePaymentConfirmationEmail(orderData: OrderData, invoiceUrl?: string, qrCodeDataUrl?: string): string {
   const itemsHtml = orderData.items.map(item => `
     <tr>
@@ -146,6 +252,18 @@ function generatePaymentConfirmationEmail(orderData: OrderData, invoiceUrl?: str
       <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">€${(item.price * item.quantity).toFixed(2)}</td>
     </tr>
   `).join('')
+
+  // Format shipping address for display
+  let shippingAddressHtml = ''
+  if (orderData.shippingAddress?.street) {
+    shippingAddressHtml = `
+      <li>Adresse de livraison : ${orderData.shippingAddress.street}, ${orderData.shippingAddress.postalCode} ${orderData.shippingAddress.city}, ${orderData.shippingAddress.country || 'France'}</li>
+    `
+  } else if (orderData.customerInfo?.address) {
+    shippingAddressHtml = `
+      <li>Adresse de livraison : ${orderData.customerInfo.address}, ${orderData.customerInfo.postalCode} ${orderData.customerInfo.city}, ${orderData.customerInfo.country || 'France'}</li>
+    `
+  }
 
   return `
     <!DOCTYPE html>
@@ -217,6 +335,7 @@ function generatePaymentConfirmationEmail(orderData: OrderData, invoiceUrl?: str
             <li>Date : ${new Date(orderData.timestamp).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</li>
             <li>Email : ${orderData.customerEmail}</li>
             ${orderData.customerName ? `<li>Client : ${orderData.customerName}</li>` : ''}
+            ${shippingAddressHtml}
             <li>Statut : <strong style="color: #22c55e;">PAYÉ</strong></li>
           </ul>
         </div>

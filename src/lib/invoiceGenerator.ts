@@ -69,6 +69,8 @@ export class InvoiceGenerator {
    */
   static async generateInvoiceWithQR(orderData: OrderData): Promise<InvoiceWithQR> {
     try {
+      // Import InputFile once for the entire function
+      const { InputFile } = await import('node-appwrite/file')
       
       // 1. Generate invoice PDF first (without QR)
       const tempInvoiceBuffer = await this.generatePDFFromOrder(orderData)
@@ -77,16 +79,17 @@ export class InvoiceGenerator {
       const invoiceNumber = this.generateInvoiceNumber()
       const fileName = `facture-${invoiceNumber}-${Date.now()}.pdf`
       
-      // Convert Buffer to Blob for upload
-      const blob = new Blob([tempInvoiceBuffer], { type: 'application/pdf' })
-      const file = new File([blob], fileName, { type: 'application/pdf' })
-      
-      // Upload file to Appwrite using server-side SDK
+      // Upload file to Appwrite using server-side SDK with Buffer directly
       const storage = this.getStorage()
+      const fileId = ID.unique()
+      
+      // Create InputFile from Buffer for server-side upload
+      const inputFile = InputFile.fromBuffer(tempInvoiceBuffer, fileName)
+      
       const uploadedFile = await storage.createFile(
         this.INVOICES_BUCKET_ID,
-        ID.unique(),
-        file
+        fileId,
+        inputFile
       )
       
       // 3. Get the file URL
@@ -113,13 +116,13 @@ export class InvoiceGenerator {
       // 6. Update the file in storage with the final version (with QR)
       await storage.deleteFile(this.INVOICES_BUCKET_ID, uploadedFile.$id)
       
-      const finalBlob = new Blob([finalInvoiceBuffer], { type: 'application/pdf' })
-      const finalFile = new File([finalBlob], fileName, { type: 'application/pdf' })
+      // Create final InputFile from Buffer for server-side upload
+      const finalInputFile = InputFile.fromBuffer(finalInvoiceBuffer, fileName)
       
       const finalUploadedFile = await storage.createFile(
         this.INVOICES_BUCKET_ID,
         uploadedFile.$id, // Use same ID
-        finalFile
+        finalInputFile
       )
       
       return {
@@ -529,7 +532,7 @@ export class InvoiceGenerator {
     })
   }
 
-  static async generatePDFFromOrder(orderData: OrderData): Promise<Buffer> {
+  static async generatePDFFromOrder(orderData: OrderData, documentType: string = 'FACTURE'): Promise<Buffer> {
     return new Promise(async (resolve, reject) => {
       try {
         const doc = new jsPDF('p', 'mm', 'a4')
@@ -613,14 +616,15 @@ export class InvoiceGenerator {
           doc.text('SHOPBATI', margin, yPosition + 15)
         }
 
-        // Titre facture au centre
+        // Titre document au centre
         const invoiceNumber = this.generateInvoiceNumber()
         const ticketNumber = this.generateTicketNumber(orderData)
         
         doc.setFontSize(18)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
-        doc.text(`FACTURE N° ${invoiceNumber.replace('SB-', '')} DUPLICATA`, pageWidth/2, yPosition + 8, { align: 'center' })
+        const documentTitle = documentType === 'Bon de Commande' ? `BON DE COMMANDE N° ${invoiceNumber.replace('SB-', '')}` : `FACTURE N° ${invoiceNumber.replace('SB-', '')} DUPLICATA`
+        doc.text(documentTitle, pageWidth/2, yPosition + 8, { align: 'center' })
         
         doc.setFontSize(9)
         doc.setFont('helvetica', 'normal')
@@ -677,15 +681,15 @@ export class InvoiceGenerator {
         doc.setFontSize(9)
         doc.setFont('helvetica', 'normal')
         
-        // Get customer address - prioritize customerInfo, then shippingAddress
-        if (orderData.customerInfo?.address && orderData.customerInfo?.city) {
-          doc.text(orderData.customerInfo.address, rightColX + 3, yPosition + 15)
-          doc.text(`${orderData.customerInfo.postalCode} ${orderData.customerInfo.city}`, rightColX + 3, yPosition + 20)
-          doc.text(orderData.customerInfo.country || 'France', rightColX + 3, yPosition + 25)
-        } else if (orderData.shippingAddress && orderData.shippingAddress.street) {
+        // Get customer address - prioritize shippingAddress (livraison), then customerInfo (facturation)
+        if (orderData.shippingAddress && orderData.shippingAddress.street) {
           doc.text(orderData.shippingAddress.street, rightColX + 3, yPosition + 15)
           doc.text(`${orderData.shippingAddress.postalCode} ${orderData.shippingAddress.city}`, rightColX + 3, yPosition + 20)
           doc.text(orderData.shippingAddress.country || 'France', rightColX + 3, yPosition + 25)
+        } else if (orderData.customerInfo?.address && orderData.customerInfo?.city) {
+          doc.text(orderData.customerInfo.address, rightColX + 3, yPosition + 15)
+          doc.text(`${orderData.customerInfo.postalCode} ${orderData.customerInfo.city}`, rightColX + 3, yPosition + 20)
+          doc.text(orderData.customerInfo.country || 'France', rightColX + 3, yPosition + 25)
         } else {
           doc.text('Adresse non fournie', rightColX + 3, yPosition + 15)
         }
@@ -875,6 +879,12 @@ export async function generatePDFFromOrder(orderData: OrderData): Promise<Buffer
 // Nouvelle fonction pour générer facture avec QR code
 export async function generateInvoiceWithQRCode(orderData: OrderData): Promise<InvoiceWithQR> {
   return InvoiceGenerator.generateInvoiceWithQR(orderData)
+}
+
+// Function to generate PDF as base64 (for email attachments)
+export async function generateInvoicePDF(orderData: OrderData, documentType: string = 'FACTURE'): Promise<string> {
+  const buffer = await InvoiceGenerator.generatePDFFromOrder(orderData, documentType)
+  return buffer.toString('base64')
 }
 
 // Export des types

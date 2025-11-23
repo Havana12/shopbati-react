@@ -76,18 +76,22 @@ export default function AdminCustomersPage() {
     setLoading(true)
     try {
       const appwrite = AppwriteService.getInstance()
+      
+      // Fetch all orders first
+      const ordersResult = await appwrite.databases.listDocuments(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        'orders',
+        [appwrite.Query.limit(5000)]
+      )
+
       let queries = [
         appwrite.Query.limit(customersPerPage),
         appwrite.Query.offset((currentPage - 1) * customersPerPage)
       ]
 
-      // Apply sorting
+      // Apply sorting (only for non-calculated fields)
       if (sortBy === 'created_at') {
         queries.push(appwrite.Query.orderDesc('$createdAt'))
-      } else if (sortBy === 'total_spent') {
-        queries.push(appwrite.Query.orderDesc('total_spent'))
-      } else if (sortBy === 'total_orders') {
-        queries.push(appwrite.Query.orderDesc('total_orders'))
       } else if (sortBy === 'last_name') {
         queries.push(appwrite.Query.orderAsc('last_name'))
       }
@@ -106,16 +110,46 @@ export default function AdminCustomersPage() {
         ]))
       }
 
-      // Apply spending filter (handled client-side due to Appwrite limitations)
       let filteredResults = await appwrite.databases.listDocuments(
         process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
         'users',
         queries
       )
 
-      let customers = filteredResults.documents as unknown as Customer[]
+      let customers = filteredResults.documents.map((user: any) => {
+        // Calculate stats from orders
+        const userOrders = ordersResult.documents.filter((order: any) => 
+          order.customer_email === user.email
+        )
+        
+        const paidOrders = userOrders.filter((order: any) => 
+          order.status === 'payé' || order.payment_status === 'payé'
+        )
+        
+        const total_orders = paidOrders.length
+        const total_spent = paidOrders.reduce((sum: number, order: any) => 
+          sum + (order.total_amount || 0), 0
+        )
+        
+        let last_order_date = null
+        if (paidOrders.length > 0) {
+          const sortedOrders = [...paidOrders].sort((a: any, b: any) => {
+            const dateA = new Date(a.created_at || a.$createdAt || 0).getTime()
+            const dateB = new Date(b.created_at || b.$createdAt || 0).getTime()
+            return dateB - dateA
+          })
+          last_order_date = sortedOrders[0].created_at || sortedOrders[0].$createdAt
+        }
+        
+        return {
+          ...user,
+          total_orders,
+          total_spent,
+          last_order_date
+        } as Customer
+      })
 
-      // Client-side filtering for spending and location
+      // Client-side filtering for spending
       if (spendingFilter !== 'all') {
         customers = customers.filter(customer => {
           const spent = customer.total_spent || 0
@@ -133,6 +167,13 @@ export default function AdminCustomersPage() {
         customers = customers.filter(customer => customer.city === locationFilter)
       }
       
+      // Client-side sorting for calculated fields
+      if (sortBy === 'total_spent') {
+        customers.sort((a, b) => (b.total_spent || 0) - (a.total_spent || 0))
+      } else if (sortBy === 'total_orders') {
+        customers.sort((a, b) => (b.total_orders || 0) - (a.total_orders || 0))
+      }
+      
       setCustomers(customers)
       setTotalPages(Math.ceil(filteredResults.total / customersPerPage))
 
@@ -143,22 +184,41 @@ export default function AdminCustomersPage() {
         [appwrite.Query.limit(1000)]
       )
 
-      const allCustomers = allCustomersResult.documents as unknown as Customer[]
+      const allCustomers = allCustomersResult.documents.map((user: any) => {
+        const userOrders = ordersResult.documents.filter((order: any) => 
+          order.customer_email === user.email
+        )
+        const paidOrders = userOrders.filter((order: any) => 
+          order.status === 'payé' || order.payment_status === 'payé'
+        )
+        return {
+          ...user,
+          total_orders: paidOrders.length,
+          total_spent: paidOrders.reduce((sum: number, order: any) => 
+            sum + (order.total_amount || 0), 0
+          )
+        }
+      })
+      
       const currentMonth = new Date().getMonth()
       const currentYear = new Date().getFullYear()
 
-      const newThisMonth = allCustomers.filter(customer => {
+      const newThisMonth = allCustomers.filter((customer: any) => {
         if (!customer.created_at) return false
         const createdDate = new Date(customer.created_at)
         return createdDate.getMonth() === currentMonth && createdDate.getFullYear() === currentYear
       }).length
 
-      const totalSpent = allCustomers.reduce((sum, customer) => sum + (customer.total_spent || 0), 0)
-      const totalOrders = allCustomers.reduce((sum, customer) => sum + (customer.total_orders || 0), 0)
+      const totalSpent = allCustomers.reduce((sum: number, customer: any) => 
+        sum + (customer.total_spent || 0), 0
+      )
+      const totalOrders = allCustomers.reduce((sum: number, customer: any) => 
+        sum + (customer.total_orders || 0), 0
+      )
 
       setCustomerStats({
         total: allCustomers.length,
-        active: allCustomers.filter(customer => (customer.status || 'active') === 'active').length,
+        active: allCustomers.filter((customer: any) => (customer.status || 'active') === 'active').length,
         newThisMonth: newThisMonth,
         averageOrder: totalOrders > 0 ? totalSpent / totalOrders : 0
       })
@@ -186,6 +246,33 @@ export default function AdminCustomersPage() {
     } catch (error) {
       console.error('Error updating customer status:', error)
       alert('Erreur lors de la mise à jour du statut')
+    }
+  }
+
+  const recalculateAllStats = async () => {
+    if (!confirm('Voulez-vous recalculer les statistiques de tous les clients basées sur leurs commandes existantes ? Cela peut prendre quelques secondes.')) {
+      return
+    }
+    
+    setLoading(true)
+    try {
+      const response = await fetch('/api/admin/recalculate-customer-stats', {
+        method: 'POST',
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        alert(`✅ Statistiques recalculées avec succès!\n\n${result.details.usersWithOrders} clients mis à jour sur ${result.details.totalUsers} au total.`)
+        fetchCustomers() // Refresh the list
+      } else {
+        alert('❌ Erreur: ' + result.message)
+      }
+    } catch (error) {
+      console.error('Error recalculating stats:', error)
+      alert('❌ Erreur lors du recalcul des statistiques')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -654,14 +741,20 @@ export default function AdminCustomersPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1 flex justify-between sm:hidden">
                     <button
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      onClick={() => {
+                        setCurrentPage(Math.max(1, currentPage - 1))
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                      }}
                       disabled={currentPage === 1}
                       className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                     >
                       Précédent
                     </button>
                     <button
-                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                      onClick={() => {
+                        setCurrentPage(Math.min(totalPages, currentPage + 1))
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                      }}
                       disabled={currentPage === totalPages}
                       className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                     >

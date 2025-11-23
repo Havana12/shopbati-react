@@ -44,6 +44,7 @@ export default function AdminOrdersPage() {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [orderStats, setOrderStats] = useState({
     delivered: 0,
+    shipped: 0,
     cancelled: 0,
     monthlyRevenue: 0
   })
@@ -145,15 +146,32 @@ export default function AdminOrdersPage() {
       const currentMonth = new Date().getMonth()
       const currentYear = new Date().getFullYear()
 
+      const deliveredCount = allOrders.filter(order => 
+        order.status === 'delivered' || order.status === 'livré'
+      ).length
+      
+      const shippedCount = allOrders.filter(order => 
+        order.status === 'expédié' || order.status === 'shipped'
+      ).length
+      
+      const cancelledCount = allOrders.filter(order => 
+        order.status === 'cancelled' || order.status === 'annulé'
+      ).length
+      
+      const monthlyRevenue = allOrders
+        .filter(order => {
+          const orderDate = new Date(order.created_at)
+          return orderDate.getMonth() === currentMonth && 
+                 orderDate.getFullYear() === currentYear &&
+                 (order.payment_status === 'payé' || order.payment_status === 'paid')
+        })
+        .reduce((sum, order) => sum + (order.total_amount || 0), 0)
+
       setOrderStats({
-        delivered: allOrders.filter(order => order.status === 'delivered' || order.status === 'livré').length,
-        cancelled: allOrders.filter(order => order.status === 'cancelled').length,
-        monthlyRevenue: allOrders
-          .filter(order => {
-            const orderDate = new Date(order.created_at)
-            return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear
-          })
-          .reduce((sum, order) => sum + (order.total_amount || 0), 0)
+        delivered: deliveredCount,
+        shipped: shippedCount,
+        cancelled: cancelledCount,
+        monthlyRevenue
       })
 
     } catch (error) {
@@ -404,7 +422,7 @@ export default function AdminOrdersPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center">
             <div className="p-2 bg-green-100 rounded-lg">
@@ -413,6 +431,18 @@ export default function AdminOrdersPage() {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Livrés</p>
               <p className="text-2xl font-bold text-gray-900">{orderStats.delivered}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="flex items-center">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <i className="fas fa-truck text-blue-600 text-xl"></i>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Expédiés</p>
+              <p className="text-2xl font-bold text-gray-900">{orderStats.shipped}</p>
             </div>
           </div>
         </div>
@@ -431,24 +461,12 @@ export default function AdminOrdersPage() {
 
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <i className="fas fa-check text-green-600 text-xl"></i>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Livrées</p>
-              <p className="text-2xl font-bold text-gray-900">{orderStats.delivered}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex items-center">
             <div className="p-2 bg-purple-100 rounded-lg">
               <i className="fas fa-euro-sign text-purple-600 text-xl"></i>
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">CA du mois</p>
-              <p className="text-2xl font-bold text-gray-900">€{orderStats.monthlyRevenue.toLocaleString('fr-FR')}</p>
+              <p className="text-2xl font-bold text-gray-900">€{orderStats.monthlyRevenue.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </div>
           </div>
         </div>
@@ -831,14 +849,20 @@ export default function AdminOrdersPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1 flex justify-between sm:hidden">
                     <button
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      onClick={() => {
+                        setCurrentPage(Math.max(1, currentPage - 1))
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                      }}
                       disabled={currentPage === 1}
                       className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                     >
                       Précédent
                     </button>
                     <button
-                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                      onClick={() => {
+                        setCurrentPage(Math.min(totalPages, currentPage + 1))
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                      }}
                       disabled={currentPage === totalPages}
                       className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                     >
@@ -855,14 +879,20 @@ export default function AdminOrdersPage() {
                     <div>
                       <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
                         <button
-                          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                          onClick={() => {
+                            setCurrentPage(Math.max(1, currentPage - 1))
+                            window.scrollTo({ top: 0, behavior: 'smooth' })
+                          }}
                           disabled={currentPage === 1}
                           className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
                         >
                           <i className="fas fa-chevron-left"></i>
                         </button>
                         <button
-                          onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                          onClick={() => {
+                            setCurrentPage(Math.min(totalPages, currentPage + 1))
+                            window.scrollTo({ top: 0, behavior: 'smooth' })
+                          }}
                           disabled={currentPage === totalPages}
                           className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
                         >

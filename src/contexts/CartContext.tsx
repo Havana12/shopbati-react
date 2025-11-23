@@ -152,6 +152,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const addItem = (item: Omit<CartItem, 'quantity'>) => {
     const existingItem = state.items.find(cartItem => cartItem.$id === item.$id)
     dispatch({ type: 'ADD_ITEM', payload: item })
+    dispatch({ type: 'OPEN_CART' })
     
     // Toast notifications removed as requested
   }

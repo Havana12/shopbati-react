@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { OrderData } from '@/lib/orderService'
 import { Resend } from 'resend'
+import { generateInvoicePDF } from '@/lib/invoiceGenerator'
+import fs from 'fs'
+import path from 'path'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -8,13 +11,70 @@ export async function POST(request: NextRequest) {
   try {
     const orderData: OrderData = await request.json()
     
+    // If shippingAddress is empty, fetch from users table
+    if (!orderData.shippingAddress?.street && orderData.customerEmail) {
+      try {
+        const { Client, Databases, Query } = await import('node-appwrite')
+        const client = new Client()
+        client
+          .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1')
+          .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '')
+          .setKey(process.env.APPWRITE_API_KEY || '')
+        
+        const databases = new Databases(client)
+        const users = await databases.listDocuments(
+          process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+          'users',
+          [Query.equal('email', orderData.customerEmail)]
+        )
+        
+        if (users.documents.length > 0) {
+          const user = users.documents[0] as any
+          orderData.shippingAddress = {
+            street: user.address || '',
+            city: user.city || '',
+            postalCode: user.postalCode || user.postal_code || '',
+            country: user.country || 'France'
+          }
+          console.log('✅ Fetched address from users table:', orderData.shippingAddress)
+        }
+      } catch (error) {
+        console.error('❌ Error fetching user address:', error)
+      }
+    }
+    
+    // Debug: Log the address data being used
+    console.log('🏠 Address data in order confirmation:', {
+      shippingAddress: orderData.shippingAddress,
+      customerInfoAddress: orderData.customerInfo?.address,
+      customerInfoCity: orderData.customerInfo?.city
+    })
+    
     const emailContent = generateOrderConfirmationEmail(orderData)
+    
+    // Generate Bon de Commande PDF (same as invoice but named differently)
+    const bonDeCommandePDF = await generateInvoicePDF(orderData, 'Bon de Commande')
+    
+    // Read RIB PDF file
+    const ribPath = path.join(process.cwd(), 'public', 'RIB', 'RIB.pdf')
+    const ribBuffer = fs.readFileSync(ribPath)
+    const ribBase64 = ribBuffer.toString('base64')
     
     const result = await resend.emails.send({
       from: 'SHOPBATI <contact@shopbati.fr>',
       to: [orderData.customerEmail],
       subject: `Confirmation de votre Bon de Commande – ${orderData.orderId}`,
-      html: emailContent
+      html: emailContent,
+      attachments: [
+        {
+          filename: `Bon_de_Commande_${orderData.orderId}.pdf`,
+          content: bonDeCommandePDF
+        },
+        {
+          filename: 'RIB_SHOPBATI.pdf',
+          content: ribBase64
+        }
+      ]
     })
     
     if (result.error) {

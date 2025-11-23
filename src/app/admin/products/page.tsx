@@ -40,6 +40,7 @@ export default function AdminProductsPage() {
   const [subcategoryFilter, setSubcategoryFilter] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [totalProducts, setTotalProducts] = useState(0)
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
 
   // Debounce search term to avoid too many API calls
@@ -134,6 +135,7 @@ export default function AdminProductsPage() {
       const result = await appwrite.getProducts(queries)
       setProducts(result.documents as unknown as Product[])
       setTotalPages(Math.ceil(result.total / productsPerPage))
+      setTotalProducts(result.total)
     } catch (error) {
       console.error('Error fetching products:', error)
     } finally {
@@ -211,7 +213,10 @@ export default function AdminProductsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Gestion des produits</h1>
-          <p className="text-gray-600 mt-2">Gérez votre catalogue de produits SHOPBATI</p>
+          <p className="text-gray-600 mt-2">
+            Gérez votre catalogue de produits SHOPBATI
+            {!loading && totalProducts > 0 && <span className="ml-2 text-blue-600 font-semibold">({products.length} sur {totalProducts} produits)</span>}
+          </p>
         </div>
         <Link
           href="/admin/products/new"
@@ -539,52 +544,101 @@ export default function AdminProductsPage() {
               </table>
             </div>
 
-            {/* Compact Pagination */}
-            {totalPages > 1 && (
-              <div className="bg-gray-50 px-4 py-3 border-t border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-700">
-                    Page {currentPage} sur {totalPages}
+            {/* Pagination */}
+            <div className="bg-white px-6 py-4 border-t border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="text-sm text-gray-700 font-medium">
+                    <i className="fas fa-info-circle mr-2 text-blue-500"></i>
+                    Page <span className="font-bold text-blue-600">{currentPage}</span> sur <span className="font-bold">{totalPages}</span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1 border border-gray-300 text-sm rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <i className="fas fa-chevron-left"></i>
-                    </button>
-                    
-                    {[...Array(Math.min(3, totalPages))].map((_, index) => {
-                      const pageNum = Math.max(1, currentPage - 1) + index
-                      if (pageNum > totalPages) return null
+                  <div className="text-sm text-gray-500">
+                    ({products.length} produit{products.length > 1 ? 's' : ''} affichés)
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setCurrentPage(1)
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                    }}
+                    disabled={currentPage === 1}
+                    className="px-3 py-2 border border-gray-300 text-sm rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    title="Première page"
+                  >
+                    <i className="fas fa-angle-double-left"></i>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCurrentPage(Math.max(1, currentPage - 1))
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                    }}
+                    disabled={currentPage === 1}
+                    className="px-4 py-2 border border-gray-300 text-sm rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <i className="fas fa-chevron-left mr-2"></i>
+                    Précédent
+                  </button>
+                  
+                  <div className="flex items-center gap-1">
+                    {[...Array(Math.min(5, totalPages))].map((_, index) => {
+                      let pageNum
+                      if (totalPages <= 5) {
+                        pageNum = index + 1
+                      } else if (currentPage <= 3) {
+                        pageNum = index + 1
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + index
+                      } else {
+                        pageNum = currentPage - 2 + index
+                      }
+                      
+                      if (pageNum > totalPages || pageNum < 1) return null
                       
                       return (
                         <button
                           key={pageNum}
-                          onClick={() => setCurrentPage(pageNum)}
-                          className={`px-3 py-1 text-sm rounded-md ${
+                          onClick={() => {
+                            setCurrentPage(pageNum)
+                            window.scrollTo({ top: 0, behavior: 'smooth' })
+                          }}
+                          className={`min-w-[40px] px-3 py-2 text-sm rounded-lg font-medium transition-colors ${
                             pageNum === currentPage
-                              ? 'bg-blue-500 text-white'
-                              : 'border border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
+                              ? 'bg-blue-600 text-white shadow-md'
+                              : 'border border-gray-300 text-gray-700 bg-white hover:bg-blue-50 hover:border-blue-300'
                           }`}
                         >
                           {pageNum}
                         </button>
                       )
                     })}
-                    
-                    <button
-                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1 border border-gray-300 text-sm rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <i className="fas fa-chevron-right"></i>
-                    </button>
                   </div>
+                  
+                  <button
+                    onClick={() => {
+                      setCurrentPage(Math.min(totalPages, currentPage + 1))
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                    }}
+                    disabled={currentPage === totalPages}
+                    className="px-4 py-2 border border-gray-300 text-sm rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Suivant
+                    <i className="fas fa-chevron-right ml-2"></i>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCurrentPage(totalPages)
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                    }}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-2 border border-gray-300 text-sm rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    title="Dernière page"
+                  >
+                    <i className="fas fa-angle-double-right"></i>
+                  </button>
                 </div>
               </div>
-            )}
+            </div>
           </>
         )}
       </div>
