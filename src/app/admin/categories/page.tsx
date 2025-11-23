@@ -192,7 +192,7 @@ export default function AdminCategoriesPage() {
             </span>
           </td>
           <td className="px-2 py-3 text-center">
-            <span className="text-sm font-medium text-gray-900">
+            <span className="inline-flex items-center justify-center px-3 py-1 text-sm font-bold text-blue-700 bg-blue-100 rounded-full">
               {category.products_count || 0}
             </span>
           </td>
@@ -277,10 +277,12 @@ export default function AdminCategoriesPage() {
       
       // Get all products to count by category
       const allProductsResult = await appwrite.getProducts([
-        appwrite.Query.limit(1000)
+        appwrite.Query.limit(5000)
       ])
       
-      // Count products for each category
+      console.log('Total products fetched:', allProductsResult.documents.length)
+      
+      // Count products for each category (direct products only)
       const categoriesWithCount = flatResult.documents.map((category: any) => {
         const categoryProducts = allProductsResult.documents.filter((product: any) => {
           return product.category_id === category.$id
@@ -295,32 +297,33 @@ export default function AdminCategoriesPage() {
       setFlatCategories(categoriesWithCount as Category[])
       setAllCategories(categoriesWithCount as Category[]) // Store all categories for dropdown
       
-      // Add product counts to hierarchical structure
+      // Add product counts to hierarchical structure and calculate total for parents
       const addProductCounts = (cats: Category[]): Category[] => {
         return cats.map(cat => {
           const withCount = categoriesWithCount.find(c => c.$id === cat.$id)
+          const directCount = withCount?.products_count || 0
+          
+          // Process children first
+          const childrenWithCounts = cat.children ? addProductCounts(cat.children) : []
+          
+          // Calculate total: direct products + all products from subcategories
+          const childrenTotal = childrenWithCounts.reduce((sum, child) => sum + (child.products_count || 0), 0)
+          const totalCount = directCount + childrenTotal
+          
+          console.log(`Category ${cat.name}: direct=${directCount}, children=${childrenTotal}, total=${totalCount}`)
+          
           return {
             ...cat,
-            products_count: withCount?.products_count || 0,
-            children: cat.children ? addProductCounts(cat.children) : []
+            products_count: totalCount,
+            children: childrenWithCounts
           }
         })
       }
       
       setCategories(addProductCounts(hierarchicalResult))
       
-      // Expand all categories that have children by default
-      const categoriesToExpand = new Set<string>()
-      const collectExpandableCategories = (cats: Category[]) => {
-        cats.forEach(cat => {
-          if (cat.children && cat.children.length > 0) {
-            categoriesToExpand.add(cat.$id)
-            collectExpandableCategories(cat.children)
-          }
-        })
-      }
-      collectExpandableCategories(addProductCounts(hierarchicalResult))
-      setExpandedCategories(categoriesToExpand)
+      // Start with all categories collapsed
+      setExpandedCategories(new Set<string>())
       
     } catch (error) {
       console.error('Error fetching categories:', error)
@@ -769,7 +772,9 @@ export default function AdminCategoriesPage() {
                         <div className="text-sm text-gray-900 font-medium">{category.sort_order}</div>
                       </td>
                       <td className="px-2 py-3 text-center">
-                        <div className="text-sm text-gray-900 font-bold">{category.products_count || 0}</div>
+                        <span className="inline-flex items-center justify-center px-3 py-1 text-sm font-bold text-blue-700 bg-blue-100 rounded-full">
+                          {category.products_count || 0}
+                        </span>
                       </td>
                       <td className="px-2 py-3">
                         <div className="flex items-center justify-center gap-1">
