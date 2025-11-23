@@ -107,11 +107,9 @@ export default function Header() {
     };
   }, []);
 
-  // Search functionality
+  // Search functionality - Fast server-side search
   const searchProducts = async (query: string) => {
-    console.log('🔍 Starting search for:', query)
-    
-    if (!query.trim()) {
+    if (!query.trim() || query.length < 2) {
       setSearchResults([])
       setShowSearchResults(false)
       return
@@ -121,36 +119,23 @@ export default function Header() {
     setShowSearchResults(true)
 
     try {
-      const appwrite = AppwriteService.getInstance()
+      // Use server-side API for much faster search
+      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`)
       
-      // Get all products and filter client-side (since fulltext index is not configured)
-      const result = await appwrite.getProducts([
-        appwrite.Query.limit(5000)  // Get all products to search through
-      ])
+      if (!response.ok) {
+        throw new Error('Search API failed')
+      }
       
-      if (result && result.documents) {
-        // Normalize search query for better matching (handle accents, special chars)
-        const normalizedQuery = query.toLowerCase().trim()
-        
-        // Filter client-side by name, description, or SKU
-        const filteredProducts = result.documents.filter((product: any) => {
-          const name = product.name?.toLowerCase() || ''
-          const description = product.description?.toLowerCase() || ''
-          const sku = product.sku?.toLowerCase() || ''
-          const reference = product.reference?.toLowerCase() || ''
-          
-          return name.includes(normalizedQuery) || 
-                 description.includes(normalizedQuery) ||
-                 sku.includes(normalizedQuery) ||
-                 reference.includes(normalizedQuery)
-        })
-        
-        setSearchResults(filteredProducts.slice(0, 8) as unknown as Product[])
+      const data = await response.json()
+      
+      if (data.results && Array.isArray(data.results)) {
+        setSearchResults(data.results as Product[])
       } else {
         setSearchResults([])
       }
     } catch (error) {
       console.error('Search error:', error)
+      // Fallback to empty results on error
       setSearchResults([])
     } finally {
       setIsSearching(false)
@@ -162,6 +147,9 @@ export default function Header() {
     const timeoutId = setTimeout(() => {
       if (searchQuery) {
         searchProducts(searchQuery)
+      } else {
+        setSearchResults([])
+        setShowSearchResults(false)
       }
     }, 300) // 300ms debounce
 
@@ -389,16 +377,6 @@ export default function Header() {
             <div className="container mx-auto px-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-6 flex-1 flex-wrap">
-                  {/* Accueil Link */}
-                  <Link
-                    href="/"
-                    className="text-gray-800 hover:text-orange-500 text-xs font-bold uppercase transition-colors text-center leading-tight"
-                  >
-                    ACCUEIL
-                  </Link>
-                  
-                  <span className="text-gray-300">|</span>
-                  
                   {/* Dynamic Categories - Text Only, Horizontal */}
                   {parentCategories.slice(0, 9).map((category, index) => {
                     const subcategories = getSubcategories(category.$id)
@@ -581,10 +559,6 @@ export default function Header() {
                     </div>
                   </div>
                 )}
-                
-                <Link href="/" className="text-gray-600 hover:text-orange-500 hover:bg-orange-50 text-sm font-medium py-3 px-4 rounded-lg transition-all">
-                  ACCUEIL
-                </Link>
                 
                 {/* Dynamic Mobile Menu Categories */}
                 {parentCategories.map((category) => {

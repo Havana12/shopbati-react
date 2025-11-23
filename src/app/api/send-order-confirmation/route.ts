@@ -20,6 +20,8 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
     
+    console.log('🔑 Resend API key present:', process.env.RESEND_API_KEY ? `${process.env.RESEND_API_KEY.substring(0, 8)}...` : 'MISSING')
+    
     if (!process.env.APPWRITE_API_KEY) {
       console.error('❌ APPWRITE_API_KEY is not set')
       return NextResponse.json({ 
@@ -112,6 +114,17 @@ export async function POST(request: NextRequest) {
     
     if (result.error) {
       console.error('❌ Email send failed:', result.error)
+      
+      // Check if it's an API key error
+      if (result.error.message?.includes('API key') || result.error.name === 'validation_error') {
+        return NextResponse.json({ 
+          success: false, 
+          message: 'Clé API Resend invalide ou manquante. Vérifiez la configuration Vercel.', 
+          error: result.error,
+          hint: 'Ajoutez RESEND_API_KEY dans les variables d\'environnement Vercel'
+        }, { status: 500 })
+      }
+      
       return NextResponse.json({ 
         success: false, 
         message: 'Erreur lors de l\'envoi de l\'email', 
