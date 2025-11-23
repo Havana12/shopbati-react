@@ -69,8 +69,8 @@ export class InvoiceGenerator {
    */
   static async generateInvoiceWithQR(orderData: OrderData): Promise<InvoiceWithQR> {
     try {
-      // Import InputFile once for the entire function
-      const { InputFile } = await import('node-appwrite/file')
+      // Import InputFile from node-appwrite
+      const { InputFile } = await import('node-appwrite')
       
       // 1. Generate invoice PDF first (without QR)
       const tempInvoiceBuffer = await this.generatePDFFromOrder(orderData)
