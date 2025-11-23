@@ -25,6 +25,7 @@ interface Category {
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [flatCategories, setFlatCategories] = useState<Category[]>([])
+  const [allCategories, setAllCategories] = useState<Category[]>([]) // All categories without filters
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [sortBy, setSortBy] = useState('sort_order')
@@ -133,7 +134,7 @@ export default function AdminCategoriesPage() {
           </td>
           <td className="px-3 py-3">
             <div className="flex items-center">
-              <div style={{ paddingLeft: `${level * 15}px` }} className="flex items-center">
+              <div style={{ paddingLeft: `${level * 20}px` }} className="flex items-center">
                 {hasChildren && (
                   <button
                     onClick={() => toggleCategory(category.$id)}
@@ -143,11 +144,24 @@ export default function AdminCategoriesPage() {
                   </button>
                 )}
                 {level > 0 && (
-                  <span className="mr-1 text-gray-300 text-xs">
-                    {'└ '}
+                  <span className="mr-2 text-gray-400 text-sm">
+                    <i className="fas fa-level-up-alt fa-rotate-90"></i>
                   </span>
                 )}
-                <span className="text-sm font-medium text-gray-900 truncate">{category.name}</span>
+                {level === 0 && (
+                  <i className="fas fa-folder text-blue-600 mr-2"></i>
+                )}
+                {level > 0 && (
+                  <i className="fas fa-folder-open text-orange-500 mr-2 text-sm"></i>
+                )}
+                <span className={`text-sm truncate ${level === 0 ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>
+                  {category.name}
+                </span>
+                {level > 0 && (
+                  <span className="ml-2 text-xs text-gray-500 italic">
+                    (sous-catégorie)
+                  </span>
+                )}
               </div>
             </div>
           </td>
@@ -253,9 +267,9 @@ export default function AdminCategoriesPage() {
       const hierarchicalResult = await appwrite.getCategoriesHierarchy()
       setCategories(hierarchicalResult)
       
-      // Get flat categories for filtering
+      // Get flat categories for filtering - fetch ALL categories
       const flatResult = await appwrite.getCategories([
-        appwrite.Query.orderAsc('level'),
+        appwrite.Query.limit(1000), // Increase limit to get all categories
         appwrite.Query.orderAsc('sort_order')
       ])
       
@@ -277,6 +291,7 @@ export default function AdminCategoriesPage() {
       })
       
       setFlatCategories(categoriesWithCount as Category[])
+      setAllCategories(categoriesWithCount as Category[]) // Store all categories for dropdown
       
       // Add product counts to hierarchical structure
       const addProductCounts = (cats: Category[]): Category[] => {
@@ -875,18 +890,24 @@ export default function AdminCategoriesPage() {
                   className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Catégorie principale</option>
-                  {flatCategories
-                    .filter(cat => cat.$id !== editingCategory?.$id) // Avoid circular references
+                  {allCategories
+                    .filter(cat => {
+                      // Avoid circular references
+                      if (cat.$id === editingCategory?.$id) return false
+                      // Only show parent categories (level 0) or categories without parent_id
+                      // This prevents creating subcategories of subcategories
+                      return !cat.parent_id
+                    })
+                    .sort((a, b) => a.name.localeCompare(b.name)) // Sort alphabetically
                     .map(category => (
                       <option key={category.$id} value={category.$id}>
-                        {category.level > 0 && '—'.repeat(category.level) + ' '}
                         {category.name}
                       </option>
                     ))}
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
                   {formData.parent_id 
-                    ? `Cette catégorie sera une sous-catégorie de "${flatCategories.find(c => c.$id === formData.parent_id)?.name}"`
+                    ? `Cette catégorie sera une sous-catégorie de "${allCategories.find(c => c.$id === formData.parent_id)?.name}"`
                     : 'Sélectionnez une catégorie parent pour créer une sous-catégorie'
                   }
                 </p>
