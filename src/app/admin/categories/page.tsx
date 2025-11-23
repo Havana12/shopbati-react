@@ -132,40 +132,42 @@ export default function AdminCategoriesPage() {
               )}
             </div>
           </td>
-          <td className="px-3 py-3">
+          <td className="px-6 py-3">
             <div className="flex items-center">
-              <div style={{ paddingLeft: `${level * 20}px` }} className="flex items-center">
+              <div style={{ paddingLeft: `${level * 20}px` }} className="flex items-center gap-2">
                 {hasChildren && (
                   <button
                     onClick={() => toggleCategory(category.$id)}
-                    className="mr-2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                    className="text-gray-400 hover:text-gray-600 focus:outline-none flex-shrink-0"
                   >
                     <i className={`fas fa-chevron-${isExpanded ? 'down' : 'right'} text-xs`}></i>
                   </button>
                 )}
                 {level > 0 && (
-                  <span className="mr-2 text-gray-400 text-sm">
+                  <span className="text-gray-400 text-xs flex-shrink-0">
                     <i className="fas fa-level-up-alt fa-rotate-90"></i>
                   </span>
                 )}
                 {level === 0 && (
-                  <i className="fas fa-folder text-blue-600 mr-2"></i>
+                  <i className="fas fa-folder text-blue-600 text-sm flex-shrink-0"></i>
                 )}
                 {level > 0 && (
-                  <i className="fas fa-folder-open text-orange-500 mr-2 text-sm"></i>
+                  <i className="fas fa-folder-open text-orange-500 text-xs flex-shrink-0"></i>
                 )}
-                <span className={`text-sm truncate ${level === 0 ? 'font-bold text-gray-900' : 'font-medium text-gray-700'}`}>
-                  {category.name}
-                </span>
-                {level > 0 && (
-                  <span className="ml-2 text-xs text-gray-500 italic">
-                    (sous-catégorie)
+                <div className="flex flex-col min-w-0">
+                  <span className={`text-sm ${level === 0 ? 'font-bold text-gray-900' : 'font-medium text-gray-700'} truncate`}>
+                    {category.name}
                   </span>
-                )}
+                  {level > 0 && (
+                    <span className="text-xs text-gray-400 italic whitespace-nowrap">
+                      sous-catégorie
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </td>
-          <td className="px-3 py-3">
+          <td className="px-6 py-3">
             <div className="text-xs text-gray-600 font-mono bg-gray-100 px-2 py-1 rounded truncate">
               {category.slug}
             </div>
@@ -697,28 +699,28 @@ export default function AdminCategoriesPage() {
             <table className="w-full table-fixed divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
+                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                     Image
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-80">
                     Nom
                   </th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">
                     Slug
                   </th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Description
                   </th>
-                  <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                  <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                     Statut
                   </th>
-                  <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                  <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
                     Ordre
                   </th>
                   <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                     Produits
                   </th>
-                  <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                  <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-36">
                     Actions
                   </th>
                 </tr>
