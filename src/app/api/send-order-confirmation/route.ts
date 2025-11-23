@@ -9,7 +9,27 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('📧 Starting order confirmation email process...')
+    
+    // Check environment variables
+    if (!process.env.RESEND_API_KEY) {
+      console.error('❌ RESEND_API_KEY is not set')
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Configuration serveur manquante: RESEND_API_KEY' 
+      }, { status: 500 })
+    }
+    
+    if (!process.env.APPWRITE_API_KEY) {
+      console.error('❌ APPWRITE_API_KEY is not set')
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Configuration serveur manquante: APPWRITE_API_KEY' 
+      }, { status: 500 })
+    }
+    
     const orderData: OrderData = await request.json()
+    console.log('📦 Order data received:', { orderId: orderData.orderId, email: orderData.customerEmail })
     
     // If shippingAddress is empty, fetch from users table
     if (!orderData.shippingAddress?.street && orderData.customerEmail) {
@@ -53,12 +73,25 @@ export async function POST(request: NextRequest) {
     const emailContent = generateOrderConfirmationEmail(orderData)
     
     // Generate Bon de Commande PDF (same as invoice but named differently)
+    console.log('📄 Generating Bon de Commande PDF...')
     const bonDeCommandePDF = await generateInvoicePDF(orderData, 'Bon de Commande')
+    console.log('✅ PDF generated successfully')
     
     // Read RIB PDF file
     const ribPath = path.join(process.cwd(), 'public', 'RIB', 'RIB.pdf')
+    console.log('📁 RIB path:', ribPath)
+    
+    if (!fs.existsSync(ribPath)) {
+      console.error('❌ RIB file not found at:', ribPath)
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Fichier RIB introuvable sur le serveur' 
+      }, { status: 500 })
+    }
+    
     const ribBuffer = fs.readFileSync(ribPath)
     const ribBase64 = ribBuffer.toString('base64')
+    console.log('✅ RIB file loaded successfully')
     
     const result = await resend.emails.send({
       from: 'SHOPBATI <contact@shopbati.fr>',
@@ -93,9 +126,16 @@ export async function POST(request: NextRequest) {
     
   } catch (error) {
     console.error('❌ Erreur serveur:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
+    const errorStack = error instanceof Error ? error.stack : ''
+    
+    console.error('Error details:', { message: errorMessage, stack: errorStack })
+    
     return NextResponse.json({ 
       success: false, 
-      message: 'Erreur serveur général' 
+      message: 'Erreur serveur général',
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? errorStack : undefined
     }, { status: 500 })
   }
 }
