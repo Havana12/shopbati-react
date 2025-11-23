@@ -156,7 +156,7 @@ export default function Header() {
         setSearchResults([])
         setShowSearchResults(false)
       }
-    }, 300) // 300ms debounce
+    }, 150) // 150ms debounce - faster response
 
     return () => clearTimeout(timeoutId)
   }, [searchQuery])
