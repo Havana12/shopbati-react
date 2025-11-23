@@ -24,6 +24,7 @@ interface Category {
   slug: string
   parent_id?: string
   status: string
+  sort_order: number
 }
 
 export default function Header() {
@@ -65,12 +66,16 @@ export default function Header() {
     fetchCategories()
   }, [])
 
-  // Get parent categories (no parent_id)
-  const parentCategories = categories.filter(cat => !cat.parent_id)
+  // Get parent categories (no parent_id) - sorted by sort_order
+  const parentCategories = categories
+    .filter(cat => !cat.parent_id)
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
   
-  // Get subcategories for a parent category
+  // Get subcategories for a parent category - sorted by sort_order
   const getSubcategories = (parentId: string) => {
-    return categories.filter(cat => cat.parent_id === parentId)
+    return categories
+      .filter(cat => cat.parent_id === parentId)
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
   }
 
   // Close dropdown when clicking outside
