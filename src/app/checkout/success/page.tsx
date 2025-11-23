@@ -167,7 +167,7 @@ export default function CheckoutSuccessPage() {
                 <div>
                   <i className="fas fa-phone text-blue-600 text-xl mb-2"></i>
                   <p className="font-semibold text-gray-800">Téléphone</p>
-                  <p className="text-gray-600 text-sm">+33 6 52 35 40 15</p>
+                  <p className="text-gray-600 text-sm">+33 1 89 48 08 02</p>
                 </div>
                 <div>
                   <i className="fas fa-envelope text-blue-600 text-xl mb-2"></i>

@@ -88,13 +88,13 @@ export default function Footer() {
               <div className="flex items-start space-x-3">
                 <i className="fas fa-map-marker-alt text-yellow-400 mt-1"></i>
                 <div>
-                  <p className="text-gray-300">6 Rue des Bateliers - Bureau 3</p>
+                  <p className="text-gray-300">6 Rue des Bateliers</p>
                   <p className="text-gray-300">92110 Clichy, France</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
                 <i className="fas fa-phone text-yellow-400"></i>
-                <p className="text-gray-300">+33 6 52 35 40 15</p>
+                <p className="text-gray-300">+33 1 89 48 08 02</p>
               </div>
               <div className="flex items-center space-x-3">
                 <i className="fas fa-envelope text-yellow-400"></i>

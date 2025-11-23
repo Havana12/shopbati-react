@@ -136,7 +136,7 @@ function generateShippingNotificationEmail(orderData: OrderData): string {
         <div style="margin-top: 40px; padding: 20px; background-color: #f8f9fa; border-top: 3px solid #3b82f6;">
           <p style="margin: 0; text-align: center; color: #666;">
             <strong>SHOPBATI.FR</strong><br>
-            Email: contact@shopbati.fr | Tél: +33 6 52 35 40 15
+            Email: contact@shopbati.fr | Tél: +33 1 89 48 08 02
           </p>
         </div>
       </div>

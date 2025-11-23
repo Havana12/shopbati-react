@@ -237,7 +237,7 @@ function generateEmailContent(orderData: OrderData, invoiceUrl: string): string 
             </p>
             <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
               <span>📧 <a href="mailto:contact@shopbati.fr" style="color: #FFD700; text-decoration: none; font-weight: 600;">contact@shopbati.fr</a></span>
-              <span>📞 <strong style="color: #FFD700;">+33 6 52 35 40 15</strong></span>
+              <span>📞 <strong style="color: #FFD700;">+33 1 89 48 08 02</strong></span>
             </div>
           </div>
         </div>

@@ -276,7 +276,7 @@ export class InvoiceGenerator {
         doc.setFont('helvetica', 'normal')
         doc.text('6 Rue des Bateliers', margin + 3, yPosition + 15)
         doc.text('92110 CLICHY FRANCE', margin + 3, yPosition + 20)
-        doc.text('Tél : +33 6 52 35 40 15', margin + 3, yPosition + 25)
+        doc.text('Tél : +33 1 89 48 08 02', margin + 3, yPosition + 25)
         doc.text('Email: contact@shopbati.fr', margin + 3, yPosition + 30)
 
         // Colonne droite - Client
@@ -451,7 +451,7 @@ export class InvoiceGenerator {
         const footerLine2 = 'SIREN : 993 797 075 • TVA : FR13993797075'
         doc.text(footerLine2, pageWidth/2, footerY - 11, { align: 'center' })
         
-        const footerLine3 = 'contact@shopbati.fr • www.shopbati.fr • Tél : +33 6 52 35 40 15'
+        const footerLine3 = 'contact@shopbati.fr • www.shopbati.fr • Tél : +33 1 89 48 08 02'
         doc.text(footerLine3, pageWidth/2, footerY - 7, { align: 'center' })
         
         doc.setTextColor(100, 100, 100)
@@ -660,7 +660,7 @@ export class InvoiceGenerator {
         doc.setFont('helvetica', 'normal')
         doc.text('6 Rue des Bateliers', margin + 3, yPosition + 15)
         doc.text('92110 CLICHY FRANCE', margin + 3, yPosition + 20)
-        doc.text('Tél : +33 6 52 35 40 15', margin + 3, yPosition + 25)
+        doc.text('Tél : +33 1 89 48 08 02', margin + 3, yPosition + 25)
         doc.text('Email: contact@shopbati.fr', margin + 3, yPosition + 30)
 
         // Colonne droite - Client
@@ -855,7 +855,7 @@ export class InvoiceGenerator {
         doc.text(footerLine2, pageWidth/2, footerY - 11, { align: 'center' })
         
         // Troisième ligne - Contact et website
-        const footerLine3 = 'contact@shopbati.fr • www.shopbati.fr • Tél : +33 6 52 35 40 15'
+        const footerLine3 = 'contact@shopbati.fr • www.shopbati.fr • Tél : +33 1 89 48 08 02'
         doc.text(footerLine3, pageWidth/2, footerY - 7, { align: 'center' })
         
         // Quatrième ligne - Activité

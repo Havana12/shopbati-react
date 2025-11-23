@@ -111,11 +111,11 @@ export async function POST(request: NextRequest) {
                   <p style="margin: 5px 0;"><strong>Sujet:</strong> ${subject}</p>
                   <p style="margin: 5px 0; white-space: pre-wrap;"><strong>Message:</strong><br>${message}</p>
                 </div>
-                <p>Si vous avez besoin d'une assistance immédiate, n'hésitez pas à nous appeler au <strong>+33 6 52 35 40 15</strong>.</p>
+                <p>Si vous avez besoin d'une assistance immédiate, n'hésitez pas à nous appeler au <strong>+33 1 89 48 08 02</strong>.</p>
                 <p>Cordialement,<br><strong>L'équipe SHOPBATI</strong></p>
                 <div style="margin-top: 30px; padding: 20px; background: #212121; color: white; text-align: center; border-radius: 8px;">
                   <p style="margin: 0; font-size: 12px;">
-                    📧 contact@shopbati.fr • 📞 +33 6 52 35 40 15<br>
+                    📧 contact@shopbati.fr • 📞 +33 1 89 48 08 02<br>
                     6 Rue des Bateliers - Bureau 3, 92110 Clichy
                   </p>
                 </div>

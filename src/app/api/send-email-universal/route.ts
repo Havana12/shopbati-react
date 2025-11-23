@@ -164,7 +164,7 @@ function generateEmailContent(orderData: any): string {
           <!-- Contact -->
           <div style="text-align: center; color: #666; font-size: 14px; padding: 20px; background: #f9f9f9; border-radius: 8px;">
             <p style="margin: 0 0 12px 0; font-weight: 600; color: #212121;">🤝 Une question ? Notre équipe est là pour vous !</p>
-            <span>📧 shopbati@gmail.com | 📞 +33 6 52 35 40 15</span>
+            <span>📧 shopbati@gmail.com | 📞 +33 1 89 48 08 02</span>
           </div>
         </div>
         
