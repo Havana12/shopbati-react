@@ -535,7 +535,11 @@ export class InvoiceGenerator {
   static async generatePDFFromOrder(orderData: OrderData, documentType: string = 'FACTURE'): Promise<Buffer> {
     return new Promise(async (resolve, reject) => {
       try {
+        console.log('📄 Starting PDF generation...')
+        console.log('Order data:', { orderId: orderData.orderId, itemsCount: orderData.items?.length })
+        
         const doc = new jsPDF('p', 'mm', 'a4')
+        console.log('✅ jsPDF instance created')
         const pageWidth = 210
         const pageHeight = 297
         const margin = 10
@@ -861,10 +865,17 @@ export class InvoiceGenerator {
         doc.text(footerLine4, pageWidth/2, footerY - 2, { align: 'center' })
 
         // Convertir en Buffer
+        console.log('🔄 Converting PDF to buffer...')
         const pdfBuffer = Buffer.from(doc.output('arraybuffer'))
+        console.log('✅ PDF buffer created, size:', pdfBuffer.length)
         resolve(pdfBuffer)
 
       } catch (error) {
+        console.error('❌ Error in generatePDFFromOrder:', error)
+        console.error('Error details:', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined
+        })
         reject(error)
       }
     })
@@ -883,8 +894,15 @@ export async function generateInvoiceWithQRCode(orderData: OrderData): Promise<I
 
 // Function to generate PDF as base64 (for email attachments)
 export async function generateInvoicePDF(orderData: OrderData, documentType: string = 'FACTURE'): Promise<string> {
-  const buffer = await InvoiceGenerator.generatePDFFromOrder(orderData, documentType)
-  return buffer.toString('base64')
+  try {
+    console.log('🔧 Generating PDF for document type:', documentType)
+    const buffer = await InvoiceGenerator.generatePDFFromOrder(orderData, documentType)
+    console.log('✅ PDF buffer generated successfully, size:', buffer.length)
+    return buffer.toString('base64')
+  } catch (error) {
+    console.error('❌ Error generating invoice PDF:', error)
+    throw error
+  }
 }
 
 // Export des types
