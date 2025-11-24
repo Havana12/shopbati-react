@@ -76,7 +76,7 @@ export class InvoiceGenerator {
       const tempInvoiceBuffer = await this.generatePDFFromOrder(orderData)
       
       // 2. Upload to Appwrite Storage
-      const invoiceNumber = this.generateInvoiceNumber()
+      const invoiceNumber = orderData.orderId // Use the order ID from orderData
       const fileName = `facture-${invoiceNumber}-${Date.now()}.pdf`
       
       // Upload file to Appwrite using server-side SDK with Buffer directly
@@ -239,7 +239,8 @@ export class InvoiceGenerator {
         doc.text('Scanner pour', qrX + qrSize/2, qrY + qrSize + 3, { align: 'center' })
         doc.text('voir la facture', qrX + qrSize/2, qrY + qrSize + 6, { align: 'center' })
 
-        // Titre facture au centre
+        // Titre facture au centre - use orderId from orderData
+        const invoiceNumber = orderData.orderId // Use the order ID passed in
         const ticketNumber = this.generateTicketNumber(orderData)
         
         doc.setFontSize(18)
@@ -621,8 +622,8 @@ export class InvoiceGenerator {
           doc.text('SHOPBATI', margin, yPosition + 15)
         }
 
-        // Titre document au centre
-        const invoiceNumber = this.generateInvoiceNumber()
+        // Titre document au centre - use orderId from orderData
+        const invoiceNumber = orderData.orderId // Use the order ID passed in
         const ticketNumber = this.generateTicketNumber(orderData)
         
         doc.setFontSize(18)

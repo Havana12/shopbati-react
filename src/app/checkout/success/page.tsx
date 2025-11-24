@@ -21,8 +21,13 @@ export default function CheckoutSuccessPage() {
       setOrderNumber(storedOrderNumber)
       localStorage.removeItem('last_order_number')
     } else {
-      // Fallback to generated order number
-      setOrderNumber(`SHOP-${Date.now().toString().slice(-6)}`)
+      // Fallback to generated order number (same format as modal)
+      const date = new Date()
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0')
+      setOrderNumber(`SB-${year}${month}${day}-${random}`)
     }
     
     // Check if invoice was sent
@@ -58,17 +63,6 @@ export default function CheckoutSuccessPage() {
                 <p className="text-lg text-gray-600 mb-6">
                   Merci pour votre commande. Nous avons bien reçu votre demande et nous la traitons actuellement.
                 </p>
-                
-                {/* Order Number */}
-                <div className="bg-blue-50 rounded-lg p-4 mb-6">
-                  <h2 className="text-lg font-semibold text-gray-800 mb-2">
-                    Numéro de commande
-                  </h2>
-                  <p className="text-2xl font-bold text-blue-600">{orderNumber}</p>
-                  <p className="text-sm text-gray-600 mt-2">
-                    Conservez ce numéro pour suivre votre commande
-                  </p>
-                </div>
 
                 {/* Invoice Sent Message */}
                 {invoiceSent && (

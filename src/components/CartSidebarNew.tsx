@@ -5,11 +5,13 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppwriteService } from '@/lib/appwrite'
 import AuthModal from './AuthModal'
+import DeliveryAddressModal from './DeliveryAddressModal'
 
 export default function CartSidebar() {
   const { state, removeItem, updateQuantity, clearCart, closeCart } = useCart()
   const [isAnimating, setIsAnimating] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -181,8 +183,8 @@ export default function CartSidebar() {
                         const appwrite = AppwriteService.getInstance()
                         const user = await appwrite.getCurrentUser()
                         if (user) {
-                          // User is logged in, go to checkout
-                          router.push('/checkout')
+                          // User is logged in, show delivery address modal
+                          setShowDeliveryModal(true)
                         } else {
                           // User not logged in, show auth modal
                           setShowAuthModal(true)
@@ -228,9 +230,15 @@ export default function CartSidebar() {
         onClose={() => setShowAuthModal(false)}
         onAuthSuccess={() => {
           setShowAuthModal(false)
-          router.push('/checkout')
+          setShowDeliveryModal(true)
         }}
         defaultMode="register"
+      />
+
+      {/* Delivery Address Modal */}
+      <DeliveryAddressModal
+        isOpen={showDeliveryModal}
+        onClose={() => setShowDeliveryModal(false)}
       />
     </>
   )

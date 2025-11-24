@@ -67,6 +67,9 @@ interface DatabaseUser {
   city?: string
   postalCode?: string
   country?: string
+  delivery_address?: string
+  delivery_city?: string
+  delivery_postal_code?: string
 }
 
 export default function CheckoutPage() {
@@ -129,7 +132,7 @@ export default function CheckoutPage() {
           if (dbUserData) {
             setDbUser(dbUserData as unknown as DatabaseUser)
             
-            // Auto-fill form with user data including customer type
+            // Auto-fill form with user data including customer type and delivery address
             setOrderData(prev => ({
               ...prev,
               customerType: dbUserData.account_type === 'professional' ? 'professionnel' : 'particulier',
@@ -141,6 +144,12 @@ export default function CheckoutPage() {
                 company: dbUserData.raison_sociale || '',
                 siret: dbUserData.siret || '',
                 vatNumber: dbUserData.tva_number || ''
+              },
+              shippingAddress: {
+                street: dbUserData.delivery_address || dbUserData.address || '',
+                city: dbUserData.delivery_city || dbUserData.city || '',
+                postalCode: dbUserData.delivery_postal_code || dbUserData.postalCode || '',
+                country: 'France'
               }
             }))
           }
@@ -264,6 +273,27 @@ export default function CheckoutPage() {
       
       // Create order in database using Appwrite
       const appwrite = AppwriteService.getInstance()
+      
+      // Update user's delivery address if they're logged in
+      if (dbUser?.$id) {
+        try {
+          await appwrite.databases.updateDocument(
+            process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+            'users',
+            dbUser.$id,
+            {
+              delivery_address: orderData.shippingAddress.street,
+              delivery_city: orderData.shippingAddress.city,
+              delivery_postal_code: orderData.shippingAddress.postalCode
+            }
+          )
+          console.log('✅ Delivery address updated for user')
+        } catch (error) {
+          console.error('⚠️ Could not update delivery address:', error)
+          // Don't fail the order if address update fails
+        }
+      }
+      
       let createdOrder
       try {
         const orderDataForDB = {
