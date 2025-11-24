@@ -702,6 +702,18 @@ export class AppwriteService {
             const session = await this.account.createEmailPasswordSession(email, password)
             return session
           } catch (createError: any) {
+            // If user already exists (409), it means someone created it between checks
+            // Just try to login normally
+            if (createError.code === 409 || createError.message?.includes('already exists')) {
+              console.log('⚠️ Compte Auth existe déjà, tentative de connexion...')
+              try {
+                const session = await this.account.createEmailPasswordSession(email, password)
+                return session
+              } catch (loginError) {
+                throw new Error('Email ou mot de passe incorrect. Vérifiez vos identifiants.')
+              }
+            }
+            
             console.error('❌ Erreur création compte Auth:', createError)
             throw new Error('Erreur lors de la création de votre session. Veuillez contacter le support.')
           }

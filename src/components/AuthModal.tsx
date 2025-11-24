@@ -566,6 +566,24 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login', onAu
               </button>
             </div>
 
+            {/* Forgot Password Link */}
+            {mode === 'login' && (
+              <div className="mt-4 text-center">
+                <a
+                  href="/forgot-password"
+                  className="text-sm text-gray-600 hover:text-orange-500 transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    onClose()
+                    window.location.href = '/forgot-password'
+                  }}
+                >
+                  <i className="fas fa-question-circle mr-1"></i>
+                  Mot de passe oublié ?
+                </a>
+              </div>
+            )}
+
             {mode === 'register' && (
               <div className="mt-4 text-center">
                 <p className="text-gray-500 text-xs">
