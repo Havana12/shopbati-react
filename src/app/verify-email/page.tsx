@@ -2,13 +2,18 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { AppwriteService } from '@/lib/appwrite'
+import { useAuth } from '@/contexts/AuthContext'
 
 function VerifyEmailContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { user, resendVerificationEmail } = useAuth()
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying')
   const [message, setMessage] = useState('')
+  const [resending, setResending] = useState(false)
+  const [resendSuccess, setResendSuccess] = useState(false)
 
   useEffect(() => {
     const verifyEmail = async () => {
@@ -33,12 +38,32 @@ function VerifyEmailContent() {
         }, 3000)
       } catch (error: any) {
         setStatus('error')
-        setMessage(error.message || 'Erreur lors de la vérification. Le lien a peut-être expiré.')
+        if (error.message?.includes('Invalid credentials') || error.message?.includes('expired')) {
+          setMessage('Le lien de vérification a expiré ou est invalide. Cliquez sur "Renvoyer l\'email" pour recevoir un nouveau lien.')
+        } else {
+          setMessage(error.message || 'Erreur lors de la vérification. Le lien a peut-être expiré.')
+        }
       }
     }
 
     verifyEmail()
   }, [searchParams, router])
+
+  const handleResendEmail = async () => {
+    setResending(true)
+    setResendSuccess(false)
+
+    try {
+      await resendVerificationEmail()
+      setResendSuccess(true)
+      setMessage('Email de vérification envoyé ! Vérifiez votre boîte de réception.')
+    } catch (error: any) {
+      console.error('Resend verification error:', error)
+      setMessage('Erreur lors de l\'envoi de l\'email. Veuillez réessayer.')
+    } finally {
+      setResending(false)
+    }
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -69,12 +94,57 @@ function VerifyEmailContent() {
             </div>
             <h2 className="text-xl font-semibold text-gray-800 mb-2">Erreur de vérification</h2>
             <p className="text-gray-600 mb-4">{message}</p>
-            <button
-              onClick={() => router.push('/')}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg transition-colors"
-            >
-              Retour à l'accueil
-            </button>
+            
+            {resendSuccess && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-center">
+                  <i className="fas fa-check-circle text-green-600 mr-2"></i>
+                  <p className="text-sm text-green-800">
+                    Email envoyé avec succès !
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            <div className="space-y-3">
+              {user && !user.emailVerification && (
+                <button
+                  onClick={handleResendEmail}
+                  disabled={resending}
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {resending ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin mr-2"></i>
+                      Envoi en cours...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-envelope mr-2"></i>
+                      Renvoyer l'email de vérification
+                    </>
+                  )}
+                </button>
+              )}
+              
+              <button
+                onClick={() => router.push('/')}
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg transition-colors"
+              >
+                <i className="fas fa-home mr-2"></i>
+                Retour à l'accueil
+              </button>
+              
+              {!user && (
+                <Link
+                  href="/login"
+                  className="block w-full bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition-colors text-center"
+                >
+                  <i className="fas fa-sign-in-alt mr-2"></i>
+                  Se connecter
+                </Link>
+              )}
+            </div>
           </div>
         )}
       </div>

@@ -134,8 +134,8 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
         await register(email, password, displayName, userData)
       } else {
         await login(email, password)
+        onClose()
       }
-      onClose()
     } catch (error: any) {
       // Check for account not verified error
       if (error.message && error.message.includes('ACCOUNT_NOT_VERIFIED')) {
@@ -143,6 +143,30 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
         const message = errorParts.length > 1 ? errorParts[1] : 'Votre compte nécessite une activation.'
         setError(message)
         setLoading(false)
+        return
+      }
+
+      // Check for email verification required after registration
+      if (error.message && error.message.includes('EMAIL_VERIFICATION_REQUIRED')) {
+        const errorParts = error.message.split('|')
+        const message = errorParts.length > 1 ? errorParts[1] : 'Un email de vérification a été envoyé à votre adresse.'
+        setSuccessMessage('✅ Compte créé avec succès ! ' + message)
+        setVerificationRequired(true)
+        setError('')
+        setLoading(false)
+        
+        // Scroll to top of modal to show success message
+        setTimeout(() => {
+          const modalContent = document.querySelector('.overflow-y-auto')
+          if (modalContent) {
+            modalContent.scrollTo({ top: 0, behavior: 'smooth' })
+          }
+        }, 100)
+        
+        // Don't close modal immediately, show the verification message
+        setTimeout(() => {
+          onClose()
+        }, 6000)
         return
       }
 

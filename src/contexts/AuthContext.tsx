@@ -96,14 +96,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const appwrite = AppwriteService.getInstance()
       
-      // Clear any existing session first
-      try {
-        await appwrite.logout()
-      } catch (logoutError) {
-        // Ignore logout errors (probably no session to logout)
-        console.log('No existing session to logout')
-      }
-      
       // If additional data is provided, use enhanced registration
       if (additionalData) {
         const result = await appwrite.registerWithDetails(
@@ -122,6 +114,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           additionalData.tvaNumber || ''
         )
         
+        // Check if email verification is required
+        if (result && (result as any).requiresEmailVerification) {
+          throw new Error('EMAIL_VERIFICATION_REQUIRED|Un email de vérification a été envoyé à votre adresse. Veuillez vérifier votre boîte de réception.')
+        }
+        
         // Check if this is a successful account creation but requires manual login
         if (result && (result as any).requiresManualLogin) {
           throw new Error('ACCOUNT_CREATED_LOGIN_REQUIRED')
@@ -129,14 +126,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         const result = await appwrite.register(email, password, name)
         
+        // Check if email verification is required
+        if (result && (result as any).requiresEmailVerification) {
+          throw new Error('EMAIL_VERIFICATION_REQUIRED|Un email de vérification a été envoyé à votre adresse. Veuillez vérifier votre boîte de réception.')
+        }
+        
         // Check if this is a successful account creation but requires manual login
         if (result && (result as any).requiresManualLogin) {
           throw new Error('ACCOUNT_CREATED_LOGIN_REQUIRED')
         }
       }
       
-      const currentUser = await appwrite.getCurrentUser()
-      setUser(currentUser as User)
+      // Try to get current user (will be null if not logged in)
+      try {
+        const currentUser = await appwrite.getCurrentUser()
+        setUser(currentUser as User)
+      } catch (error) {
+        // User not logged in yet - this is normal for email verification flow
+        console.log('User not logged in - awaiting email verification')
+      }
     } catch (error: any) {
       console.error('Registration error:', error)
       

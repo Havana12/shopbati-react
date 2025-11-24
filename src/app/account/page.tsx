@@ -289,11 +289,29 @@ function AccountContent() {
                               )}
                             </div>
                             
-                            <div className="border-t border-gray-200 mt-4 pt-4 flex justify-between items-center">
-                              <span className="text-lg font-semibold text-gray-900">Total</span>
-                              <span className="text-lg font-bold text-orange-600">
-                                {order.total_amount.toFixed(2)} €
-                              </span>
+                            <div className="border-t border-gray-200 mt-4 pt-4">
+                              <div className="flex justify-between items-center mb-3">
+                                <span className="text-lg font-semibold text-gray-900">Total</span>
+                                <span className="text-lg font-bold text-orange-600">
+                                  {order.total_amount.toFixed(2)} €
+                                </span>
+                              </div>
+                              
+                              {/* Download Invoice Button - Show if payment is confirmed */}
+                              {(order.payment_status === 'payé' || 
+                                order.payment_status === 'paid' || 
+                                order.payment_status === 'confirmed' || 
+                                order.payment_status === 'confirmé') && (
+                                <button
+                                  onClick={() => {
+                                    window.open(`/api/orders/${order.$id}/invoice`, '_blank')
+                                  }}
+                                  className="w-full mt-3 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center"
+                                >
+                                  <i className="fas fa-file-pdf mr-2"></i>
+                                  Télécharger la facture
+                                </button>
+                              )}
                             </div>
                             
                             {order.shipping_address && (() => {

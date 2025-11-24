@@ -1051,12 +1051,6 @@ export class AppwriteService {
     tvaNumber: string = ''
   ) {
     try {
-      
-      // First check if user already exists by trying to get current user
-      const existingUser = await this.getCurrentUser()
-      if (existingUser) {
-        await this.logout() // Logout first
-      }
 
       // Create a more realistic password hash
       const generatePasswordHash = (email: string, password: string) => {
@@ -1113,59 +1107,107 @@ export class AppwriteService {
         
         const authUser = await this.account.create(userId, email, password, fullName)
         
-        // Try to login immediately after creation
+        // Create a temporary session to send verification email
         try {
+          // Login temporarily to send verification
           await this.account.createEmailPasswordSession(email, password)
-          return authUser
-        } catch (loginError: any) {
-          // If login fails due to unverified email, return success but indicate manual login needed
-          console.log('⚠️ Auth account created but login requires email verification')
-          return {
-            success: true,
-            accountCreated: true,
-            requiresManualLogin: false, // Changed to false - account is created successfully
-            dbUserId: dbUser.$id,
-            authUserId: userId,
-            email: email,
-            message: 'Compte créé avec succès'
+          
+          // Send email verification
+          const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/verify-email`
+          await this.account.createVerification(verificationUrl)
+          console.log('✅ Email de vérification envoyé à:', email)
+          
+          // Immediately logout to prevent auto-login
+          await this.account.deleteSession('current')
+          console.log('✅ Session temporaire fermée')
+        } catch (verificationError) {
+          console.error('⚠️ Erreur envoi email de vérification:', verificationError)
+          // Try to logout anyway
+          try {
+            await this.account.deleteSession('current')
+          } catch (logoutError) {
+            // Ignore logout errors
           }
+        }
+        
+        // User must verify email before login
+        console.log('✅ Compte créé, vérification email requise')
+        return {
+          success: true,
+          accountCreated: true,
+          requiresEmailVerification: true,
+          dbUserId: dbUser.$id,
+          authUserId: userId,
+          email: email,
+          message: 'Compte créé avec succès. Veuillez vérifier votre email avant de vous connecter.'
         }
       } catch (authError: any) {
         
-        // Check if user already exists
-        if (authError.message && authError.message.includes('user with the same id, email, or phone already exists')) {
+        // Check if user already exists in Auth
+        if (authError.message && (authError.message.includes('user with the same id, email, or phone already exists') || 
+            authError.code === 409 || authError.type === 'user_already_exists')) {
           
-          // Try to login with existing credentials
+          console.log('⚠️ Utilisateur existe déjà dans Appwrite Auth')
+          
+          // Delete the database user we just created since auth user already exists
           try {
-            await this.account.createEmailPasswordSession(email, password)
-            return await this.getCurrentUser()
-          } catch (loginError) {
-            // The Auth user exists but password might be different, require manual login
-            return {
-              success: true,
-              accountCreated: true,
-              requiresManualLogin: true,
-              dbUserId: dbUser.$id,
-              email: email,
-              reason: 'existing_auth_user_wrong_password'
-            }
+            await this.databases.deleteDocument(
+              process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+              'users',
+              dbUser.$id
+            )
+          } catch (deleteError) {
+            console.error('Erreur suppression du doublon DB:', deleteError)
           }
+          
+          // Throw error to inform user
+          throw new Error('Cette adresse email existe déjà. Veuillez vous connecter ou utiliser la fonction "Mot de passe oublié".')
         } else {
           // Auth user doesn't exist, try to create with different ID
           try {
             const newUserId = this.generateUserId() // Generate a new ID
             const authUser = await this.account.create(newUserId, email, password, fullName)
             
-            // Login after creation
-            await this.account.createEmailPasswordSession(email, password)
+            // Create a temporary session to send verification email
+            try {
+              // Login temporarily to send verification
+              await this.account.createEmailPasswordSession(email, password)
+              
+              // Send email verification
+              const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/verify-email`
+              await this.account.createVerification(verificationUrl)
+              console.log('✅ Email de vérification envoyé à:', email)
+              
+              // Immediately logout to prevent auto-login
+              await this.account.deleteSession('current')
+              console.log('✅ Session temporaire fermée')
+            } catch (verificationError) {
+              console.error('⚠️ Erreur envoi email de vérification:', verificationError)
+              // Try to logout anyway
+              try {
+                await this.account.deleteSession('current')
+              } catch (logoutError) {
+                // Ignore logout errors
+              }
+            }
             
-            return authUser
-          } catch (secondAuthError) {
-            // If we still can't create the Auth user, require manual login
+            // User must verify email before login
             return {
               success: true,
               accountCreated: true,
-              requiresManualLogin: true,
+              requiresEmailVerification: true,
+              dbUserId: dbUser.$id,
+              authUserId: newUserId,
+              email: email,
+              message: 'Compte créé avec succès. Veuillez vérifier votre email avant de vous connecter.'
+            }
+          } catch (secondAuthError) {
+            // If we still can't create the Auth user, return success with verification required
+            console.error('⚠️ Impossible de créer le compte Auth:', secondAuthError)
+            return {
+              success: true,
+              accountCreated: true,
+              requiresEmailVerification: true,
               dbUserId: dbUser.$id,
               email: email,
               reason: 'auth_creation_failed'

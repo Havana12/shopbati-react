@@ -360,11 +360,11 @@ export class InvoiceGenerator {
         
         orderData.items.forEach((item, index) => {
           // Calculate dynamic row height based on product name length
-          const productName = item.name.toUpperCase()
-          const maxWidth = 70
+          const productName = item.name // Keep original case for better readability
+          const maxWidth = 68 // Slightly reduced to prevent overflow
           doc.setFontSize(7)
           const lines = doc.splitTextToSize(productName, maxWidth)
-          const rowHeight = Math.max(baseRowHeight, lines.length * 4 + 4) // 4mm per line + padding
+          const rowHeight = Math.max(baseRowHeight, lines.length * 3.5 + 5) // Better spacing
           
           doc.setDrawColor(150, 150, 150)
           doc.rect(margin, yPosition, contentWidth, rowHeight)
@@ -380,8 +380,9 @@ export class InvoiceGenerator {
           const productRef = item.reference || `SB${(index + 1).toString().padStart(6, '0')}`
           doc.text(productRef, colRef + 12, vCenter, { align: 'center', charSpace: 0 })
           
-          // Product name with wrapping
-          doc.text(lines, colDesignation + 2, yPosition + 6, { charSpace: 0 })
+          // Product name with wrapping - better vertical alignment for multi-line
+          const textStartY = lines.length > 1 ? yPosition + 5 : vCenter
+          doc.text(lines, colDesignation + 2, textStartY, { charSpace: 0, maxWidth: maxWidth })
           
           doc.text(item.quantity.toString(), colQuantite + 9, vCenter, { align: 'center', charSpace: 0 })
           doc.text(this.formatNumber(item.price) + ' €', colPrixUnit + 11, vCenter, { align: 'center', charSpace: 0 })
@@ -748,11 +749,11 @@ export class InvoiceGenerator {
         
         orderData.items.forEach((item, index) => {
           // Calculate dynamic row height based on product name length
-          const productName = item.name.toUpperCase()
-          const maxWidth = 70
+          const productName = item.name // Keep original case for better readability
+          const maxWidth = 68 // Slightly reduced to prevent overflow
           doc.setFontSize(7)
           const lines = doc.splitTextToSize(productName, maxWidth)
-          const rowHeight = Math.max(baseRowHeight, lines.length * 4 + 4) // 4mm per line + padding
+          const rowHeight = Math.max(baseRowHeight, lines.length * 3.5 + 5) // Better spacing
           
           doc.setDrawColor(150, 150, 150)
           doc.rect(margin, yPosition, contentWidth, rowHeight)
@@ -769,8 +770,9 @@ export class InvoiceGenerator {
           const productRef = item.reference || `SB${(index + 1).toString().padStart(6, '0')}`
           doc.text(productRef, colRef + 12, vCenter, { align: 'center', charSpace: 0 })
           
-          // Product name with wrapping - display all lines
-          doc.text(lines, colDesignation + 2, yPosition + 6, { charSpace: 0 })
+          // Product name with wrapping - better vertical alignment for multi-line
+          const textStartY = lines.length > 1 ? yPosition + 5 : vCenter
+          doc.text(lines, colDesignation + 2, textStartY, { charSpace: 0, maxWidth: maxWidth })
           
           // Quantité, Prix unitaire, Total - use formatNumber instead of formatCurrency
           doc.text(item.quantity.toString(), colQuantite + 9, vCenter, { align: 'center', charSpace: 0 })
