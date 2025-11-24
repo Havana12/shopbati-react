@@ -174,7 +174,8 @@ export default function DeliveryAddressModal({ isOpen, onClose }: DeliveryAddres
         items: state.items.map(item => ({
           name: item.name,
           quantity: item.quantity,
-          price: item.price
+          price: item.price,
+          reference: item.reference || ''
         })),
         total: state.total,
         shippingAddress: deliveryAddress,

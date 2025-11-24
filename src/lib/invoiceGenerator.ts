@@ -316,8 +316,8 @@ export class InvoiceGenerator {
         }
         
         const isProfessional = orderData.isProfessional || orderData.customerInfo?.accountType === 'professional'
-        if (isProfessional) {
-          doc.text('SIRET : 123 456 789 00012', rightColX + 3, yPosition + 30)
+        if (isProfessional && orderData.customerInfo?.siret) {
+          doc.text(`SIRET : ${orderData.customerInfo.siret}`, rightColX + 3, yPosition + 30)
         }
 
         yPosition += infoHeight + 10
@@ -703,8 +703,8 @@ export class InvoiceGenerator {
         // SIRET uniquement pour les factures professionnelles
         // Vérifier via isProfessional ou customerInfo.accountType
         const isProfessional = orderData.isProfessional || orderData.customerInfo?.accountType === 'professional'
-        if (isProfessional) {
-          doc.text('SIRET : 123 456 789 00012', rightColX + 3, yPosition + 30)
+        if (isProfessional && orderData.customerInfo?.siret) {
+          doc.text(`SIRET : ${orderData.customerInfo.siret}`, rightColX + 3, yPosition + 30)
         }
 
         yPosition += infoHeight + 10
