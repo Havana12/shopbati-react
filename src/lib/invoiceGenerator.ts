@@ -246,7 +246,7 @@ export class InvoiceGenerator {
         doc.setFontSize(18)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
-        doc.text(`FACTURE N° ${invoiceNumber.replace('SB-', '')} DUPLICATA`, pageWidth/2, yPosition + 8, { align: 'center' })
+        doc.text(`FACTURE N° ${invoiceNumber.replace('SB-', '')}`, pageWidth/2, yPosition + 8, { align: 'center' })
         
         doc.setFontSize(9)
         doc.setFont('helvetica', 'normal')
@@ -629,7 +629,7 @@ export class InvoiceGenerator {
         doc.setFontSize(18)
         doc.setFont('helvetica', 'bold')
         doc.setTextColor(darkGray[0], darkGray[1], darkGray[2])
-        const documentTitle = documentType === 'Bon de Commande' ? `BON DE COMMANDE N° ${invoiceNumber.replace('SB-', '')}` : `FACTURE N° ${invoiceNumber.replace('SB-', '')} DUPLICATA`
+        const documentTitle = documentType === 'Bon de Commande' ? `BON DE COMMANDE N° ${invoiceNumber.replace('SB-', '')}` : `FACTURE N° ${invoiceNumber.replace('SB-', '')}`
         doc.text(documentTitle, pageWidth/2, yPosition + 8, { align: 'center' })
         
         doc.setFontSize(9)
