@@ -12,9 +12,12 @@ interface Category {
   name: string
   description?: string
   image_url?: string
+  icon?: string
   slug?: string
   status: string
   sort_order?: number
+  product_count?: number
+  parent_id?: string
 }
 
 interface Product {
@@ -102,52 +105,82 @@ export default function HomePage() {
     return '🏗️' // default construction icon
   }
 
-  // Fetch categories from database
-  useEffect(() => {
-    fetchCategories()
-    fetchProducts()
-  }, [])
-
-  const fetchCategories = async () => {
-    try {
-      setLoading(true)
-      const appwrite = AppwriteService.getInstance()
-      const result = await appwrite.getCategories([
-        appwrite.Query.equal('level', 0),
-        appwrite.Query.equal('status', 'active'),
-        appwrite.Query.orderAsc('sort_order')
-      ])
-      
-      if (result && result.documents && result.documents.length > 0) {
-        const sortedCategories = (result.documents as unknown as Category[]).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
-        setCategories(sortedCategories)
-      }
-    } catch (error) {
-      console.error('Error fetching categories:', error)
-    } finally {
-      setLoading(false)
-    }
+  const getCategoryIconEmoji = (category: Category) => {
+    // Use icon from database if available
+    if (category.icon) return category.icon
+    
+    // Fallback to name-based detection
+    const lowerName = category.name.toLowerCase()
+    if (lowerName.includes('ciment') || lowerName.includes('mortier') || lowerName.includes('macon') || lowerName.includes('maçon')) return '🏗️'
+    if (lowerName.includes('brique') || lowerName.includes('bloc')) return '🧱'
+    if (lowerName.includes('carrelage') || lowerName.includes('carreleur') || lowerName.includes('revêtement')) return '🏠'
+    if (lowerName.includes('métal') || lowerName.includes('acier') || lowerName.includes('menuisier') || lowerName.includes('serrurerie')) return '🔧'
+    if (lowerName.includes('isolation') || lowerName.includes('isolant')) return '🛡️'
+    if (lowerName.includes('peinture') || lowerName.includes('peintre') || lowerName.includes('finition')) return '🎨'
+    if (lowerName.includes('plomberie') || lowerName.includes('sanitaire')) return '🚿'
+    if (lowerName.includes('chauffage') || lowerName.includes('eau')) return '🔥'
+    if (lowerName.includes('électric') || lowerName.includes('electric')) return '⚡'
+    if (lowerName.includes('outillage') || lowerName.includes('protection') || lowerName.includes('quincaillerie')) return '🔨'
+    if (lowerName.includes('jardin') || lowerName.includes('extérieur')) return '🌱'
+    return '🏠'
   }
 
-  const fetchProducts = async () => {
+  const getCategoryGradient = (name: string) => {
+    const lowerName = name.toLowerCase()
+    if (lowerName.includes('ciment') || lowerName.includes('mortier') || lowerName.includes('macon') || lowerName.includes('maçon')) return 'from-gray-400 to-gray-600'
+    if (lowerName.includes('brique') || lowerName.includes('bloc')) return 'from-red-400 to-red-600'
+    if (lowerName.includes('carrelage') || lowerName.includes('carreleur') || lowerName.includes('revêtement')) return 'from-blue-400 to-blue-600'
+    if (lowerName.includes('métal') || lowerName.includes('acier') || lowerName.includes('menuisier') || lowerName.includes('serrurerie')) return 'from-slate-400 to-slate-600'
+    if (lowerName.includes('isolation') || lowerName.includes('isolant')) return 'from-green-400 to-green-600'
+    if (lowerName.includes('peinture') || lowerName.includes('peintre') || lowerName.includes('finition')) return 'from-purple-400 to-purple-600'
+    if (lowerName.includes('plomberie') || lowerName.includes('sanitaire')) return 'from-cyan-400 to-cyan-600'
+    if (lowerName.includes('chauffage') || lowerName.includes('eau')) return 'from-orange-400 to-orange-600'
+    if (lowerName.includes('électric') || lowerName.includes('electric')) return 'from-yellow-400 to-yellow-600'
+    if (lowerName.includes('outillage') || lowerName.includes('protection') || lowerName.includes('quincaillerie')) return 'from-indigo-400 to-indigo-600'
+    if (lowerName.includes('jardin') || lowerName.includes('extérieur')) return 'from-emerald-400 to-emerald-600'
+    return 'from-orange-400 to-orange-600'
+  }
+
+  // Fetch categories from database
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const fetchData = async () => {
     setLoading(true)
     try {
       const appwrite = AppwriteService.getInstance()
-      const result = await appwrite.getProducts([
-        appwrite.Query.limit(8),
-        appwrite.Query.equal('status', 'active'),
-        appwrite.Query.orderDesc('created_at')
+      
+      // Fetch both categories and products in parallel
+      const [categoriesResult, productsResult] = await Promise.all([
+        appwrite.getCategories([
+          appwrite.Query.equal('status', 'active'),
+          appwrite.Query.orderAsc('sort_order'),
+          appwrite.Query.limit(100)
+        ]),
+        appwrite.getProducts([
+          appwrite.Query.limit(8),
+          appwrite.Query.equal('status', 'active'),
+          appwrite.Query.orderDesc('created_at')
+        ])
       ])
       
-      if (result && result.documents && result.documents.length > 0) {
-        const limitedProducts = result.documents.slice(0, 8)
+      // Set categories
+      if (categoriesResult.documents && categoriesResult.documents.length > 0) {
+        const allCategories = categoriesResult.documents as unknown as Category[]
+        const parentCategories = allCategories.filter(cat => !cat.parent_id)
+        setCategories(parentCategories)
+      }
+      
+      // Set products
+      if (productsResult && productsResult.documents && productsResult.documents.length > 0) {
+        const limitedProducts = productsResult.documents.slice(0, 8)
         setFeaturedProducts(limitedProducts as unknown as Product[])
       } else {
         setFeaturedProducts([])
       }
     } catch (error) {
-      console.error('Error fetching products:', error)
-      setFeaturedProducts([])
+      console.error('Error fetching data:', error)
     } finally {
       setLoading(false)
     }
@@ -182,194 +215,64 @@ export default function HomePage() {
   ]
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
       <Header />
-      
-      {/* Carousel Hero Section */}
-      <section className="relative h-screen overflow-hidden">
-        {/* Carousel Container */}
-        <div className="relative w-full h-full">
-          {/* Slide 1 */}
-          <div className={`absolute inset-0 transition-opacity duration-1000 ${currentSlide === 0 ? 'opacity-100' : 'opacity-0'}`}>
-            <div className="relative w-full h-full">
-              <img 
-                src="/images/christopher-burns-8KfCR12oeUM-unsplash.jpg" 
-                alt="Construction Materials"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-black/40"></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center text-white max-w-4xl px-4">
-                  <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 text-white text-sm font-medium mb-8">
-                    <span className="mr-2">⭐</span>
-                    Matériaux Professionnels Certifiés
-                  </div>
-                  <h1 className="text-5xl lg:text-7xl font-bold mb-6">
-                    SHOPBATI
-                  </h1>
-                  <p className="text-xl lg:text-2xl mb-8 text-white/90">
-                    Votre partenaire de confiance pour tous vos projets de construction
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <Link 
-                      href="/produits" 
-                      className="inline-flex items-center px-8 py-4 rounded-xl bg-white text-brand-600 font-semibold hover:bg-neutral-100 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
-                    >
-                      <span className="mr-2">🛍️</span>
-                      Explorer le Catalogue
-                    </Link>
-                    <Link 
-                      href="/contact" 
-                      className="inline-flex items-center px-8 py-4 rounded-xl bg-transparent text-white font-semibold border-2 border-white/30 hover:bg-white/10 backdrop-blur-sm transition-all duration-200"
-                    >
-                      <span className="mr-2">💬</span>
-                      Demander un Devis
-                    </Link>
-                  </div>
-                </div>
-              </div>
+
+      {/* Modern Categories Section */}
+      <section className="py-12">
+        <div className="container mx-auto px-6 max-w-[1400px]">
+          {/* Categories Grid */}
+          {loading ? (
+            <div className="flex justify-center items-center py-16">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
             </div>
-          </div>
-
-          {/* Slide 2 */}
-          <div className={`absolute inset-0 transition-opacity duration-1000 ${currentSlide === 1 ? 'opacity-100' : 'opacity-0'}`}>
-            <div className="relative w-full h-full">
-              <img 
-                src="/images/jeriden-villegas-VLPUm5wP5Z0-unsplash.webp" 
-                alt="Professional Construction"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-black/40"></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center text-white max-w-4xl px-4">
-                  <div className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 text-white text-sm font-medium mb-8">
-                    <span className="mr-2">🏗️</span>
-                    Qualité Professionnelle Garantie
-                  </div>
-                  <h1 className="text-5xl lg:text-7xl font-bold mb-6">
-                    EXCELLENCE
-                  </h1>
-                  <p className="text-xl lg:text-2xl mb-8 text-white/90">
-                    Des matériaux de première qualité pour des constructions durables
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <Link 
-                      href="/categories" 
-                      className="inline-flex items-center px-8 py-4 rounded-xl bg-white text-brand-600 font-semibold hover:bg-neutral-100 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
-                    >
-                      <span className="mr-2">�</span>
-                      Voir les Catégories
-                    </Link>
-                    <Link 
-                      href="/about" 
-                      className="inline-flex items-center px-8 py-4 rounded-xl bg-transparent text-white font-semibold border-2 border-white/30 hover:bg-white/10 backdrop-blur-sm transition-all duration-200"
-                    >
-                      <span className="mr-2">ℹ️</span>
-                      En Savoir Plus
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Navigation Arrows */}
-          <button 
-            onClick={() => setCurrentSlide(currentSlide === 0 ? 1 : 0)}
-            className="absolute left-4 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all duration-200 z-10"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          
-          <button 
-            onClick={() => setCurrentSlide(currentSlide === 0 ? 1 : 0)}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-all duration-200 z-10"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-
-          {/* Dots Navigation */}
-          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-3 z-10">
-            {[0, 1].map((index) => (
-              <button
-                key={index}
-                onClick={() => setCurrentSlide(index)}
-                className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                  index === currentSlide 
-                    ? 'bg-white scale-125' 
-                    : 'bg-white/50 hover:bg-white/75'
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Section Catégories */}
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl lg:text-5xl font-bold text-neutral-900 mb-4">
-              Catégories de Produits
-            </h2>
-            <p className="text-xl text-neutral-600 max-w-3xl mx-auto">
-              Découvrez notre large gamme de matériaux organisée par catégorie
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {categories.map((category, index) => (
-              <Link 
-                key={category.$id}
-                href={category.slug ? `/categories/${category.slug}` : `/categories/${category.$id}`}
-                className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-brand-xl transition-all duration-300 hover:-translate-y-2"
-              >
-                <div className="h-48 relative overflow-hidden">
-                  {category.image_url ? (
-                    <img 
-                      src={category.image_url} 
-                      alt={category.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-all duration-300"
-                    />
-                  ) : (
-                    <div className="h-full bg-gradient-to-br from-brand-400 to-brand-600 flex flex-col items-center justify-center relative overflow-hidden">
-                      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSIjZmZmZmZmIiBmaWxsLW9wYWNpdHk9IjAuMSI+PHBhdGggZD0iTTIwIDIwbDEwLTEwdjIwbC0xMC0xMHptMCAwbC0xMCAxMHYtMjBsMTAgMTB6Ii8+PC9nPjwvc3ZnPg==')] opacity-30"></div>
-                      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-white/10"></div>
-                      <div className="relative z-10 group-hover:scale-110 transition-all duration-300 mb-2">
-                        {getCategoryIcon(category.name)}
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+              {categories.map((category) => (
+                <Link
+                  key={category.$id}
+                  href={`/categories/${category.slug || category.name.toLowerCase().replace(/\s+/g, '-')}`}
+                  className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-100 overflow-hidden"
+                >
+                  {/* Category Icon Header */}
+                  <div className={`bg-gradient-to-br ${getCategoryGradient(category.name)} p-8 text-center relative overflow-hidden`}>
+                    <div className="absolute inset-0 opacity-20">
+                      <div className="absolute inset-0" style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M20 20c0-11 9-20 20-20s20 9 20 20c0 11-9 20-20 20s-20-9-20-20zm10 0c0 5.5 4.5 10 10 10s10-4.5 10-10-4.5-10-10-10-10 4.5-10 10z'/%3E%3C/g%3E%3C/svg%3E")`
+                      }}></div>
+                    </div>
+                    <div className="relative">
+                      <div className="text-5xl mb-4 transform group-hover:scale-110 transition-transform duration-300">
+                        {getCategoryIconEmoji(category)}
                       </div>
-                      <div className="relative z-10 text-white text-4xl group-hover:scale-110 transition-all duration-300">
-                        {category.name === 'Ciments' && '🏗️'}
-                        {category.name === 'Briques' && '🧱'}
-                        {category.name === 'Carrelage' && '⬜'}
-                        {category.name === 'Métaux' && '⚙️'}
-                        {category.name === 'Isolants' && '🛡️'}
-                        {category.name === 'Peintures' && '🎨'}
+                      <h3 className="text-xl font-bold text-white">
+                        {category.name}
+                      </h3>
+                    </div>
+                  </div>
+                  
+                  {/* Category Details */}
+                  <div className="p-6">
+                    <p className="text-gray-600 text-sm mb-4 leading-relaxed line-clamp-3">
+                      {category.description || 'Découvrez nos produits dans cette catégorie'}
+                    </p>
+                    
+                    <div className="flex items-center justify-end">
+                      <div className="flex items-center text-orange-600 group-hover:text-orange-700 transition-colors">
+                        <span className="text-sm font-medium mr-2">Voir</span>
+                        <svg className="w-5 h-5 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                        </svg>
                       </div>
                     </div>
-                  )}
-                  {/* Overlay gradient for better text readability */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                </div>
-                <div className="p-6">
-                  <h3 className="text-xl font-bold text-neutral-900 mb-2 group-hover:text-brand-600 transition-colors">
-                    {category.name}
-                  </h3>
-                  <p className="text-neutral-600 mb-4">
-                    {category.description}
-                  </p>
-                  <div className="inline-flex items-center text-brand-600 font-medium group-hover:text-brand-700">
-                    Explorer la catégorie
-                    <span className="ml-2 group-hover:translate-x-1 transition-transform">→</span>
                   </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+                  
+                  {/* Hover Effect Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-orange-500/0 to-orange-600/0 group-hover:from-orange-500/5 group-hover:to-orange-600/5 transition-all duration-300 rounded-2xl"></div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

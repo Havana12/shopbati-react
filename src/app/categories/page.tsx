@@ -11,6 +11,7 @@ interface Category {
   name: string
   description?: string
   image_url?: string
+  icon?: string
   slug?: string
   status: string
   sort_order?: number
@@ -113,8 +114,12 @@ export default function CategoriesPage() {
     }
   }
 
-  const getCategoryIcon = (name: string) => {
-    const lowerName = name.toLowerCase()
+  const getCategoryIcon = (category: Category) => {
+    // Use icon from database if available
+    if (category.icon) return category.icon
+    
+    // Fallback to name-based detection
+    const lowerName = category.name.toLowerCase()
     if (lowerName.includes('ciment') || lowerName.includes('mortier') || lowerName.includes('macon') || lowerName.includes('maçon')) return '🏗️'
     if (lowerName.includes('brique') || lowerName.includes('bloc')) return '🧱'
     if (lowerName.includes('carrelage') || lowerName.includes('carreleur') || lowerName.includes('revêtement')) return '🏠'
@@ -238,7 +243,7 @@ export default function CategoriesPage() {
                     </div>
                     <div className="relative">
                       <div className="text-5xl mb-4 transform group-hover:scale-110 transition-transform duration-300">
-                        {getCategoryIcon(category.name)}
+                        {getCategoryIcon(category)}
                       </div>
                       <h3 className="text-xl font-bold text-white">
                         {category.name}

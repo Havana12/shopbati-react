@@ -10,6 +10,7 @@ interface Category {
   description: string
   slug: string
   image_url?: string
+  icon?: string
   parent_id?: string
   level?: number
   path?: string
@@ -251,6 +252,7 @@ export default function AdminCategoriesPage() {
     description: '',
     slug: '',
     image_url: '',
+    icon: '',
     parent_id: '',
     status: 'active',
     sort_order: 0
@@ -364,6 +366,7 @@ export default function AdminCategoriesPage() {
         description: formData.description,
         slug: slug,
         image_url: formData.image_url || null,
+        icon: formData.icon || null,
         parent_id: formData.parent_id || null,
         status: formData.status,
         sort_order: formData.sort_order,
@@ -419,6 +422,7 @@ export default function AdminCategoriesPage() {
       description: category.description,
       slug: category.slug,
       image_url: category.image_url || '',
+      icon: category.icon || '',
       parent_id: category.parent_id || '',
       status: category.status,
       sort_order: category.sort_order
@@ -900,6 +904,47 @@ export default function AdminCategoriesPage() {
                   className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="https://example.com/image.jpg"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Icône (Emoji)
+                </label>
+                <div className="grid grid-cols-8 gap-2 p-3 border border-gray-300 rounded-lg bg-gray-50 max-h-64 overflow-y-auto">
+                  {[
+                    '🏗️', '🧱', '🏠', '🔨', '🔧', '🔩', '⚒️', '🪛',
+                    '⚙️', '🛠️', '🧰', '⚡', '💡', '🔌', '🔦', '🕯️',
+                    '🎨', '🖌️', '🖍️', '🚿', '🚰', '🚽', '🛁', '🪠',
+                    '🔥', '🧯', '🌡️', '❄️', '💨', '🪟', '🚪', '🛡️',
+                    '🪵', '🪚', '📏', '📐', '🧲', '🪜', '🧹', '🧽',
+                    '🪣', '🧴', '🧪', '⬜', '🟫', '🟧', '🟨', '🟩'
+                  ].map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, icon: emoji }))}
+                      className={`text-2xl p-2 rounded-lg hover:bg-blue-100 transition-colors ${
+                        formData.icon === emoji ? 'bg-blue-500 ring-2 ring-blue-600' : 'bg-white'
+                      }`}
+                      title={emoji}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+                {formData.icon && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Sélectionné:</span>
+                    <span className="text-3xl">{formData.icon}</span>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, icon: '' }))}
+                      className="text-xs text-red-600 hover:text-red-800"
+                    >
+                      Effacer
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div>
