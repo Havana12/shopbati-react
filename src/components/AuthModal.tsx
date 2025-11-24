@@ -8,9 +8,10 @@ interface AuthModalProps {
   isOpen: boolean
   onClose: () => void
   defaultMode?: 'login' | 'register'
+  onAuthSuccess?: () => void
 }
 
-export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: AuthModalProps) {
+export default function AuthModal({ isOpen, onClose, defaultMode = 'login', onAuthSuccess }: AuthModalProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [firstName, setFirstName] = useState('')
@@ -134,6 +135,9 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
         await register(email, password, displayName, userData)
       } else {
         await login(email, password)
+        if (onAuthSuccess) {
+          onAuthSuccess()
+        }
         onClose()
       }
     } catch (error: any) {
