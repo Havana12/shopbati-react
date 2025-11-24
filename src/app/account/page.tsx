@@ -11,6 +11,7 @@ interface Order {
   $id: string
   order_number: string
   status: string
+  payment_status: string
   total_amount: number
   created_at: string
   items: any[]
