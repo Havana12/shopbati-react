@@ -17,32 +17,42 @@ function VerifyEmailContent() {
 
   useEffect(() => {
     const verifyEmail = async () => {
-      const userId = searchParams.get('userId')
-      const secret = searchParams.get('secret')
+      const token = searchParams.get('token')
+      const email = searchParams.get('email')
 
-      if (!userId || !secret) {
+      if (!token || !email) {
         setStatus('error')
         setMessage('Lien de vérification invalide ou expiré.')
         return
       }
 
       try {
-        const appwrite = AppwriteService.getInstance()
-        await appwrite.verifyEmail(userId, secret)
-        setStatus('success')
-        setMessage('✅ Email vérifié avec succès ! Vous pouvez maintenant vous connecter.')
-        
-        // Redirect to login after 3 seconds
-        setTimeout(() => {
-          router.push('/?login=true')
-        }, 3000)
+        // Use custom verification system via Resend
+        const response = await fetch('/api/auth/verify-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ token, email })
+        })
+
+        const data = await response.json()
+
+        if (data.success) {
+          setStatus('success')
+          setMessage(data.message || '✅ Email vérifié avec succès ! Vous pouvez maintenant vous connecter.')
+          
+          // Redirect to login after 3 seconds
+          setTimeout(() => {
+            router.push('/login?verified=true')
+          }, 3000)
+        } else {
+          setStatus('error')
+          setMessage(data.error || 'Erreur lors de la vérification.')
+        }
       } catch (error: any) {
         setStatus('error')
-        if (error.message?.includes('Invalid credentials') || error.message?.includes('expired')) {
-          setMessage('Le lien de vérification a expiré ou est invalide. Cliquez sur "Renvoyer l\'email" pour recevoir un nouveau lien.')
-        } else {
-          setMessage(error.message || 'Erreur lors de la vérification. Le lien a peut-être expiré.')
-        }
+        setMessage('Erreur lors de la vérification. Le lien a peut-être expiré.')
       }
     }
 

@@ -60,7 +60,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       const appwrite = AppwriteService.getInstance()
-      await appwrite.login(email, password)
+      
+      // First check if user exists in database and if email is verified
+      const dbUser = await appwrite.getCustomerByEmail(email)
+      
+      if (dbUser && !dbUser.email_verified) {
+        throw new Error('EMAIL_NOT_VERIFIED|Votre email n\'est pas encore vérifié. Veuillez vérifier votre boîte de réception.')
+      }
+      
+      // If email is verified in database, create Auth session
+      // First try to login with Appwrite Auth
+      try {
+        await appwrite.login(email, password)
+      } catch (authError: any) {
+        // If user doesn't exist in Auth but exists in DB with verified email, create Auth user
+        if (authError.message && authError.message.includes('Invalid credentials') && dbUser && dbUser.email_verified) {
+          console.log('Creating Auth user from verified DB user...')
+          try {
+            await appwrite.createAuthFromDbUser(email, password)
+            // Now try login again
+            await appwrite.login(email, password)
+          } catch (createError) {
+            console.error('Failed to create Auth user:', createError)
+            throw authError // Throw original auth error
+          }
+        } else {
+          throw authError
+        }
+      }
+      
       const currentUser = await appwrite.getCurrentUser()
       setUser(currentUser as User)
     } catch (error) {
@@ -71,8 +99,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resendVerificationEmail = async () => {
     try {
-      const appwrite = AppwriteService.getInstance()
-      await appwrite.sendVerificationEmail()
+      if (!user?.email) {
+        throw new Error('Aucun email trouvé')
+      }
+      
+      const emailService = (await import('@/lib/emailService')).EmailService.getInstance()
+      const result = await emailService.resendVerificationEmail(user.email)
+      
+      if (!result.success) {
+        throw new Error(result.message)
+      }
+      
       return true
     } catch (error) {
       console.error('Resend verification error:', error)
@@ -96,55 +133,108 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const appwrite = AppwriteService.getInstance()
       
-      // If additional data is provided, use enhanced registration
+      // Create user in database first (don't create in Appwrite Auth yet)
+      let dbUserId: string
+      
       if (additionalData) {
-        const result = await appwrite.registerWithDetails(
-          email, 
-          password, 
-          additionalData.firstName || '',
-          additionalData.lastName || '',
-          additionalData.phone || '',
-          additionalData.accountType || 'individual',
-          additionalData.address || '',
-          additionalData.postalCode || '',
-          additionalData.city || '',
-          additionalData.country || 'France',
-          additionalData.raisonSociale || '',
-          additionalData.siret || '',
-          additionalData.tvaNumber || ''
-        )
+        // Use registerWithDetails but modified to not create Auth user
+        const nameParts = name.trim().split(' ')
+        const firstName = additionalData.firstName || nameParts[0] || 'Utilisateur'
+        const lastName = additionalData.lastName || nameParts.slice(1).join(' ') || 'Inconnu'
         
-        // Check if email verification is required
-        if (result && (result as any).requiresEmailVerification) {
-          throw new Error('EMAIL_VERIFICATION_REQUIRED|Un email de vérification a été envoyé à votre adresse. Veuillez vérifier votre boîte de réception.')
+        const generatePasswordHash = (email: string, password: string) => {
+          const salt = Math.random().toString(36).substring(2, 15)
+          const hash = btoa(`${email}:${password}:${salt}`).substring(0, 60)
+          return `$2y$10$${hash}`
         }
         
-        // Check if this is a successful account creation but requires manual login
-        if (result && (result as any).requiresManualLogin) {
-          throw new Error('ACCOUNT_CREATED_LOGIN_REQUIRED')
+        const passwordHash = generatePasswordHash(email, password)
+        
+        const userProfileData = {
+          first_name: (additionalData.accountType === 'individual' && firstName && firstName.trim()) ? firstName.trim() : '',
+          last_name: (additionalData.accountType === 'individual' && lastName && lastName.trim()) ? lastName.trim() : '',
+          email: email,
+          phone: additionalData.phone || '',
+          password_hash: passwordHash,
+          email_verified: false,
+          email_verification_token: '',
+          password_reset_token: '',
+          password_reset_expires: '',
+          last_login: '',
+          login_attempts: 0,
+          locked_until: '',
+          newsletter_subscribed: false,
+          account_type: additionalData.accountType || 'individual',
+          status: 'active',
+          address: additionalData.address || '',
+          postalCode: additionalData.postalCode || '',
+          city: additionalData.city || '',
+          country: additionalData.country || 'France',
+          raison_sociale: (additionalData.accountType === 'professional' && additionalData.raisonSociale && additionalData.raisonSociale.trim()) ? additionalData.raisonSociale.trim() : '',
+          siret: (additionalData.accountType === 'professional' && additionalData.siret && additionalData.siret.trim()) ? additionalData.siret.trim() : '',
+          tva_number: (additionalData.accountType === 'professional' && additionalData.tvaNumber && additionalData.tvaNumber.trim()) ? additionalData.tvaNumber.trim() : '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         }
+        
+        const dbUser = await appwrite.createCustomer(userProfileData)
+        dbUserId = dbUser.$id
       } else {
-        const result = await appwrite.register(email, password, name)
+        // Simple registration
+        const nameParts = name.trim().split(' ')
+        const firstName = nameParts[0] || 'Utilisateur'
+        const lastName = nameParts.slice(1).join(' ') || 'Inconnu'
         
-        // Check if email verification is required
-        if (result && (result as any).requiresEmailVerification) {
-          throw new Error('EMAIL_VERIFICATION_REQUIRED|Un email de vérification a été envoyé à votre adresse. Veuillez vérifier votre boîte de réception.')
+        const generatePasswordHash = (email: string, password: string) => {
+          const salt = Math.random().toString(36).substring(2, 15)
+          const hash = btoa(`${email}:${password}:${salt}`).substring(0, 60)
+          return `$2y$10$${hash}`
         }
         
-        // Check if this is a successful account creation but requires manual login
-        if (result && (result as any).requiresManualLogin) {
-          throw new Error('ACCOUNT_CREATED_LOGIN_REQUIRED')
+        const passwordHash = generatePasswordHash(email, password)
+        
+        const userProfileData = {
+          first_name: firstName,
+          last_name: lastName,
+          email: email,
+          phone: '',
+          password_hash: passwordHash,
+          email_verified: false,
+          email_verification_token: '',
+          password_reset_token: '',
+          password_reset_expires: '',
+          last_login: '',
+          login_attempts: 0,
+          locked_until: '',
+          newsletter_subscribed: false,
+          account_type: 'individual',
+          status: 'active',
+          address: '',
+          postalCode: '',
+          city: '',
+          country: 'France',
+          raison_sociale: '',
+          siret: '',
+          tva_number: '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         }
+        
+        const dbUser = await appwrite.createCustomer(userProfileData)
+        dbUserId = dbUser.$id
       }
       
-      // Try to get current user (will be null if not logged in)
-      try {
-        const currentUser = await appwrite.getCurrentUser()
-        setUser(currentUser as User)
-      } catch (error) {
-        // User not logged in yet - this is normal for email verification flow
-        console.log('User not logged in - awaiting email verification')
+      // Send verification email via Resend
+      const emailService = (await import('@/lib/emailService')).EmailService.getInstance()
+      const emailResult = await emailService.sendVerificationEmail(email, dbUserId)
+      
+      if (!emailResult.success) {
+        console.error('⚠️ Failed to send verification email:', emailResult.message)
       }
+      
+      // Throw special error to inform user about email verification
+      throw new Error('EMAIL_VERIFICATION_REQUIRED|Un email de vérification a été envoyé à votre adresse. Veuillez vérifier votre boîte de réception avant de vous connecter.')
+      
     } catch (error: any) {
       console.error('Registration error:', error)
       
@@ -152,12 +242,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let errorMessage = 'Erreur lors de la création du compte'
       
       if (error?.message) {
-        // Special case: don't modify ACCOUNT_CREATED_LOGIN_REQUIRED message
-        if (error.message === 'ACCOUNT_CREATED_LOGIN_REQUIRED') {
+        // Special case: EMAIL_VERIFICATION_REQUIRED is not an error, it's expected
+        if (error.message.includes('EMAIL_VERIFICATION_REQUIRED')) {
+          throw error // Re-throw as-is for the UI to handle
+        } else if (error.message === 'ACCOUNT_CREATED_LOGIN_REQUIRED') {
           throw error // Re-throw as-is for the UI to handle
         } else if (error.message.includes('user_already_exists') || 
             error.message.includes('A user with the same') || 
-            error.message.includes('already exists')) {
+            error.message.includes('already exists') ||
+            error.message.includes('Document with the requested ID already exists')) {
           errorMessage = 'Cette adresse email existe déjà dans le système. Essayez de vous connecter ou contactez le support.'
         } else if (error.message.includes('mot de passe différent')) {
           errorMessage = error.message // Use the detailed message from Appwrite service

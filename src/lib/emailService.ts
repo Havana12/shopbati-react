@@ -31,6 +31,107 @@ export class EmailService {
     return EmailService.instance
   }
 
+  // Send email verification via Resend (custom system)
+  async sendVerificationEmail(email: string, userId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch('/api/auth/send-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, userId })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        return {
+          success: false,
+          message: data.error || 'Erreur lors de l\'envoi de l\'email de vérification'
+        }
+      }
+
+      return {
+        success: true,
+        message: 'Email de vérification envoyé avec succès'
+      }
+    } catch (error) {
+      console.error('❌ Error sending verification email:', error)
+      return {
+        success: false,
+        message: 'Erreur lors de l\'envoi de l\'email de vérification'
+      }
+    }
+  }
+
+  // Verify email with token
+  async verifyEmail(token: string, email: string): Promise<{ success: boolean; message: string; alreadyVerified?: boolean }> {
+    try {
+      const response = await fetch('/api/auth/verify-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token, email })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        return {
+          success: false,
+          message: data.error || 'Erreur lors de la vérification de l\'email'
+        }
+      }
+
+      return {
+        success: true,
+        message: data.message || 'Email vérifié avec succès',
+        alreadyVerified: data.alreadyVerified
+      }
+    } catch (error) {
+      console.error('❌ Error verifying email:', error)
+      return {
+        success: false,
+        message: 'Erreur lors de la vérification de l\'email'
+      }
+    }
+  }
+
+  // Resend verification email
+  async resendVerificationEmail(email: string): Promise<{ success: boolean; message: string; alreadyVerified?: boolean }> {
+    try {
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        return {
+          success: false,
+          message: data.error || 'Erreur lors de l\'envoi de l\'email'
+        }
+      }
+
+      return {
+        success: true,
+        message: data.message || 'Email de vérification renvoyé',
+        alreadyVerified: data.alreadyVerified
+      }
+    } catch (error) {
+      console.error('❌ Error resending verification email:', error)
+      return {
+        success: false,
+        message: 'Erreur lors de l\'envoi de l\'email'
+      }
+    }
+  }
+
   // Send invoice email to customer
   async sendInvoice(invoiceData: InvoiceData): Promise<{ success: boolean; message: string }> {
     try {
