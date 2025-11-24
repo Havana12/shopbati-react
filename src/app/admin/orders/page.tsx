@@ -181,6 +181,30 @@ export default function AdminOrdersPage() {
     }
   }
 
+  const deleteOrder = async (orderId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette commande ? Cette action est irréversible.')) {
+      return
+    }
+    
+    try {
+      const appwrite = AppwriteService.getInstance()
+      await appwrite.databases.deleteDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        'orders',
+        orderId
+      )
+      
+      alert('✅ Commande supprimée avec succès')
+      fetchOrders()
+      if (selectedOrder && selectedOrder.$id === orderId) {
+        setSelectedOrder(null)
+      }
+    } catch (error) {
+      console.error('Error deleting order:', error)
+      alert('❌ Erreur lors de la suppression de la commande')
+    }
+  }
+
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
       const appwrite = AppwriteService.getInstance()
@@ -785,7 +809,7 @@ export default function AdminOrdersPage() {
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPaymentStatusColor(order.payment_status)}`}>
                           {order.payment_status === 'paid' || order.payment_status === 'payé' ? 'Payé' : 
                            order.payment_status === 'pending' ? 'En attente' : 
-                           order.payment_status === 'cancelled' ? 'Annulé' : 'Échoué'}
+                           order.payment_status === 'cancelled' ? 'Annulé' : '⏳ En attente'}
                         </span>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
@@ -825,16 +849,13 @@ export default function AdminOrdersPage() {
                             </button>
                           )}
                           
-                          <select
-                            value={order.status}
-                            onChange={(e) => updateOrderStatus(order.$id, e.target.value)}
-                            className="text-sm border border-gray-300 rounded px-2 py-1"
+                          <button
+                            onClick={() => deleteOrder(order.$id)}
+                            className="text-red-600 hover:text-red-900 p-2"
+                            title="Supprimer la commande"
                           >
-                            <option value="en_attente">En attente</option>
-                            <option value="payé">Payé</option>
-                            <option value="livré">Livré</option>
-                            <option value="cancelled">Annulé</option>
-                          </select>
+                            <i className="fas fa-trash"></i>
+                          </button>
                         </div>
                       </td>
                     </tr>

@@ -42,6 +42,11 @@ export default function AdminProductsPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [totalProducts, setTotalProducts] = useState(0)
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set())
+  const [showBulkModal, setShowBulkModal] = useState(false)
+  const [bulkCategory, setBulkCategory] = useState('')
+  const [bulkSubcategory, setBulkSubcategory] = useState('')
+  const [bulkSubcategories, setBulkSubcategories] = useState<Category[]>([])
 
   // Debounce search term to avoid too many API calls
   useEffect(() => {
@@ -72,6 +77,20 @@ export default function AdminProductsPage() {
       setSubcategoryFilter('all')
     }
   }, [categoryFilter, categories])
+
+  // Fetch subcategories for bulk modal
+  useEffect(() => {
+    if (bulkCategory) {
+      const filtered = categories.filter(cat => cat.parent_id === bulkCategory)
+      setBulkSubcategories(filtered)
+      if (bulkSubcategory && !filtered.find(cat => cat.$id === bulkSubcategory)) {
+        setBulkSubcategory('')
+      }
+    } else {
+      setBulkSubcategories([])
+      setBulkSubcategory('')
+    }
+  }, [bulkCategory, categories])
 
   const fetchCategories = async () => {
     try {
@@ -204,6 +223,70 @@ export default function AdminProductsPage() {
     } catch (error) {
       console.error('Error updating product status:', error)
       alert('Erreur lors de la mise à jour du statut')
+    }
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedProducts.size === products.length) {
+      setSelectedProducts(new Set())
+    } else {
+      setSelectedProducts(new Set(products.map(p => p.$id)))
+    }
+  }
+
+  const toggleSelectProduct = (productId: string) => {
+    const newSelected = new Set(selectedProducts)
+    if (newSelected.has(productId)) {
+      newSelected.delete(productId)
+    } else {
+      newSelected.add(productId)
+    }
+    setSelectedProducts(newSelected)
+  }
+
+  const handleBulkCategoryChange = async () => {
+    if (!bulkCategory && !bulkSubcategory) {
+      alert('Veuillez sélectionner une catégorie')
+      return
+    }
+
+    const categoryId = bulkSubcategory || bulkCategory
+    const categoryName = bulkSubcategory 
+      ? categories.find(c => c.$id === bulkSubcategory)?.name
+      : categories.find(c => c.$id === bulkCategory)?.name
+
+    if (!confirm(`Voulez-vous vraiment changer la catégorie de ${selectedProducts.size} produit(s) vers "${categoryName}" ?`)) {
+      return
+    }
+
+    setLoading(true)
+    try {
+      const appwrite = AppwriteService.getInstance()
+      const updatePromises = Array.from(selectedProducts).map(productId =>
+        appwrite.databases.updateDocument(
+          process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+          'products',
+          productId,
+          { 
+            category_id: categoryId,
+            updated_at: new Date().toISOString()
+          }
+        )
+      )
+
+      await Promise.all(updatePromises)
+      
+      alert(`✅ ${selectedProducts.size} produit(s) mis à jour avec succès !`)
+      setSelectedProducts(new Set())
+      setShowBulkModal(false)
+      setBulkCategory('')
+      setBulkSubcategory('')
+      fetchProducts()
+    } catch (error) {
+      console.error('Error updating products:', error)
+      alert('❌ Erreur lors de la mise à jour des produits')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -385,6 +468,36 @@ export default function AdminProductsPage() {
         </div>
       </div>
 
+      {/* Bulk Actions Bar */}
+      {selectedProducts.size > 0 && (
+        <div className="bg-blue-600 text-white rounded-lg shadow-lg p-4 border border-blue-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="font-semibold">
+                <i className="fas fa-check-circle mr-2"></i>
+                {selectedProducts.size} produit(s) sélectionné(s)
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowBulkModal(true)}
+                className="bg-white text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-blue-50 transition-colors"
+              >
+                <i className="fas fa-exchange-alt mr-2"></i>
+                Changer la catégorie
+              </button>
+              <button
+                onClick={() => setSelectedProducts(new Set())}
+                className="bg-blue-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-400 transition-colors"
+              >
+                <i className="fas fa-times mr-2"></i>
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Compact Products Table */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
         {loading ? (
@@ -413,6 +526,14 @@ export default function AdminProductsPage() {
               <table className="min-w-full divide-y divide-gray-200 bg-white">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                      <input
+                        type="checkbox"
+                        checked={selectedProducts.size === products.length && products.length > 0}
+                        onChange={toggleSelectAll}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                      />
+                    </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Produit
                     </th>
@@ -441,7 +562,15 @@ export default function AdminProductsPage() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {products.map((product) => (
-                    <tr key={product.$id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={product.$id} className={`hover:bg-gray-50 transition-colors ${selectedProducts.has(product.$id) ? 'bg-blue-50' : ''}`}>
+                      <td className="px-3 py-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedProducts.has(product.$id)}
+                          onChange={() => toggleSelectProduct(product.$id)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                        />
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-12 w-12">
@@ -642,6 +771,104 @@ export default function AdminProductsPage() {
           </>
         )}
       </div>
+
+      {/* Bulk Category Change Modal */}
+      {showBulkModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">
+                <i className="fas fa-exchange-alt mr-2 text-blue-600"></i>
+                Changer la catégorie
+              </h2>
+              <button
+                onClick={() => setShowBulkModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <i className="fas fa-times text-xl"></i>
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <i className="fas fa-info-circle mr-2"></i>
+                  Vous allez changer la catégorie de <strong>{selectedProducts.size}</strong> produit(s)
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Catégorie principale *
+                </label>
+                <select
+                  value={bulkCategory}
+                  onChange={(e) => setBulkCategory(e.target.value)}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Sélectionner une catégorie</option>
+                  {parentCategories.map((category) => (
+                    <option key={category.$id} value={category.$id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {bulkSubcategories.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Sous-catégorie (optionnel)
+                  </label>
+                  <select
+                    value={bulkSubcategory}
+                    onChange={(e) => setBulkSubcategory(e.target.value)}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Aucune sous-catégorie</option>
+                    {bulkSubcategories.map((subcategory) => (
+                      <option key={subcategory.$id} value={subcategory.$id}>
+                        {subcategory.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  onClick={handleBulkCategoryChange}
+                  disabled={loading || (!bulkCategory && !bulkSubcategory)}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  {loading ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin mr-2"></i>
+                      Mise à jour...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-check mr-2"></i>
+                      Appliquer
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowBulkModal(false)
+                    setBulkCategory('')
+                    setBulkSubcategory('')
+                  }}
+                  className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  <i className="fas fa-times mr-2"></i>
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

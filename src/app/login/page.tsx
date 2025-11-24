@@ -276,7 +276,7 @@ export default function LoginPage() {
                 <div>
                   <label htmlFor="address" className="block text-sm font-semibold text-gray-700 mb-2">
                     <i className="fas fa-map-marker-alt mr-2 text-orange-500"></i>
-                    Adresse de livraison *
+                    Adresse *
                   </label>
                   <input
                     id="address"

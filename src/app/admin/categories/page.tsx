@@ -275,55 +275,70 @@ export default function AdminCategoriesPage() {
         appwrite.Query.orderAsc('sort_order')
       ])
       
-      // Get all products to count by category
-      const allProductsResult = await appwrite.getProducts([
-        appwrite.Query.limit(5000)
-      ])
-      
-      console.log('Total products fetched:', allProductsResult.documents.length)
-      
-      // Count products for each category (direct products only)
-      const categoriesWithCount = flatResult.documents.map((category: any) => {
-        const categoryProducts = allProductsResult.documents.filter((product: any) => {
-          return product.category_id === category.$id
-        })
-        
-        return {
-          ...category,
-          products_count: categoryProducts.length
-        }
-      })
+      // Initialize categories with 0 product count (faster loading)
+      const categoriesWithCount = flatResult.documents.map((category: any) => ({
+        ...category,
+        products_count: 0 // Will be calculated in background
+      }))
       
       setFlatCategories(categoriesWithCount as Category[])
       setAllCategories(categoriesWithCount as Category[]) // Store all categories for dropdown
       
-      // Add product counts to hierarchical structure and calculate total for parents
-      const addProductCounts = (cats: Category[]): Category[] => {
-        return cats.map(cat => {
-          const withCount = categoriesWithCount.find(c => c.$id === cat.$id)
-          const directCount = withCount?.products_count || 0
-          
-          // Process children first
-          const childrenWithCounts = cat.children ? addProductCounts(cat.children) : []
-          
-          // Calculate total: direct products + all products from subcategories
-          const childrenTotal = childrenWithCounts.reduce((sum, child) => sum + (child.products_count || 0), 0)
-          const totalCount = directCount + childrenTotal
-          
-          console.log(`Category ${cat.name}: direct=${directCount}, children=${childrenTotal}, total=${totalCount}`)
-          
-          return {
-            ...cat,
-            products_count: totalCount,
-            children: childrenWithCounts
-          }
-        })
-      }
-      
-      setCategories(addProductCounts(hierarchicalResult))
+      // Set categories immediately without product counts for fast rendering
+      setCategories(hierarchicalResult)
       
       // Start with all categories collapsed
       setExpandedCategories(new Set<string>())
+      
+      // Load product counts in background (non-blocking)
+      setTimeout(async () => {
+        try {
+          // Get all products to count by category
+          const allProductsResult = await appwrite.getProducts([
+            appwrite.Query.limit(5000)
+          ])
+          
+          // Count products for each category (direct products only)
+          const categoriesWithProductCount = flatResult.documents.map((category: any) => {
+            const categoryProducts = allProductsResult.documents.filter((product: any) => {
+              return product.category_id === category.$id
+            })
+            
+            return {
+              ...category,
+              products_count: categoryProducts.length
+            }
+          })
+          
+          setFlatCategories(categoriesWithProductCount as Category[])
+          setAllCategories(categoriesWithProductCount as Category[])
+          
+          // Add product counts to hierarchical structure and calculate total for parents
+          const addProductCounts = (cats: Category[]): Category[] => {
+            return cats.map(cat => {
+              const withCount = categoriesWithProductCount.find(c => c.$id === cat.$id)
+              const directCount = withCount?.products_count || 0
+              
+              // Process children first
+              const childrenWithCounts = cat.children ? addProductCounts(cat.children) : []
+              
+              // Calculate total: direct products + all products from subcategories
+              const childrenTotal = childrenWithCounts.reduce((sum, child) => sum + (child.products_count || 0), 0)
+              const totalCount = directCount + childrenTotal
+              
+              return {
+                ...cat,
+                products_count: totalCount,
+                children: childrenWithCounts
+              }
+            })
+          }
+          
+          setCategories(addProductCounts(hierarchicalResult))
+        } catch (error) {
+          console.error('Error loading product counts:', error)
+        }
+      }, 100) // Load counts after 100ms delay
       
     } catch (error) {
       console.error('Error fetching categories:', error)

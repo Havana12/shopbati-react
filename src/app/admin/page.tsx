@@ -7,8 +7,7 @@ interface DashboardStats {
   totalProducts: number
   totalCategories: number
   totalOrders: number
-  totalRevenue: number
-  recentOrders: any[]
+  last7DaysOrders: { date: string; count: number }[]
   popularProducts: any[]
 }
 
@@ -17,8 +16,7 @@ export default function AdminDashboard() {
     totalProducts: 0,
     totalCategories: 0,
     totalOrders: 0,
-    totalRevenue: 0,
-    recentOrders: [],
+    last7DaysOrders: [],
     popularProducts: []
   })
   const [loading, setLoading] = useState(true)
@@ -31,59 +29,84 @@ export default function AdminDashboard() {
     try {
       const appwrite = AppwriteService.getInstance()
       
-      // Fetch products count
-      const productsResult = await appwrite.getProducts([
-        appwrite.Query.equal('status', 'active')
-      ])
-      
-      // Fetch categories count
-      const categoriesResult = await appwrite.getCategories([
-        appwrite.Query.equal('status', 'active')
-      ])
+      // Get last 7 days dates
+      const last7Days = Array.from({ length: 7 }, (_, i) => {
+        const date = new Date()
+        date.setDate(date.getDate() - (6 - i))
+        return date
+      })
 
-      // Try to fetch orders and customers (will use fallback if collections don't exist)
-      let ordersCount = 0
-      let totalRevenue = 0
-      let recentOrdersList = []
-      
-      try {
-        const ordersResult = await appwrite.databases.listDocuments(
+      // Fetch all data in parallel for faster loading
+      const [productsResult, categoriesResult, ordersResult, allOrdersLast7Days] = await Promise.all([
+        // Products count - only get count
+        appwrite.databases.listDocuments(
+          process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+          'products',
+          [appwrite.Query.equal('status', 'active'), appwrite.Query.limit(1)]
+        ).catch(() => ({ total: 0, documents: [] })),
+        
+        // Categories count - only get count
+        appwrite.databases.listDocuments(
+          process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+          'categories',
+          [appwrite.Query.equal('status', 'active'), appwrite.Query.limit(1)]
+        ).catch(() => ({ total: 0, documents: [] })),
+        
+        // Orders count - only get count, no documents
+        appwrite.databases.listDocuments(
           process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
           'orders',
-          [appwrite.Query.limit(100)]
-        )
-        ordersCount = ordersResult.total
-        totalRevenue = ordersResult.documents.reduce((sum: number, order: any) => sum + (order.total_amount || 0), 0)
-        recentOrdersList = ordersResult.documents.slice(0, 3).map((order: any) => ({
-          id: order.order_number || order.$id,
-          customer: order.customer_name || 'Client inconnu',
-          amount: order.total_amount || 0,
-          status: order.status || 'pending'
-        }))
-      } catch (error) {
-        console.log('Orders collection not available, using fallback data')
-      }
+          [appwrite.Query.limit(1)]
+        ).catch(() => ({ total: 0, documents: [] })),
+        
+        // Get orders from last 7 days
+        appwrite.databases.listDocuments(
+          process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+          'orders',
+          [
+            appwrite.Query.greaterThanEqual('$createdAt', last7Days[0].toISOString()),
+            appwrite.Query.limit(500)
+          ]
+        ).catch(() => ({ documents: [] }))
+      ])
+
+      // Get popular products (only top 5)
+      const popularProductsResult = await appwrite.databases.listDocuments(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        'products',
+        [appwrite.Query.equal('status', 'active'), appwrite.Query.limit(5)]
+      ).catch(() => ({ documents: [] }))
+
+      // Count orders per day
+      const ordersPerDay = last7Days.map(date => {
+        const dateStr = date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+        const startOfDay = new Date(date)
+        startOfDay.setHours(0, 0, 0, 0)
+        const endOfDay = new Date(date)
+        endOfDay.setHours(23, 59, 59, 999)
+        
+        const count = (allOrdersLast7Days.documents || []).filter((order: any) => {
+          const orderDate = new Date(order.$createdAt || order.created_at)
+          return orderDate >= startOfDay && orderDate <= endOfDay
+        }).length
+        
+        return { date: dateStr, count }
+      })
 
       setStats({
         totalProducts: productsResult.total || 0,
         totalCategories: categoriesResult.total || 0,
-        totalOrders: ordersCount,
-        totalRevenue: totalRevenue,
-        recentOrders: recentOrdersList.length > 0 ? recentOrdersList : [
-          { id: 'Demo-001', customer: 'Commande de démonstration', amount: 234.50, status: 'completed' },
-          { id: 'Demo-002', customer: 'Exemple de commande', amount: 156.00, status: 'pending' }
-        ],
-        popularProducts: productsResult.documents?.slice(0, 5) || []
+        totalOrders: ordersResult.total || 0,
+        last7DaysOrders: ordersPerDay,
+        popularProducts: popularProductsResult.documents?.slice(0, 5) || []
       })
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
-      // Fallback data if everything fails
       setStats({
         totalProducts: 0,
         totalCategories: 0,
         totalOrders: 0,
-        totalRevenue: 0,
-        recentOrders: [],
+        last7DaysOrders: [],
         popularProducts: []
       })
     } finally {
@@ -111,7 +134,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-lg shadow-lg p-6 border-l-4 border-blue-500">
           <div className="flex items-center justify-between">
             <div>
@@ -159,48 +182,30 @@ export default function AdminDashboard() {
             +8% cette semaine
           </p>
         </div>
-
-        <div className="bg-white rounded-lg shadow-lg p-6 border-l-4 border-yellow-500">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Chiffre d'affaires</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.totalRevenue.toLocaleString('fr-FR')}€</p>
-            </div>
-            <div className="bg-yellow-100 p-3 rounded-full">
-              <i className="fas fa-euro-sign text-yellow-600 text-xl"></i>
-            </div>
-          </div>
-          <p className="text-sm text-green-600 mt-4">
-            <i className="fas fa-arrow-up mr-1"></i>
-            +15% ce mois
-          </p>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recent Orders */}
+        {/* Orders Chart - Last 7 Days */}
         <div className="bg-white rounded-lg shadow-lg">
           <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">Commandes récentes</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Commandes des 7 derniers jours</h3>
           </div>
           <div className="p-6">
             <div className="space-y-4">
-              {stats.recentOrders.map((order, index) => (
-                <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{order.id}</p>
-                    <p className="text-sm text-gray-600">{order.customer}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium text-gray-900">{order.amount}€</p>
-                    <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                      order.status === 'completed' ? 'bg-green-100 text-green-800' :
-                      order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-blue-100 text-blue-800'
-                    }`}>
-                      {order.status === 'completed' ? 'Terminée' :
-                       order.status === 'pending' ? 'En attente' : 'En cours'}
-                    </span>
+              {stats.last7DaysOrders.map((day, index) => (
+                <div key={index} className="flex items-center">
+                  <div className="w-24 text-sm text-gray-600">{day.date}</div>
+                  <div className="flex-1 ml-4">
+                    <div className="bg-gray-200 rounded-full h-8 relative overflow-hidden">
+                      <div 
+                        className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full flex items-center justify-end pr-3 transition-all duration-500"
+                        style={{ width: `${day.count > 0 ? (day.count / Math.max(...stats.last7DaysOrders.map(d => d.count))) * 100 : 0}%` }}
+                      >
+                        {day.count > 0 && (
+                          <span className="text-white font-semibold text-sm">{day.count}</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}

@@ -587,48 +587,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Section Appel à l'action */}
-      <section className="py-20 bg-gradient-to-br from-brand-500 via-brand-600 to-brand-700 relative overflow-hidden">
-        {/* Éléments décoratifs */}
-        <div className="absolute inset-0">
-          <div className="absolute top-20 left-20 w-32 h-32 bg-white/10 rounded-full animate-float"></div>
-          <div className="absolute bottom-20 right-20 w-24 h-24 bg-white/10 rounded-full animate-float" style={{animationDelay: '1s'}}></div>
-          <div className="absolute top-40 right-40 w-16 h-16 bg-white/10 rounded-full animate-float" style={{animationDelay: '2s'}}></div>
-        </div>
-        
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
-          <h2 className="text-4xl lg:text-6xl font-bold text-white mb-6">
-            Prêt pour Votre Prochain Projet ?
-          </h2>
-          <p className="text-xl lg:text-2xl text-white/90 mb-12 max-w-3xl mx-auto leading-relaxed">
-            Rejoignez des milliers de professionnels qui font confiance à ShopBati pour leurs matériaux de construction.
-            Inscrivez-vous aujourd&apos;hui et bénéficiez de 10% de réduction sur votre première commande !
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-6 justify-center">
-            <Link 
-              href="/contact" 
-              className="inline-flex items-center px-8 py-4 rounded-xl bg-white text-brand-600 font-semibold hover:bg-neutral-100 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
-            >
-              <span className="mr-2">📋</span>
-              Demander un Devis
-            </Link>
-          </div>
-          
-          {/* Statistiques */}
-          <div className="grid md:grid-cols-2 gap-8 mt-16 pt-12 border-t border-white/20">
-            <div className="text-center">
-              <div className="text-3xl lg:text-4xl font-bold text-white mb-2">10,000+</div>
-              <div className="text-white/80">Clients Satisfaits</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl lg:text-4xl font-bold text-white mb-2">5,000+</div>
-              <div className="text-white/80">Produits Disponibles</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <Footer />
     </div>
   )

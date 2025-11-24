@@ -230,6 +230,30 @@ export default function AdminCustomersPage() {
     }
   }
 
+  const deleteCustomer = async (customerId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce client ? Cette action est irréversible.')) {
+      return
+    }
+    
+    try {
+      const appwrite = AppwriteService.getInstance()
+      await appwrite.databases.deleteDocument(
+        process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!,
+        'users',
+        customerId
+      )
+      
+      alert('✅ Client supprimé avec succès')
+      fetchCustomers()
+      if (selectedCustomer && selectedCustomer.$id === customerId) {
+        setSelectedCustomer(null)
+      }
+    } catch (error) {
+      console.error('Error deleting customer:', error)
+      alert('❌ Erreur lors de la suppression du client')
+    }
+  }
+
   const updateCustomerStatus = async (customerId: string, newStatus: string) => {
     try {
       const appwrite = AppwriteService.getInstance()
@@ -707,26 +731,24 @@ export default function AdminCustomersPage() {
                         <div className="flex items-center justify-end space-x-2">
                           <button
                             onClick={() => setSelectedCustomer(customer)}
-                            className="text-blue-600 hover:text-blue-900"
+                            className="text-blue-600 hover:text-blue-900 p-2"
                             title="Voir détails"
                           >
                             <i className="fas fa-eye"></i>
                           </button>
                           <button
-                            className="text-green-600 hover:text-green-900"
+                            className="text-green-600 hover:text-green-900 p-2"
                             title="Envoyer email"
                           >
                             <i className="fas fa-envelope"></i>
                           </button>
-                          <select
-                            value={customer.status || 'active'}
-                            onChange={(e) => updateCustomerStatus(customer.$id, e.target.value)}
-                            className="text-xs border border-gray-300 rounded px-1 py-1"
+                          <button
+                            onClick={() => deleteCustomer(customer.$id)}
+                            className="text-red-600 hover:text-red-900 p-2"
+                            title="Supprimer le client"
                           >
-                            <option value="active">Actif</option>
-                            <option value="inactive">Inactif</option>
-                            <option value="blocked">Bloqué</option>
-                          </select>
+                            <i className="fas fa-trash"></i>
+                          </button>
                         </div>
                       </td>
                     </tr>

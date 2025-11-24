@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import AuthModal from '@/components/AuthModal'
 import { AppwriteService } from '@/lib/appwrite'
 
 interface CartItem {
@@ -77,6 +78,7 @@ export default function CheckoutPage() {
   const [dbUser, setDbUser] = useState<DatabaseUser | null>(null)
   const [invoiceStatus, setInvoiceStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [currentStep, setCurrentStep] = useState(1)
+  const [showAuthModal, setShowAuthModal] = useState(false)
   const [orderData, setOrderData] = useState<OrderData>({
     items: [],
     customerType: '',
@@ -154,13 +156,21 @@ export default function CheckoutPage() {
           }))
         }
       } else {
-        // No user logged in, start from step 1 (customer type selection)
-        setCurrentStep(1)
+        // No user logged in, show auth modal
+        setShowAuthModal(true)
+        setLoading(false)
       }
     } catch (error) {
-      // No authenticated user, start from step 1
-      setCurrentStep(1)
+      // No authenticated user, show auth modal
+      setShowAuthModal(true)
+      setLoading(false)
     }
+  }
+
+  const handleAuthSuccess = () => {
+    setShowAuthModal(false)
+    // Reload user info after successful authentication
+    loadUserInfo()
   }
 
   const loadCart = () => {
@@ -975,6 +985,15 @@ export default function CheckoutPage() {
       </div>
 
       <Footer />
-    </>
+      {/* Auth Modal for non-logged users */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => {
+          setShowAuthModal(false)
+          router.push('/')
+        }}
+        onAuthSuccess={handleAuthSuccess}
+        defaultMode="register"
+      />    </>
   )
 }

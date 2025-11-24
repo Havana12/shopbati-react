@@ -433,7 +433,7 @@ export default function AuthModal({ isOpen, onClose, defaultMode = 'login' }: Au
                   <div>
                     <label htmlFor="modal-address" className="block text-sm font-medium text-gray-700 mb-2">
                       <i className="fas fa-map-marker-alt mr-2 text-orange-500"></i>
-                      Adresse de livraison *
+                      Adresse *
                     </label>
                     <input
                       id="modal-address"

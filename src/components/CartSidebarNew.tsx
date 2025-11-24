@@ -2,10 +2,15 @@
 
 import { useCart } from '@/contexts/CartContext'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { AppwriteService } from '@/lib/appwrite'
+import AuthModal from './AuthModal'
 
 export default function CartSidebar() {
   const { state, removeItem, updateQuantity, clearCart, closeCart } = useCart()
   const [isAnimating, setIsAnimating] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     if (state.isOpen) {
@@ -170,7 +175,25 @@ export default function CartSidebar() {
 
                 {/* Action Buttons */}
                 <div className="space-y-3">
-                  <button className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-3 rounded-xl font-bold text-lg transition-all duration-200 shadow-lg hover:shadow-xl">
+                  <button 
+                    onClick={async () => {
+                      try {
+                        const appwrite = AppwriteService.getInstance()
+                        const user = await appwrite.getCurrentUser()
+                        if (user) {
+                          // User is logged in, go to checkout
+                          router.push('/checkout')
+                        } else {
+                          // User not logged in, show auth modal
+                          setShowAuthModal(true)
+                        }
+                      } catch (error) {
+                        // User not logged in, show auth modal
+                        setShowAuthModal(true)
+                      }
+                    }}
+                    className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-3 rounded-xl font-bold text-lg transition-all duration-200 shadow-lg hover:shadow-xl"
+                  >
                     <svg className="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m-2.4 0L3 3z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM20 19.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
@@ -198,6 +221,17 @@ export default function CartSidebar() {
           )}
         </div>
       </div>
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onAuthSuccess={() => {
+          setShowAuthModal(false)
+          router.push('/checkout')
+        }}
+        defaultMode="register"
+      />
     </>
   )
 }

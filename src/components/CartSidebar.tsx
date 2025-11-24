@@ -2,14 +2,19 @@
 
 import { useCart } from '@/contexts/CartContext'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useOrder } from '@/hooks/useOrder'
+import { AppwriteService } from '@/lib/appwrite'
 import EmailForm from './EmailForm'
 import OrderProcessInfo from './OrderProcessInfo'
+import AuthModal from './AuthModal'
 
 export default function CartSidebar() {
   const { state, removeItem, updateQuantity, clearCart, closeCart } = useCart()
   const [isAnimating, setIsAnimating] = useState(false)
   const [showOrderInfo, setShowOrderInfo] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const router = useRouter()
   const { processOrder, isProcessing, showEmailForm, setShowEmailForm } = useOrder()
 
   useEffect(() => {
@@ -186,8 +191,23 @@ export default function CartSidebar() {
 
                 {/* Action Buttons */}
                 <div className="space-y-3">
-                  <button 
-                    onClick={() => processOrder()}
+                  <button
+                    onClick={async () => {
+                      try {
+                        const appwrite = AppwriteService.getInstance()
+                        const user = await appwrite.getCurrentUser()
+                        if (user) {
+                          // User is logged in, go to checkout
+                          router.push('/checkout')
+                        } else {
+                          // User not logged in, show auth modal
+                          setShowAuthModal(true)
+                        }
+                      } catch (error) {
+                        // User not logged in, show auth modal
+                        setShowAuthModal(true)
+                      }
+                    }}
                     disabled={isProcessing}
                     className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-3 rounded-xl font-bold text-lg transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -247,6 +267,17 @@ export default function CartSidebar() {
           onClose={() => setShowOrderInfo(false)}
         />
       )}
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onAuthSuccess={() => {
+          setShowAuthModal(false)
+          router.push('/checkout')
+        }}
+        defaultMode="register"
+      />
     </>
   )
 }
