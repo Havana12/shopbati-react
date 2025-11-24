@@ -213,6 +213,7 @@ export default function AdminCategoriesPage() {
                     description: '',
                     slug: '',
                     image_url: '',
+                    icon: '',
                     parent_id: category.$id,
                     status: 'active',
                     sort_order: 0
@@ -400,6 +401,7 @@ export default function AdminCategoriesPage() {
         description: '',
         slug: '',
         image_url: '',
+        icon: '',
         parent_id: '',
         status: 'active',
         sort_order: 0
@@ -478,6 +480,7 @@ export default function AdminCategoriesPage() {
       description: '',
       slug: '',
       image_url: '',
+      icon: '',
       parent_id: '',
       status: 'active',
       sort_order: 0
