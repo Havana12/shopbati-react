@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { AppwriteService } from '@/lib/appwrite'
+import DiscountByCategory from '@/components/DiscountByCategory'
 
 interface Product {
   $id: string
@@ -18,6 +19,8 @@ interface Product {
   reference?: string
   created_at: string
   updated_at: string
+  discount_percentage?: number
+  discounted_price?: number
 }
 
 interface Category {
@@ -310,6 +313,9 @@ export default function AdminProductsPage() {
         </Link>
       </div>
 
+      {/* Discount by Category */}
+      <DiscountByCategory onDiscountApplied={fetchProducts} />
+
       {/* Compact Filters */}
       <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
         <div className="flex items-center justify-between mb-4">
@@ -550,6 +556,9 @@ export default function AdminProductsPage() {
                       Prix
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Réduction
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Stock
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -622,9 +631,29 @@ export default function AdminProductsPage() {
                         )}
                       </td>
                       <td className="px-3 py-3">
-                        <div className="text-sm font-bold text-gray-900">
-                          {product.price.toFixed(2)}€
-                        </div>
+                        {product.discount_percentage && product.discount_percentage > 0 ? (
+                          <div>
+                            <div className="text-sm font-bold text-green-600">
+                              {product.discounted_price?.toFixed(2)}€
+                            </div>
+                            <div className="text-xs text-gray-400 line-through">
+                              {product.price.toFixed(2)}€
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-sm font-bold text-gray-900">
+                            {product.price.toFixed(2)}€
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-3">
+                        {product.discount_percentage && product.discount_percentage > 0 ? (
+                          <span className="inline-flex px-2 py-1 text-xs font-bold rounded-full bg-red-100 text-red-800">
+                            -{product.discount_percentage}%
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">-</span>
+                        )}
                       </td>
                       <td className="px-3 py-3">
                         <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${

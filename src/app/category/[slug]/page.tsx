@@ -21,6 +21,8 @@ interface Product {
   stock?: number
   brand?: string
   reference?: string
+  discount_percentage?: number
+  discounted_price?: number
   $createdAt: string
   $updatedAt: string
 }
@@ -428,9 +430,25 @@ export default function CategoryPage() {
                     </p>
                     
                     <div className="flex items-center justify-between">
-                      <div className="text-2xl font-bold text-orange-600">
-                        {product.price.toFixed(2)}€
-                      </div>
+                      {product.discount_percentage && product.discount_percentage > 0 ? (
+                        <div className="flex flex-col gap-1">
+                          <span className="inline-block bg-red-500 text-white text-xs font-bold px-2 py-1 rounded w-fit">
+                            -{product.discount_percentage}%
+                          </span>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-2xl font-bold text-green-600">
+                              {(product.discounted_price || 0).toFixed(2)}€
+                            </span>
+                            <span className="text-sm text-red-500 line-through">
+                              {product.price.toFixed(2)}€
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-2xl font-bold text-orange-600">
+                          {product.price.toFixed(2)}€
+                        </div>
+                      )}
                       
                       <Link
                         href={`/product/${product.slug}`}

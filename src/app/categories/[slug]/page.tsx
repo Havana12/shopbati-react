@@ -23,6 +23,8 @@ interface Product {
   stock?: number
   brand?: string
   reference?: string
+  discount_percentage?: number
+  discounted_price?: number
   $createdAt: string
   $updatedAt: string
 }
@@ -257,10 +259,15 @@ export default function CategoryPage() {
   }
 
   const handleAddToCart = (product: Product) => {
+    // Use discounted price if available, otherwise use original price
+    const finalPrice = (product.discount_percentage && product.discount_percentage > 0 && product.discounted_price)
+      ? product.discounted_price
+      : product.price
+    
     addItem({
       $id: product.$id,
       name: product.name,
-      price: product.price,
+      price: finalPrice,
       image_url: product.image_url,
       brand: product.brand,
       category_name: product.category_name,
@@ -392,13 +399,40 @@ export default function CategoryPage() {
                   {/* Contenu sous l'image */}
                   <div className="p-3">
                     {/* Prix */}
-                    <div className="flex items-baseline justify-between mb-3">
-                      <span className="text-xl font-bold text-orange-600">
-                        {(product.price || 0).toFixed(2)}€
-                      </span>
-                      <span className="text-xs text-gray-500 uppercase tracking-wide">
-                        TTC
-                      </span>
+                    <div className="flex flex-col gap-2 mb-3">
+                      {product.discount_percentage && product.discount_percentage > 0 ? (
+                        <>
+                          {/* Badge de réduction */}
+                          <div className="flex items-center gap-2">
+                            <span className="inline-block bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+                              -{product.discount_percentage}%
+                            </span>
+                          </div>
+                          {/* Prix avec réduction */}
+                          <div className="flex items-baseline gap-3">
+                            <span className="text-xl font-bold text-green-600">
+                              {(product.discounted_price || 0).toFixed(2)}€
+                            </span>
+                            <span className="text-sm text-red-500 line-through">
+                              {(product.price || 0).toFixed(2)}€
+                            </span>
+                          </div>
+                          <span className="text-xs text-gray-500 uppercase tracking-wide">
+                            TTC
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-xl font-bold text-orange-600">
+                              {(product.price || 0).toFixed(2)}€
+                            </span>
+                            <span className="text-xs text-gray-500 uppercase tracking-wide">
+                              TTC
+                            </span>
+                          </div>
+                        </>
+                      )}
                     </div>
                     
                     {/* Contrôles de quantité - centrés */}

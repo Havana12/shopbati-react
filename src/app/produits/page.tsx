@@ -224,10 +224,15 @@ function ProduitsPageContent() {
   }
 
   const handleAddToCart = (product: Product) => {
+    // Use discounted price if available, otherwise use original price
+    const finalPrice = (product.discount_percentage && product.discount_percentage > 0 && product.discounted_price)
+      ? product.discounted_price
+      : product.price
+    
     addItem({
       $id: product.$id,
       name: product.name,
-      price: product.price,
+      price: finalPrice,
       image_url: product.image_url,
       brand: product.brand,
       category_name: product.category_name,

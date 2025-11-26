@@ -27,6 +27,8 @@ interface Product {
   weight?: number
   dimensions?: string
   reference?: string
+  discount_percentage?: number
+  discounted_price?: number
 }
 
 interface RelatedProduct {
@@ -118,11 +120,16 @@ export default function ProductDetailPage() {
   }
 
   const handleAddToCart = (product: Product) => {
+    // Use discounted price if available, otherwise use original price
+    const finalPrice = (product.discount_percentage && product.discount_percentage > 0 && product.discounted_price)
+      ? product.discounted_price
+      : product.price
+    
     for (let i = 0; i < quantity; i++) {
       addItem({
         $id: product.$id,
         name: product.name,
-        price: product.price,
+        price: finalPrice,
         image_url: product.image_url,
         brand: product.brand,
         category_name: product.category_name,
@@ -271,10 +278,29 @@ export default function ProductDetailPage() {
                     <i className="fas fa-tag mr-2"></i>Marque: <span className="font-semibold">{product.brand}</span>
                   </p>
                 )}
-                <div className="text-4xl font-bold text-green-600 mb-6">
-                  {product.price.toFixed(2)}€
-                  <span className="text-sm text-gray-500 ml-2">TTC</span>
-                </div>
+                {product.discount_percentage && product.discount_percentage > 0 ? (
+                  <div className="mb-6">
+                    <div className="mb-2">
+                      <span className="inline-block bg-red-500 text-white text-sm font-bold px-3 py-1 rounded">
+                        -{product.discount_percentage}%
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-4xl font-bold text-green-600">
+                        {(product.discounted_price || 0).toFixed(2)}€
+                      </span>
+                      <span className="text-2xl text-red-500 line-through">
+                        {product.price.toFixed(2)}€
+                      </span>
+                      <span className="text-sm text-gray-500">TTC</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-4xl font-bold text-green-600 mb-6">
+                    {product.price.toFixed(2)}€
+                    <span className="text-sm text-gray-500 ml-2">TTC</span>
+                  </div>
+                )}
               </div>
 
               {/* Stock Status */}
@@ -470,9 +496,25 @@ export default function ProductDetailPage() {
                         {relatedProduct.name}
                       </h3>
                       <div className="flex items-center justify-between">
-                        <span className="text-lg font-bold text-green-600">
-                          {relatedProduct.price.toFixed(2)}€
-                        </span>
+                        {relatedProduct.discount_percentage && relatedProduct.discount_percentage > 0 ? (
+                          <div className="flex flex-col gap-1">
+                            <span className="inline-block bg-red-500 text-white text-xs font-bold px-2 py-1 rounded w-fit">
+                              -{relatedProduct.discount_percentage}%
+                            </span>
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-lg font-bold text-green-600">
+                                {(relatedProduct.discounted_price || 0).toFixed(2)}€
+                              </span>
+                              <span className="text-sm text-red-500 line-through">
+                                {relatedProduct.price.toFixed(2)}€
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-lg font-bold text-green-600">
+                            {relatedProduct.price.toFixed(2)}€
+                          </span>
+                        )}
                         <Link 
                           href={`/product/${relatedProduct.slug || relatedProduct.$id}`}
                           className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm transition-colors"

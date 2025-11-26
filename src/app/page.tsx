@@ -31,6 +31,8 @@ interface Product {
   featured?: boolean
   created_at?: string
   reference?: string
+  discount_percentage?: number
+  discounted_price?: number
 }
 
 export default function HomePage() {
@@ -382,13 +384,40 @@ export default function HomePage() {
                     )}
                     
                     {/* Prix */}
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-xl font-bold text-brand-600">
-                        {(product.price || 0).toFixed(2)}€
-                      </span>
-                      <span className="text-xs text-neutral-500 uppercase tracking-wide">
-                        TTC
-                      </span>
+                    <div className="flex flex-col gap-2">
+                      {product.discount_percentage && product.discount_percentage > 0 ? (
+                        <>
+                          {/* Badge de réduction */}
+                          <div className="flex items-center gap-2">
+                            <span className="inline-block bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+                              -{product.discount_percentage}%
+                            </span>
+                          </div>
+                          {/* Prix avec réduction */}
+                          <div className="flex items-baseline gap-3">
+                            <span className="text-2xl font-bold text-green-600">
+                              {(product.discounted_price || 0).toFixed(2)}€
+                            </span>
+                            <span className="text-sm text-red-500 line-through">
+                              {(product.price || 0).toFixed(2)}€
+                            </span>
+                          </div>
+                          <span className="text-xs text-neutral-500 uppercase tracking-wide">
+                            TTC
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-xl font-bold text-brand-600">
+                              {(product.price || 0).toFixed(2)}€
+                            </span>
+                            <span className="text-xs text-neutral-500 uppercase tracking-wide">
+                              TTC
+                            </span>
+                          </div>
+                        </>
+                      )}
                     </div>
                     
                     {/* Bouton */}
