@@ -23,6 +23,8 @@ interface Product {
   stock?: number
   brand?: string
   reference?: string
+  discount_percentage?: number
+  discounted_price?: number
   $createdAt: string
   $updatedAt: string
 }
