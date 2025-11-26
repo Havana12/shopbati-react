@@ -31,8 +31,9 @@ export default function DiscountByCategory({ onDiscountApplied }: DiscountByCate
         appwrite.Query.orderAsc('name'),
         appwrite.Query.limit(200)
       ])
-      // ALL categories (parents AND subcategories) for better granularity
-      setCategories(result.documents as unknown as Category[])
+      // Only parent categories (no subcategories)
+      const parents = result.documents.filter((cat: any) => !cat.parent_id)
+      setCategories(parents as unknown as Category[])
     } catch (error) {
       console.error('Error fetching categories:', error)
     }
