@@ -37,6 +37,8 @@ interface RelatedProduct {
   price: number
   image_url?: string
   slug?: string
+  discount_percentage?: number
+  discounted_price?: number
 }
 
 export default function ProductDetailPage() {
